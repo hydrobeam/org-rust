@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
 
 use types::{Node, ParseOpts};
 
@@ -52,7 +53,6 @@ pub fn parse_org(input_text: &str) -> Node {
     let byte_arr = input_text.as_bytes();
     let index = 0;
     let parse_opts = ParseOpts::default();
-    dbg!(parse_opts);
 
     let mut content_vec: Vec<Node> = Vec::new();
     let mut idx = index;
@@ -60,7 +60,6 @@ pub fn parse_org(input_text: &str) -> Node {
     loop {
         match parse_element(byte_arr, idx, parse_opts) {
             Ok(inner) => {
-                dbg!(&inner);
                 idx = inner.get_end();
                 content_vec.push(inner);
                 // break;

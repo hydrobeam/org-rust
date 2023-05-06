@@ -1,39 +1,25 @@
 use crate::{
-    parse::{parse_element, parse_object},
+    parse::parse_object,
     types::{Leaf, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
 };
-use bitflags::bitflags;
 
 #[derive(Debug)]
-
-pub struct Italic<'a> {
-    contents: Vec<Node<'a>>,
-}
+pub struct Italic<'a>(Vec<Node<'a>>);
 
 #[derive(Debug)]
-pub struct Bold<'a> {
-    contents: Vec<Node<'a>>,
-}
+pub struct Bold<'a>(Vec<Node<'a>>);
 
 #[derive(Debug)]
-pub struct StrikeThrough<'a> {
-    contents: Vec<Node<'a>>,
-}
+pub struct StrikeThrough<'a>(Vec<Node<'a>>);
 
 #[derive(Debug)]
-pub struct Underline<'a> {
-    contents: Vec<Node<'a>>,
-}
+pub struct Underline<'a>(Vec<Node<'a>>);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Verbatim<'a> {
-    contents: &'a str,
-}
+pub struct Verbatim<'a>(&'a str);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Code<'a> {
-    contents: &'a str,
-}
+pub struct Code<'a>(&'a str);
 
 impl<'a> Parseable<'a> for Italic<'a> {
     fn parse(byte_arr: &'a [u8], index: usize, mut parse_opts: ParseOpts) -> Result<Node> {
@@ -49,13 +35,7 @@ impl<'a> Parseable<'a> for Italic<'a> {
                     if let Leaf::MarkupEnd(kind) = leaf.obj {
                         idx = leaf.end;
                         if kind.contains(MarkupKind::Italic) {
-                            return Ok(Node::make_branch(
-                                Self {
-                                    contents: content_vec,
-                                },
-                                index,
-                                idx,
-                            ));
+                            return Ok(Node::make_branch(Self(content_vec), index, idx));
                         } else {
                             return Err(MatchError::InvalidLogic);
                         }

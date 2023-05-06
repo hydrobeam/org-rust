@@ -1,25 +1,16 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::constants::*;
-use bitflags::bitflags;
 
 use crate::element::{Block, Comment, Heading, Keyword, Paragraph};
 use crate::object::{Bold, InlineSrc, Italic, Link, Verbatim};
 use crate::types::{Leaf, MarkupKind, Match, MatchError, Node, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, variant_eq, verify_markup, word};
+use crate::utils::{bytes_to_str, fn_until, variant_eq, verify_markup};
 
-pub(crate) fn parse_element(
-    byte_arr: &[u8],
-    index: usize,
-    mut parse_opts: ParseOpts,
-) -> Result<Node> {
+pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
     // dbg!("testing");
     // let meow = byte_arr.get(index).ok_or(MatchError)?;
     if let None = byte_arr.get(index) {
         return Err(MatchError::EofError);
     }
-    dbg!("never");
     assert!(index < byte_arr.len());
     match byte_arr[index] {
         // STAR => {
@@ -74,15 +65,8 @@ fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Match<Lea
     let mut idx = index;
     // let ret = *byte_arr.get(index).ok_or(MatchError)?;
     loop {
-        // match parse_object(byte_arr, idx, parse_opts) {
-        //     Ok(val) =>  {
-        //         val.
-        //     }
-        //     Err(_) => todo!(),
-        // }
         match parse_object(byte_arr, idx, parse_opts) {
-            Ok(_) => break,
-            Err(MatchError::EofError) => break,
+            Ok(_) | Err(MatchError::EofError) => break,
             Err(MatchError::InvalidLogic) => {
                 idx += 1;
             }
@@ -205,9 +189,7 @@ fn parse_paragraph(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Resu
     }
 
     Ok(Node::make_branch(
-        Paragraph {
-            contents: content_vec,
-        },
+        Paragraph(content_vec),
         index,
         idx + 1, // newline
     ))

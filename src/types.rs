@@ -1,20 +1,55 @@
 use derive_more::From;
 use std::cell::RefCell;
-use std::error::Error;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use crate::element::{Block, Heading, Keyword, Paragraph};
 use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
 use bitflags::bitflags;
-use std::ops::Deref;
 
-// #[derive(Debug)]
-// pub struct MatchError;
-// impl Error for MatchError {}
+pub enum Node<'a> {
+    Leaf(Match<Leaf<'a>>),
+    Branch(Rc<RefCell<Match<Branch<'a>>>>),
+}
 
-// #[derive(Debug)]
-// pub struct EofError;
-// impl Error for EofError {}
+#[derive(From)]
+pub enum Branch<'a> {
+    Root(Vec<Node<'a>>),
+    Keyword(Keyword<'a>),
+    Heading(Heading<'a>),
+    Block(Block<'a>),
+    Link(Link<'a>),
+    Paragraph(Paragraph<'a>),
+    Italic(Italic<'a>),
+    Bold(Bold<'a>),
+    StrikeThrough(StrikeThrough<'a>),
+    Underline(Underline<'a>),
+}
+
+#[derive(Clone, Copy, From)]
+pub enum Leaf<'a> {
+    Plain(&'a str),
+    SoftBreak,
+    Eof,
+    MarkupEnd(MarkupKind),
+    InlineSrc(InlineSrc<'a>),
+    Verbatim(Verbatim<'a>),
+    Code(Code<'a>),
+}
+
+pub type Result<T> = std::result::Result<T, MatchError>;
+pub type Cache<'a> = RefCell<std::collections::HashMap<usize, Node<'a>>>;
+
+// TODO: maybe make all fields bitflags for space optimization
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ParseOpts {
+    pub allow_newline: bool,
+    pub from_paragraph: bool,
+    pub prev_newline: bool,
+    pub from_object: bool,
+    pub in_link: bool,
+    pub markup: MarkupKind,
+}
 
 #[derive(Debug)]
 pub enum MatchError {
@@ -22,45 +57,11 @@ pub enum MatchError {
     EofError,
 }
 
-pub type Result<T> = std::result::Result<T, MatchError>;
-
-// #[derive(Debug)]
-// pub struct ParseNode<'a>(pub Rc<RefCell<Match<Node<'a>>>>);
-
-pub type Cache<'a> = RefCell<std::collections::HashMap<usize, Node<'a>>>;
-
-// impl<'a> Node<'a> {
-//     pub fn new(node: Match<Node<'a>>) -> Self {
-//         Node(Rc::new(RefCell::new(node)))
-//     }
-
-//     // pub fn get_obj(&self) -> &Node {
-//     //     &self.borrow().obj
-//     // }
-
-//     // pub fn clone(&self) -> ParseNode {
-//     //     ParseNode(Rc::clone(&self))
-//     // }
-// }
-
-// impl<'a> Deref for Node<'a> {
-//     type Target = Rc<RefCell<Match<Node<'a>>>>;
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
-
 impl std::fmt::Display for MatchError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "unsuccesful match")
     }
 }
-
-// impl std::fmt::Display for EofError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "end of file")
-//     }
-// }
 
 bitflags! {
     #[derive(Debug, Clone, Copy, Default)]
@@ -75,12 +76,6 @@ bitflags! {
         const LinkDescBegin = 1 << 7;
         const LinkEnd       = 1 << 8;
     }
-}
-
-#[derive(Debug)]
-pub enum Node<'a> {
-    Leaf(Match<Leaf<'a>>),
-    Branch(Rc<RefCell<Match<Branch<'a>>>>),
 }
 
 impl<'a> Node<'a> {
@@ -106,13 +101,6 @@ impl<'a> Node<'a> {
         })
     }
 
-    pub fn clone(self) -> Node<'a> {
-        match self {
-            Node::Branch(val) => Node::Branch(val.clone()),
-            Node::Leaf(val) => Node::Leaf(val),
-        }
-    }
-
     pub fn get_start(&self) -> usize {
         match self {
             Node::Leaf(val) => val.start,
@@ -127,63 +115,7 @@ impl<'a> Node<'a> {
     }
 }
 
-// impl<'a> From<Link<'a>> for Branch<'a> {
-//     fn from(value: Link<'a>) -> Self {
-//         Branch::Link(value)
-//     }
-// }
-
-// impl<'a> From<Keyword<'a>> for Branch<'a> {
-//     fn from(value: Keyword<'a>) -> Self {
-//         Branch::Keyword(value)
-//     }
-// }
-// impl<'a> From<Paragraph<'a>> for Branch<'a> {
-//     fn from(value: Paragraph<'a>) -> Self {
-//         Branch::Paragraph(value)
-//     }
-// }
-
-// impl<'a> From<Heading<'a>> for Branch<'a> {
-//     fn from(value: Heading<'a>) -> Self {
-//         Branch::Heading(value)
-//     }
-// }
-
-#[derive(Debug, From)]
-pub enum Branch<'a> {
-    Root(Vec<Node<'a>>),
-    Keyword(Keyword<'a>),
-    Heading(Heading<'a>),
-    Block(Block<'a>),
-    Link(Link<'a>),
-    Paragraph(Paragraph<'a>),
-    Italic(Italic<'a>),
-    Bold(Bold<'a>),
-    StrikeThrough(StrikeThrough<'a>),
-    Underline(Underline<'a>),
-}
-
-
-#[derive(Debug, Clone, Copy, From)]
-pub enum Leaf<'a> {
-    Plain(&'a str),
-    SoftBreak,
-    Eof,
-    MarkupEnd(MarkupKind),
-    InlineSrc(InlineSrc<'a>),
-    Verbatim(Verbatim<'a>),
-    Code(Code<'a>),
-}
-
-// #[derive(Debug)]
-// pub enum ObjectMinimal<'a> {
-//     Plain(&'a str),
-//     Markup(MarkupKind, Vec<ObjectMinimal<'a>>),
-//     // Entity(StrType)
-// }
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Match<T> {
     pub obj: T,
     pub start: usize,
@@ -197,13 +129,58 @@ pub(crate) trait Parseable<'a> {
     fn parse(byte_arr: &'a [u8], index: usize, parse_opts: ParseOpts) -> Result<Node>;
 }
 
-// TODO: maybe make all fields bitflags for space optimization
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ParseOpts {
-    pub allow_newline: bool,
-    pub from_paragraph: bool,
-    pub prev_newline: bool,
-    pub from_object: bool,
-    pub in_link: bool,
-    pub markup: MarkupKind,
+// Custom Debug Impls
+//
+// We don't use the default debug impls becaus the
+// Rc<RefCell<Match<Node::Branch(Branch::Paragraph(...))>>>
+//
+// ... levels of indirection make it impossible to digest the output.
+
+impl<'a> std::fmt::Debug for Node<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Whether something is a leaf or a branch is pretty internal, don't bother
+        // with exposing this in debugging output
+        //
+        // Skip over the Match struct since the start/end values really clutter the output
+        match self {
+            Node::Leaf(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+            Node::Branch(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl<'a> std::fmt::Debug for Branch<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // These enum variants have types which have the same name as themselves
+        // Branch::Paragraph(Paragraph(...)) is a lot of extra noise vs just Paragraph(...)
+        match self {
+            Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:#?}", inner)),
+            Branch::Keyword       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Heading       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Block         (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Link          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Italic        (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Bold          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Branch::Underline     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl<'a> std::fmt::Debug for Leaf<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // These enum variants have types which have the same name as themselves
+        match self {
+            Leaf::Plain(inner)     => f.write_fmt(format_args!("{:#?}", inner)),
+            Leaf::SoftBreak        => f.write_str("SoftBreak"),
+            Leaf::Eof              => f.write_str("EOF"),
+            Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
+            Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
+        }
+    }
 }
