@@ -101,7 +101,8 @@ mod tests {
     fn test_basic_markup() {
         let inp = "hello /italic/ more text after\n";
 
-        dbg!(parse_org(inp));
+        // dbg!(parse_org(inp));
+        println!("{:?}", parse_org(inp));
     }
 
     // #[test]

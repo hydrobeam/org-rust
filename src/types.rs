@@ -142,9 +142,16 @@ impl<'a> std::fmt::Debug for Node<'a> {
         // with exposing this in debugging output
         //
         // Skip over the Match struct since the start/end values really clutter the output
-        match self {
-            Node::Leaf(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
-            Node::Branch(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+        if f.alternate() {
+            match self {
+                Node::Leaf(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::Branch(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+            }
+        } else {
+            match self {
+                Node::Leaf(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::Branch(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+            }
         }
     }
 }
@@ -154,17 +161,33 @@ impl<'a> std::fmt::Debug for Branch<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // These enum variants have types which have the same name as themselves
         // Branch::Paragraph(Paragraph(...)) is a lot of extra noise vs just Paragraph(...)
-        match self {
-            Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:#?}", inner)),
-            Branch::Keyword       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Heading       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Block         (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Link          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Italic        (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Bold          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Branch::Underline     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+
+        if f.alternate() {
+            match self {
+                Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:#?}", inner)),
+                Branch::Keyword       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Heading       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Block         (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Link          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Italic        (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Bold          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Branch::Underline     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
+            }
+        } else {
+            match self {
+                Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:?}", inner)),
+                Branch::Keyword       (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Heading       (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Block         (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Link          (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Italic        (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Bold          (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Branch::Underline     (inner) => f.write_fmt(format_args!("{:?}", inner)),
+            }
         }
     }
 }
@@ -173,14 +196,28 @@ impl<'a> std::fmt::Debug for Branch<'a> {
 impl<'a> std::fmt::Debug for Leaf<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // These enum variants have types which have the same name as themselves
-        match self {
-            Leaf::Plain(inner)     => f.write_fmt(format_args!("{:#?}", inner)),
-            Leaf::SoftBreak        => f.write_str("SoftBreak"),
-            Leaf::Eof              => f.write_str("EOF"),
-            Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
-            Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
+
+        if f.alternate() {
+            match self {
+                Leaf::Plain(inner)     => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::SoftBreak        => f.write_str("SoftBreak"),
+                Leaf::Eof              => f.write_str("EOF"),
+                Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
+            }
+        } else {
+
+            match self {
+                Leaf::Plain(inner)     => f.write_fmt(format_args!("{:?}", inner)),
+                Leaf::SoftBreak        => f.write_str("SoftBreak"),
+                Leaf::Eof              => f.write_str("EOF"),
+                Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:?}", inner)),
+                Leaf::Code(inner)      => f.write_fmt(format_args!("{:?}", inner)),
+            }
         }
     }
 }
