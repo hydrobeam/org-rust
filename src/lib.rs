@@ -105,13 +105,19 @@ mod tests {
         println!("{:?}", parse_org(inp));
     }
 
-    // #[test]
-    // fn it_works() {
-    //     let ream: Regex = Regex::new(r"#\+begin_src\n(?P<source>.*)\n#\+end_src").unwrap();
-    //     dbg!(ream
-    //         .captures_iter(
-    //             "#+begin_src\nmeowow\n#+end_src\n#+begin_src\n notmatchplease\n#+end_src"
-    //         )
-    //         .collect::<Vec<_>>());
-    // }
+    #[test]
+    fn test_newline_in_italic() {
+        let inp = "hello /italic \n newline/ more text after\n";
+
+        // dbg!(parse_org(inp));
+        println!("{:?}", parse_org(inp));
+    }
+
+    #[test]
+    fn test_newline_in_verbatim() {
+        let inp = "hello =italic \n newline= more text after\n";
+
+        // dbg!(parse_org(inp));
+        println!("{:?}", parse_org(inp));
+    }
 }

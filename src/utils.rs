@@ -97,29 +97,37 @@ pub fn variant_eq<'t>(a: &Node<'t>, b: &Node<'t>) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
-// pub fn both_plain<'t>(a: &Node<'t>, b: &Node<'t>) -> bool {
-//     variant_eq(a, &Node::Plain("_")) && variant_eq(b, &Node::Plain("_"))
-// }
-
 pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
     // REVIEW: consider  {pre/ap}pending bof/eof to not need to check
     // and to handle improperly terminated files
     // concern: this might require a copy?
 
-    // can fail, file can start with markup
-    let before = byte_arr.get(index - 1);
-    // can't fail, file must end in a newline
-    let after = byte_arr[index + 1];
+    let before = if index == 0 {
+        None
+    } else {
+        Some(byte_arr[index - 1])
+    };
+
+    let after = if index + 1 >= byte_arr.len() {
+        None
+    } else {
+        Some(byte_arr[index + 1])
+    };
+
 
     if post {
         // if we're in post, then a character before the markup Must Exist
-        MARKUP_POST.contains(&after) && !before.unwrap().is_ascii_whitespace()
+        if let Some(ref val) = after {
+            MARKUP_POST.contains(val) && !before.unwrap().is_ascii_whitespace()
+        } else {
+            !before.unwrap().is_ascii_whitespace()
+        }
     } else {
-        if let Some(val) = before {
-            MARKUP_PRE.contains(val) && !after.is_ascii_whitespace()
+        if let Some(ref val) = before {
+            MARKUP_PRE.contains(val) && !after.unwrap().is_ascii_whitespace()
         } else {
             // bof is always valid
-            !after.is_ascii_whitespace()
+            !after.unwrap().is_ascii_whitespace()
         }
     }
 }

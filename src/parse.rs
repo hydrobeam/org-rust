@@ -1,7 +1,9 @@
+use std::arch::x86_64::_MM_MASK_UNDERFLOW;
+
 use crate::constants::*;
 
 use crate::element::{Block, Comment, Heading, Keyword, Paragraph};
-use crate::object::{Bold, InlineSrc, Italic, Link, Verbatim};
+use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Leaf, MarkupKind, Match, MatchError, Node, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, fn_until, variant_eq, verify_markup};
 
@@ -80,6 +82,23 @@ fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Match<Lea
     }
 }
 
+macro_rules! handle_markup {
+    ($name: tt, $byte_arr: ident, $index: ident, $parse_opts: ident) => {
+        if $parse_opts.markup.contains(MarkupKind::$name) && verify_markup($byte_arr, $index, true)
+        {
+            return Ok(Node::make_leaf(MarkupKind::$name, $index, $index + 1));
+        } else if verify_markup($byte_arr, $index, false) {
+            let mut new_opts = $parse_opts.clone();
+
+            new_opts.from_object = false;
+            new_opts.markup = MarkupKind::$name;
+            if let ret @ Ok(_) = $name::parse($byte_arr, $index, new_opts) {
+                return ret;
+            }
+        }
+    };
+}
+
 pub(crate) fn parse_object(
     byte_arr: &[u8],
     index: usize,
@@ -91,49 +110,30 @@ pub(crate) fn parse_object(
     assert!(index < byte_arr.len());
 
     match byte_arr[index] {
-        LBRACK => {
-            if let ret @ Ok(_) = Link::parse(byte_arr, index, parse_opts) {
+        SLASH => {
+            handle_markup!(Italic, byte_arr, index, parse_opts);
+        }
+        STAR => {
+            handle_markup!(Bold, byte_arr, index, parse_opts);
+        }
+        UNDERSCORE => {
+            handle_markup!(Underline, byte_arr, index, parse_opts);
+        }
+        PLUS => {
+            handle_markup!(StrikeThrough, byte_arr, index, parse_opts);
+        }
+        EQUAL => {
+            if let ret @ Ok(_) = Verbatim::parse(byte_arr, index, parse_opts) {
                 return ret;
             }
         }
-        SLASH => {
-            if parse_opts.markup.contains(MarkupKind::Italic)
-                && verify_markup(byte_arr, index, true)
-            {
-                return Ok(Node::make_leaf(MarkupKind::Italic, index, index + 1));
-            } else if verify_markup(byte_arr, index, false) {
-                let mut new_opts = parse_opts.clone();
-
-                new_opts.from_object = false;
-                new_opts.markup = MarkupKind::Italic;
-                if let ret @ Ok(_) = Italic::parse(byte_arr, index, new_opts) {
-                    return ret;
-                }
+        TILDE => {
+            if let ret @ Ok(_) = Code::parse(byte_arr, index, parse_opts) {
+                return ret;
             }
         }
-        STAR => {
-            if parse_opts.markup.contains(MarkupKind::Bold) && verify_markup(byte_arr, index, true)
-            {
-                return Ok(Node::make_leaf(MarkupKind::Bold, index, index + 1));
-            }
-
-            let mut new_opts = parse_opts.clone();
-
-            new_opts.from_object = false;
-            new_opts.markup = MarkupKind::Bold;
-            if verify_markup(byte_arr, index, false) {
-                if let ret @ Ok(_) = Bold::parse(byte_arr, index, new_opts) {
-                    return ret;
-                }
-            }
-        }
-        EQUAL => {
-            let mut new_opts = parse_opts.clone();
-
-            new_opts.from_object = false;
-            new_opts.markup = MarkupKind::Verbatim;
-
-            if let ret @ Ok(_) = Verbatim::parse(byte_arr, index, new_opts) {
+        LBRACK => {
+            if let ret @ Ok(_) = Link::parse(byte_arr, index, parse_opts) {
                 return ret;
             }
         }
@@ -193,15 +193,4 @@ fn parse_paragraph(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Resu
         index,
         idx + 1, // newline
     ))
-    // match byte_arr[index] {
-    //     NEWLINE => {
-    //         parse_opts.from_paragraph = true;
-    //         if let Err(_) = parse_element(byte_arr, index, parse_opts) {
-    //         } else {
-    //             return Err(MatchError);
-    //         }
-    //     }
-    //     _ => {}
-    // }
-    // todo!()
 }
