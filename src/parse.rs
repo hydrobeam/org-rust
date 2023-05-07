@@ -14,6 +14,7 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
         return Err(MatchError::EofError);
     }
     assert!(index < byte_arr.len());
+
     match byte_arr[index] {
         // STAR => {
         //     if let ret @ Ok(_) = Heading::parse(byte_arr, index, parse_opts) {
@@ -22,17 +23,18 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
         //         return parse_paragraph(byte_arr, index, parse_opts);
         //     }
         // }
-        // POUND => {
-        //     if let Ok(keyword) = Keyword::parse(byte_arr, index, parse_opts) {
-        //         // return r;
-        //     } else if let Ok(block) = Block::parse(byte_arr, index, parse_opts) {
-        //         // return r;
-        //     } else if let (comment) = Comment::parse(byte_arr, index, parse_opts) {
-        //         // return r;
-        //     } else {
-        //     }
-        //     // ret = Block::carse(byte_arr, index);
-        // }
+        POUND => {
+            if let ret @ Ok(_) = Keyword::parse(byte_arr, index, parse_opts) {
+                return ret;
+            }
+            // else if let Ok(block) = Block::parse(byte_arr, index, parse_opts) {
+            //     // return r;
+            // } else if let (comment) = Comment::parse(byte_arr, index, parse_opts) {
+            //     // return r;
+            // } else {
+            // }
+            // ret = Block::carse(byte_arr, index);
+        }
         // VBAR => {
         //     if let Ok(table) = Table::parse(byte_arr, index) {
         //     } else {
@@ -51,15 +53,14 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
         //     }
         // }
         // _ => parse_paragraph(byte_arr, index, parse_opts),
-        _ => {
-            if !parse_opts.from_paragraph {
-                parse_paragraph(byte_arr, index, parse_opts)
-            } else {
-                Err(MatchError::InvalidLogic)
-            }
-        }
+        _ => {}
     }
 
+    if !parse_opts.from_paragraph {
+        return parse_paragraph(byte_arr, index, parse_opts);
+    } else {
+        return Err(MatchError::InvalidLogic);
+    }
     // todo!()
 }
 

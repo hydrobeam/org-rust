@@ -15,7 +15,7 @@ mod types;
 mod utils;
 
 #[rustfmt::skip]
-pub mod constants {
+pub(crate) mod constants {
     pub const SLASH       : u8 = b'/';
     pub const STAR        : u8 = b'*';
     pub const POUND       : u8 = b'#';

@@ -35,6 +35,7 @@ pub enum Leaf<'a> {
     InlineSrc(InlineSrc<'a>),
     Verbatim(Verbatim<'a>),
     Code(Code<'a>),
+    Keyword(Keyword<'a>)
 }
 
 pub type Result<T> = std::result::Result<T, MatchError>;
@@ -115,7 +116,7 @@ impl<'a> Node<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Match<T> {
     pub obj: T,
     pub start: usize,
@@ -206,9 +207,9 @@ impl<'a> std::fmt::Debug for Leaf<'a> {
                 Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
                 Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
             }
         } else {
-
             match self {
                 Leaf::Plain(inner)     => f.write_fmt(format_args!("{:?}", inner)),
                 Leaf::SoftBreak        => f.write_str("SoftBreak"),
@@ -217,6 +218,7 @@ impl<'a> std::fmt::Debug for Leaf<'a> {
                 Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:?}", inner)),
                 Leaf::Code(inner)      => f.write_fmt(format_args!("{:?}", inner)),
+                Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
             }
         }
     }
