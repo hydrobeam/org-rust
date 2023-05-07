@@ -29,9 +29,12 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
             }
             // else if let Ok(block) = Block::parse(byte_arr, index, parse_opts) {
             //     // return r;
-            // } else if let (comment) = Comment::parse(byte_arr, index, parse_opts) {
-            //     // return r;
-            // } else {
+            else if let ret @ Ok(_) = Comment::parse(byte_arr, index, parse_opts) {
+                return ret;
+            }
+
+
+            // else {
             // }
             // ret = Block::carse(byte_arr, index);
         }

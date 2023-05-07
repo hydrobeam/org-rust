@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use crate::element::{Block, Heading, Keyword, Paragraph};
+use crate::element::{Block, Comment, Heading, Keyword, Paragraph};
 use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
 use bitflags::bitflags;
 
@@ -35,7 +35,8 @@ pub enum Leaf<'a> {
     InlineSrc(InlineSrc<'a>),
     Verbatim(Verbatim<'a>),
     Code(Code<'a>),
-    Keyword(Keyword<'a>)
+    Keyword(Keyword<'a>),
+    Comment(Comment<'a>),
 }
 
 pub type Result<T> = std::result::Result<T, MatchError>;
@@ -208,6 +209,7 @@ impl<'a> std::fmt::Debug for Leaf<'a> {
                 Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
                 Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
                 Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::Comment(inner)   => f.write_fmt(format_args!("{:?}", inner)),
             }
         } else {
             match self {
@@ -219,6 +221,7 @@ impl<'a> std::fmt::Debug for Leaf<'a> {
                 Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:?}", inner)),
                 Leaf::Code(inner)      => f.write_fmt(format_args!("{:?}", inner)),
                 Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
+                Leaf::Comment(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
             }
         }
     }
