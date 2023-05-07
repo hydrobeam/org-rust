@@ -64,12 +64,13 @@ pub fn fn_until<'a>(
     let ret = byte_arr[index..]
         .iter()
         .position(|x| func(*x))
-        .ok_or(MatchError::EofError)?;
+        .ok_or(MatchError::EofError)?
+        + index;
 
     Ok(Match {
-        obj: bytes_to_str(&byte_arr[index..=ret]),
+        obj: bytes_to_str(&byte_arr[index..ret]),
         start: index,
-        end: ret + 1,
+        end: ret,
     })
 }
 
@@ -113,7 +114,6 @@ pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
     } else {
         Some(byte_arr[index + 1])
     };
-
 
     if post {
         // if we're in post, then a character before the markup Must Exist
