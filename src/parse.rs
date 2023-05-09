@@ -43,14 +43,32 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
         //     } else {
         //     }
         // }
-        // chr if chr.is_ascii_whitespace() => {
-        //     // TODO: idk
-        //     // read until a non ws or newline character is hit? if it's hit and we aren't in a special character,
-        //     // (.. i.e. just a list item pretty much?)
-        //     // then reset the index (or never update it anyways) and parse the line
-        //     //
-        //     //
-        // } // HYPHEN => {
+        chr if chr.is_ascii_whitespace() => {
+            {
+                let mut idx = index;
+                loop {
+                    let byte = byte_arr[idx];
+                    if byte.is_ascii_whitespace() {
+                        if byte == NEWLINE {
+                            return Ok(Node::make_leaf(BlankLine, index, idx + 1));
+                        } else {
+                            parse_opts.indentation_level += 1;
+                            idx += 1;
+                        }
+                    } else {
+                        // every element will explode if there's an indentation level
+                        // except for lsits
+                        if is_list_start(byte) {
+                            return PlainList::parse(byte_arr, idx, parse_opts);
+                        } else {
+                            return Err(MatchError::InvalidLogic);
+                        }
+                    }
+                }
+            }
+        }
+
+        // // HYPHEN => {
         //     if let Ok(list) = List::parse(byte_arr, index) {
         //     } else {
         //     }

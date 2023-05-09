@@ -51,6 +51,7 @@ pub(crate) struct ParseOpts {
     pub from_object: bool,
     pub in_link: bool,
     pub markup: MarkupKind,
+    pub indentation_level: u8,
 }
 
 #[derive(Debug)]
