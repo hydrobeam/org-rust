@@ -1,13 +1,19 @@
 use std::arch::x86_64::_MM_MASK_UNDERFLOW;
 
-use crate::constants::*;
+use crate::{constants::*, object};
 
-use crate::element::{Block, Comment, Heading, Keyword, Paragraph};
+use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
 use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
-use crate::types::{Leaf, MarkupKind, Match, MatchError, Node, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, variant_eq, verify_markup};
+use crate::types::{
+    BlankLine, MarkupKind, Match, MatchError, Node, ParseOpts, Parseable, Result, SoftBreak,
+};
+use crate::utils::{bytes_to_str, fn_until, is_list_start, variant_eq, verify_markup};
 
-pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
+pub(crate) fn parse_element(
+    byte_arr: &[u8],
+    index: usize,
+    mut parse_opts: ParseOpts,
+) -> Result<Node> {
     // dbg!("testing");
     // let meow = byte_arr.get(index).ok_or(MatchError)?;
     if let None = byte_arr.get(index) {
@@ -32,7 +38,6 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
             else if let ret @ Ok(_) = Comment::parse(byte_arr, index, parse_opts) {
                 return ret;
             }
-
 
             // else {
             // }
@@ -85,7 +90,7 @@ pub(crate) fn parse_element(byte_arr: &[u8], index: usize, parse_opts: ParseOpts
     // todo!()
 }
 
-fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Match<Leaf> {
+fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Node {
     let mut idx = index;
     // let ret = *byte_arr.get(index).ok_or(MatchError)?;
     loop {
@@ -97,11 +102,7 @@ fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Match<Lea
         }
     }
 
-    Match {
-        obj: Leaf::Plain(bytes_to_str(&byte_arr[index..idx])),
-        start: index,
-        end: idx,
-    }
+    Node::make_leaf(bytes_to_str(&byte_arr[index..idx]), index, idx)
 }
 
 macro_rules! handle_markup {
@@ -175,7 +176,7 @@ pub(crate) fn parse_object(
             match parse_element(byte_arr, index + 1, parse_opts) {
                 Ok(_) => return Err(MatchError::InvalidLogic),
                 Err(MatchError::InvalidLogic) => {
-                    return Ok(Node::make_leaf(Leaf::SoftBreak, index, index + 1))
+                    return Ok(Node::make_leaf(SoftBreak, index, index + 1))
                 }
                 Err(MatchError::EofError) => return Err(MatchError::EofError),
             }
@@ -187,7 +188,7 @@ pub(crate) fn parse_object(
         return Err(MatchError::InvalidLogic);
     } else {
         parse_opts.from_object = true;
-        return Ok(Node::Leaf(parse_text(byte_arr, index, parse_opts)));
+        return Ok(parse_text(byte_arr, index, parse_opts));
     }
 }
 

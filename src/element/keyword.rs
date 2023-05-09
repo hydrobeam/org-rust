@@ -21,7 +21,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         match byte_arr[key_word.end] {
             COLON => {
                 let val = fn_until(byte_arr, key_word.end + 1, |chr: u8| chr == b'\n')?;
-                Ok(Node::make_leaf(
+                Ok(Node::make_boxed_leaf(
                     Self {
                         key: key_word.obj,
                         // not mentioned in the spec, but org-element trims

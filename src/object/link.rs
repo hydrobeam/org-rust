@@ -1,6 +1,6 @@
 use crate::{
     parse::parse_object,
-    types::{Leaf, MarkupKind, Match, Node, ParseOpts, Parseable, Result},
+    types::{MarkupKind, Match, Node, ParseOpts, Parseable, Result},
 };
 
 #[derive(Debug)]
@@ -25,24 +25,19 @@ impl<'a> Parseable<'a> for Link<'a> {
         idx += 1;
         loop {
             match parse_object(byte_arr, idx, parse_opts) {
-                Ok(Node::Leaf(leaf)) => {
-                    if let Leaf::MarkupEnd(kind) = leaf.obj {
-                        idx = leaf.end;
-                        if kind.contains(MarkupKind::Link) {
-                            // close object
-                            todo!()
-                        } else {
-                            // TODO: cache and explode
-                            todo!()
-                        }
+                Ok(Node::MarkupEnd(leaf)) => {
+                    idx = leaf.end;
+                    if leaf.obj.contains(MarkupKind::Link) {
+                        // close object
+                        todo!()
                     } else {
-                        idx = leaf.end;
-                        content_vec.push(Node::Leaf(leaf))
+                        // TODO: cache and explode
+                        todo!()
                     }
                 }
-                Ok(Node::Branch(val)) => {
-                    idx = val.borrow().end;
-                    content_vec.push(Node::Branch(val))
+                Ok(val) => {
+                    idx = val.get_end();
+                    content_vec.push(val);
                 }
                 Err(_) => {
                     // cache and explode

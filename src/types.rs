@@ -3,41 +3,46 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use crate::element::{Block, Comment, Heading, Keyword, Paragraph};
+use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
 use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
 use bitflags::bitflags;
 
-pub enum Node<'a> {
-    Leaf(Match<Leaf<'a>>),
-    Branch(Rc<RefCell<Match<Branch<'a>>>>),
-}
+pub type BranchNode<T> = Rc<RefCell<Match<T>>>;
+pub type BoxLeafNode<T> = Box<Match<T>>;
+pub type LeafNode<T> = Match<T>;
+
+pub struct BlankLine;
+pub struct SoftBreak;
 
 #[derive(From)]
-pub enum Branch<'a> {
-    Root(Vec<Node<'a>>),
-    Keyword(Keyword<'a>),
-    Heading(Heading<'a>),
-    Block(Block<'a>),
-    Link(Link<'a>),
-    Paragraph(Paragraph<'a>),
-    Italic(Italic<'a>),
-    Bold(Bold<'a>),
-    StrikeThrough(StrikeThrough<'a>),
-    Underline(Underline<'a>),
+pub enum Node<'a> {
+    // Branch
+    Root(BranchNode<Vec<Node<'a>>>),
+    Heading(BranchNode<Heading<'a>>),
+    Block(BranchNode<Block<'a>>),
+    Link(BranchNode<Link<'a>>),
+    Paragraph(BranchNode<Paragraph<'a>>),
+    Italic(BranchNode<Italic<'a>>),
+    Bold(BranchNode<Bold<'a>>),
+    StrikeThrough(BranchNode<StrikeThrough<'a>>),
+    Underline(BranchNode<Underline<'a>>),
+    PlainList(BranchNode<PlainList<'a>>),
+
+    // Leaf
+    // ZST
+    BlankLine(LeafNode<BlankLine>),
+    SoftBreak(LeafNode<SoftBreak>),
+    // Normal
+    Plain(LeafNode<&'a str>),
+    MarkupEnd(LeafNode<MarkupKind>),
+    Verbatim(LeafNode<Verbatim<'a>>),
+    Code(LeafNode<Code<'a>>),
+    Comment(LeafNode<Comment<'a>>),
+    // Boxed
+    InlineSrc(BoxLeafNode<InlineSrc<'a>>),
+    Keyword(BoxLeafNode<Keyword<'a>>),
 }
 
-#[derive(Clone, Copy, From)]
-pub enum Leaf<'a> {
-    Plain(&'a str),
-    SoftBreak,
-    Eof,
-    MarkupEnd(MarkupKind),
-    InlineSrc(InlineSrc<'a>),
-    Verbatim(Verbatim<'a>),
-    Code(Code<'a>),
-    Keyword(Keyword<'a>),
-    Comment(Comment<'a>),
-}
 
 pub type Result<T> = std::result::Result<T, MatchError>;
 pub type Cache<'a> = RefCell<std::collections::HashMap<usize, Node<'a>>>;
@@ -84,10 +89,10 @@ bitflags! {
 impl<'a> Node<'a> {
     pub fn make_branch<T>(branch: T, start: usize, end: usize) -> Node<'a>
     where
-        Branch<'a>: From<T>,
+        Node<'a>: From<BranchNode<T>>,
     {
-        Node::Branch(Rc::new(RefCell::new(Match {
-            obj: Branch::from(branch),
+        Node::from(Rc::new(RefCell::new(Match {
+            obj: branch,
             start,
             end,
         })))
@@ -95,27 +100,75 @@ impl<'a> Node<'a> {
 
     pub fn make_leaf<T>(leaf: T, start: usize, end: usize) -> Node<'a>
     where
-        Leaf<'a>: From<T>,
+        Node<'a>: From<LeafNode<T>>,
     {
-        Node::Leaf(Match {
-            obj: Leaf::from(leaf),
+        Node::from(Match {
+            obj: leaf,
             start,
             end,
         })
     }
 
+    pub fn make_boxed_leaf<T>(leaf: T, start: usize, end: usize) -> Node<'a>
+    where
+        Node<'a>: From<BoxLeafNode<T>>,
+    {
+        Node::from(Box::new(Match {
+            obj: leaf,
+            start,
+            end,
+        }))
+    }
+
     pub fn get_start(&self) -> usize {
         match self {
-            Node::Leaf(val) => val.start,
-            Node::Branch(val) => val.borrow().start,
+            Node::Root(inner) => inner.borrow().start,
+            Node::Heading(inner) => inner.borrow().start,
+            Node::Block(inner) => inner.borrow().start,
+            Node::Link(inner) => inner.borrow().start,
+            Node::Paragraph(inner) => inner.borrow().start,
+            Node::Italic(inner) => inner.borrow().start,
+            Node::Bold(inner) => inner.borrow().start,
+            Node::StrikeThrough(inner) => inner.borrow().start,
+            Node::Underline(inner) => inner.borrow().start,
+            Node::PlainList(inner) => inner.borrow().start,
+
+            Node::BlankLine(inner) => inner.start,
+            Node::SoftBreak(inner) => inner.start,
+            Node::Plain(inner) => inner.start,
+            Node::MarkupEnd(inner) => inner.start,
+            Node::Verbatim(inner) => inner.start,
+            Node::Code(inner) => inner.start,
+            Node::Comment(inner) => inner.start,
+            Node::InlineSrc(inner) => inner.start,
+            Node::Keyword(inner) => inner.start,
         }
     }
     pub fn get_end(&self) -> usize {
         match self {
-            Node::Leaf(val) => val.end,
-            Node::Branch(val) => val.borrow().end,
+            Node::Root(inner) => inner.borrow().end,
+            Node::Heading(inner) => inner.borrow().end,
+            Node::Block(inner) => inner.borrow().end,
+            Node::Link(inner) => inner.borrow().end,
+            Node::Paragraph(inner) => inner.borrow().end,
+            Node::Italic(inner) => inner.borrow().end,
+            Node::Bold(inner) => inner.borrow().end,
+            Node::StrikeThrough(inner) => inner.borrow().end,
+            Node::Underline(inner) => inner.borrow().end,
+            Node::PlainList(inner) => inner.borrow().end,
+
+            Node::BlankLine(inner) => inner.end,
+            Node::SoftBreak(inner) => inner.end,
+            Node::Plain(inner) => inner.end,
+            Node::MarkupEnd(inner) => inner.end,
+            Node::Verbatim(inner) => inner.end,
+            Node::Code(inner) => inner.end,
+            Node::Comment(inner) => inner.end,
+            Node::InlineSrc(inner) => inner.end,
+            Node::Keyword(inner) => inner.end,
         }
     }
+
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -144,86 +197,62 @@ impl<'a> std::fmt::Debug for Node<'a> {
         // Whether something is a leaf or a branch is pretty internal, don't bother
         // with exposing this in debugging output
         //
+        // These enum variants have types which have the same name as themselves
+        // Branch::Paragraph(Paragraph(...)) is a lot of extra noise vs just Paragraph(...)
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
-                Node::Leaf(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
-                Node::Branch(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Root(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Heading(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Block(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Link(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Paragraph(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Italic(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::Bold(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::StrikeThrough(inner) => {
+                    f.write_fmt(format_args!("{:#?}", inner.borrow().obj))
+                }
+                Node::Underline(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+                Node::PlainList(inner) => f.write_fmt(format_args!("{:#?}", inner.borrow().obj)),
+
+                Node::BlankLine(_) => f.write_str("BlankLine"),
+                Node::SoftBreak(_) => f.write_str("SoftBreak"),
+                Node::Plain(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::Verbatim(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::Code(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::Comment(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
+                Node::Keyword(inner) => f.write_fmt(format_args!("{:#?}", inner.obj)),
             }
         } else {
             match self {
-                Node::Leaf(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
-                Node::Branch(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Root(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Heading(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Block(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Link(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Paragraph(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Italic(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Bold(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::StrikeThrough(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::Underline(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+                Node::PlainList(inner) => f.write_fmt(format_args!("{:?}", inner.borrow().obj)),
+
+                Node::BlankLine(_) => f.write_str("BlankLine"),
+                Node::SoftBreak(_) => f.write_str("SoftBreak"),
+                Node::Plain(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::MarkupEnd(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::Verbatim(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::Code(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::Comment(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::InlineSrc(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
+                Node::Keyword(inner) => f.write_fmt(format_args!("{:?}", inner.obj)),
             }
         }
     }
 }
 
-#[rustfmt::skip]
-impl<'a> std::fmt::Debug for Branch<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // These enum variants have types which have the same name as themselves
-        // Branch::Paragraph(Paragraph(...)) is a lot of extra noise vs just Paragraph(...)
 
-        if f.alternate() {
-            match self {
-                Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:#?}", inner)),
-                Branch::Keyword       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Heading       (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Block         (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Link          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Italic        (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Bold          (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Branch::Underline     (inner) => f.write_fmt(format_args!("{:#?}", inner)),
-            }
-        } else {
-            match self {
-                Branch::Root          (inner) => f.write_fmt(format_args!("Root: {:?}", inner)),
-                Branch::Keyword       (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Heading       (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Block         (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Link          (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Paragraph     (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Italic        (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Bold          (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::StrikeThrough (inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Branch::Underline     (inner) => f.write_fmt(format_args!("{:?}", inner)),
-            }
-        }
-    }
-}
-
-#[rustfmt::skip]
-impl<'a> std::fmt::Debug for Leaf<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // These enum variants have types which have the same name as themselves
-
-        if f.alternate() {
-            match self {
-                Leaf::Plain(inner)     => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::SoftBreak        => f.write_str("SoftBreak"),
-                Leaf::Eof              => f.write_str("EOF"),
-                Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::Code(inner)      => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::Comment(inner)   => f.write_fmt(format_args!("{:?}", inner)),
-            }
-        } else {
-            match self {
-                Leaf::Plain(inner)     => f.write_fmt(format_args!("{:?}", inner)),
-                Leaf::SoftBreak        => f.write_str("SoftBreak"),
-                Leaf::Eof              => f.write_str("EOF"),
-                Leaf::MarkupEnd(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Leaf::InlineSrc(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Leaf::Verbatim(inner)  => f.write_fmt(format_args!("{:?}", inner)),
-                Leaf::Code(inner)      => f.write_fmt(format_args!("{:?}", inner)),
-                Leaf::Keyword(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
-                Leaf::Comment(inner)   => f.write_fmt(format_args!("{:#?}", inner)),
-            }
         }
     }
 }

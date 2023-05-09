@@ -22,7 +22,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         match byte_arr[lang.end] {
             LBRACE => {
                 let body = Self::parse_body(byte_arr, index)?;
-                Ok(Node::make_leaf(
+                Ok(Node::make_boxed_leaf(
                     Self {
                         lang: lang.obj,
                         headers: None,
@@ -38,7 +38,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                     Err(MatchError::InvalidLogic)
                 } else {
                     let body = Self::parse_body(byte_arr, index)?;
-                    Ok(Node::make_leaf(
+                    Ok(Node::make_boxed_leaf(
                         Self {
                             lang: lang.obj,
                             headers: Some(header.obj),

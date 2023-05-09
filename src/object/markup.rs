@@ -1,7 +1,7 @@
 use crate::{
     constants::{self, EQUAL, NEWLINE, TILDE},
     parse::{parse_element, parse_object},
-    types::{Leaf, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
+    types::{MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
     utils::{bytes_to_str, verify_markup},
 };
 
@@ -35,17 +35,12 @@ macro_rules! recursive_markup {
                 idx += 1;
                 loop {
                     match parse_object(byte_arr, idx, parse_opts) {
-                        Ok(Node::Leaf(leaf)) => {
-                            if let Leaf::MarkupEnd(kind) = leaf.obj {
-                                idx = leaf.end;
-                                if kind.contains(MarkupKind::$name) {
-                                    return Ok(Node::make_branch(Self(content_vec), index, idx));
-                                } else {
-                                    return Err(MatchError::InvalidLogic);
-                                }
+                        Ok(Node::MarkupEnd(leaf)) => {
+                            idx = leaf.end;
+                            if leaf.obj.contains(MarkupKind::$name) {
+                                return Ok(Node::make_branch(Self(content_vec), index, idx));
                             } else {
-                                idx = leaf.end;
-                                content_vec.push(Node::Leaf(leaf))
+                                return Err(MatchError::InvalidLogic);
                             }
                         }
                         Ok(ret) => {

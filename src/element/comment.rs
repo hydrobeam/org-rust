@@ -1,7 +1,6 @@
 use crate::{
-    constants::COLON,
     types::{Node, ParseOpts, Parseable, Result},
-    utils::{fn_until, word},
+    utils::{fn_until},
 };
 
 #[derive(Debug, Clone, Copy)]

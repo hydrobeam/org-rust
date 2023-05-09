@@ -5,7 +5,6 @@ use types::{Node, ParseOpts};
 
 use crate::{
     parse::parse_element,
-    types::{Branch, Leaf},
 };
 
 mod element;
