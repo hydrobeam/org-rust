@@ -253,6 +253,50 @@ impl<'a> std::fmt::Debug for Node<'a> {
 }
 
 
+mod object {
+    use bitflags::bitflags;
+    bitflags! {
+        #[derive(Debug, Clone, Copy, Default)]
+        pub struct Object: u32 {
+            const Entity            = 1 << 0;
+            const LatexFragment     = 1 << 1;
+            const ExportSnippet     = 1 << 2;
+            const FootnoteReference = 1 << 3;
+            const Citation          = 1 << 4;
+            const CitationReference = 1 << 5;
+            const InlineBabel       = 1 << 6;
+            const InlineSrc         = 1 << 7;
+            const LineBreak         = 1 << 8;
+            const Link              = 1 << 9;
+            const Macro             = 1 << 10;
+            const Target            = 1 << 11;
+            const StatCookie        = 1 << 12;
+            const SubSuperscript    = 1 << 13;
+            const TableCell         = 1 << 14;
+            const TimeStamp         = 1 << 15;
+            const Markup            = 1 << 16;
+            const Plain             = 1 << 17;
         }
     }
+    const ALL: Object = Object::all();
+    const STANDARD: Object = ALL.difference(Object::from_bits_truncate(
+        Object::TableCell.bits() | Object::CitationReference.bits(),
+    ));
+    const MINIMAL: Object = Object::from_bits_truncate(
+        Object::Markup.bits()
+            | Object::Plain.bits()
+            | Object::Entity.bits()
+            | Object::SubSuperscript.bits(),
+    );
+
+    const HEADING_TEXT: Object = STANDARD.difference(Object::LineBreak);
+    const TABLE_CONTENTS: Object = MINIMAL.union(Object::from_bits_truncate(
+        Object::Citation.bits()
+            | Object::ExportSnippet.bits()
+            | Object::FootnoteReference.bits()
+            | Object::Link.bits()
+            | Object::Macro.bits()
+            | Object::Target.bits()
+            | Object::TimeStamp.bits(),
+    ));
 }
