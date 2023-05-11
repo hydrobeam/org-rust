@@ -1,14 +1,10 @@
-#![feature(rustc_private)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use std::cell::RefCell;
-
 use node_pool::{NodeID, NodePool};
-use types::{Expr, Node, ParseOpts};
+use types::{Expr, ParseOpts};
 
-
-use crate::{parse::parse_element, utils::bytes_to_str};
+use crate::parse::parse_element;
 
 mod element;
 mod node_pool;
@@ -52,7 +48,7 @@ pub(crate) mod constants {
     pub const NEWLINE     : u8 = b'\n';
 }
 
-pub fn parse_org<'a>(input_text: &'a str) -> NodePool<'a> {
+pub fn parse_org(input_text: &str) -> NodePool<'_> {
     let byte_arr = input_text.as_bytes();
     let index = 0;
     let parse_opts = ParseOpts::default();
@@ -61,16 +57,13 @@ pub fn parse_org<'a>(input_text: &'a str) -> NodePool<'a> {
     let mut idx = index;
 
     let mut pool = NodePool::new();
-    let parent = pool
-        .alloc(Expr::Root(Vec::new()), index, idx, None);
-
+    let parent = pool.alloc(Expr::Root(Vec::new()), index, idx, None);
 
     // NOTE: while let loop does not run! TODO: find out why
     loop {
         // dbg!(idx);
         // dbg!(bytes_to_str(&byte_arr[idx..]));
         match parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
-
             Ok(id) => {
                 // dbg!(id);
                 // dbg!(&pool.borrow()[id]);

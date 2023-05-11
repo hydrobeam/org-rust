@@ -1,8 +1,8 @@
 use crate::{
-    constants::{self, EQUAL, NEWLINE, TILDE},
+    constants::{EQUAL, NEWLINE, TILDE},
     node_pool::{NodeID, NodePool},
     parse::{parse_element, parse_object},
-    types::{Expr, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
+    types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result},
     utils::{bytes_to_str, verify_markup},
 };
 
@@ -26,9 +26,9 @@ pub struct Code<'a>(&'a str);
 
 macro_rules! recursive_markup {
     ($name: tt) => {
-        impl<'a, 'b> Parseable<'a, 'b> for $name {
+        impl<'a> Parseable<'a> for $name {
             fn parse(
-                pool: &'b mut NodePool<'a>,
+                pool: &mut NodePool<'a>,
                 byte_arr: &'a [u8],
                 index: usize,
                 parent: Option<NodeID>,
@@ -69,9 +69,9 @@ macro_rules! recursive_markup {
 
 macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
-        impl<'a, 'b> Parseable<'a, 'b> for $name<'a> {
+        impl<'a> Parseable<'a> for $name<'a> {
             fn parse(
-                pool: &'b mut NodePool<'a>,
+                pool: &mut NodePool<'a>,
                 byte_arr: &'a [u8],
                 index: usize,
                 parent: Option<NodeID>,
@@ -137,8 +137,6 @@ plain_markup!(Verbatim, EQUAL);
 #[cfg(test)]
 mod tests {
     use crate::parse_org;
-
-    use super::*;
 
     #[test]
     fn basic_verbatim() {

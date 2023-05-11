@@ -46,8 +46,8 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
 /// it's a safe assumption to make that we're indexing into valid utf8,
 /// otherwise we have an internal bug and we'd be unwrapping immediately
 /// afterwards with the safe alternative either way.
-pub fn bytes_to_str<'a>(byte_arr: &'a [u8]) -> &'a str {
-    unsafe { std::str::from_utf8_unchecked(&byte_arr) }
+pub fn bytes_to_str(byte_arr: &[u8]) -> &str {
+    unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 
 pub(crate) struct Match {
@@ -68,11 +68,7 @@ impl<'a> Match {
 //
 // realistically not a big performance hit but no reason to pay the cost
 // unecessarily
-pub(crate) fn fn_until<'a>(
-    byte_arr: &'a [u8],
-    index: usize,
-    func: impl Fn(u8) -> bool,
-) -> Result<Match> {
+pub(crate) fn fn_until(byte_arr: &[u8], index: usize, func: impl Fn(u8) -> bool) -> Result<Match> {
     // TODO: don't unwrap
     // arr [1, 2, 3]
     // arr.position(|x| x == 2) => 1
@@ -88,7 +84,7 @@ pub(crate) fn fn_until<'a>(
     })
 }
 
-pub(crate) fn word<'a, 'word>(byte_arr: &'a [u8], index: usize, word: &'word str) -> Result<Match> {
+pub(crate) fn word(byte_arr: &[u8], index: usize, word: &str) -> Result<Match> {
     if byte_arr[index..].starts_with(word.as_bytes()) {
         let start = index;
         let end = index + word.len();

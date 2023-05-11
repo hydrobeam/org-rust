@@ -1,5 +1,4 @@
 use derive_more::From;
-use std::cell::RefCell;
 use std::fmt::Debug;
 
 use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
@@ -72,7 +71,6 @@ pub enum Expr<'a> {
 }
 
 pub type Result<T> = std::result::Result<T, MatchError>;
-pub type Cache<'a> = RefCell<std::collections::HashMap<usize, Node<'a>>>;
 
 // TODO: maybe make all fields bitflags for space optimization
 #[derive(Clone, Copy, Debug, Default)]
@@ -113,9 +111,9 @@ bitflags! {
     }
 }
 
-pub(crate) trait Parseable<'a, 'b> {
+pub(crate) trait Parseable<'a> {
     fn parse(
-        pool: &'b mut NodePool<'a>,
+        pool: &mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
@@ -130,6 +128,7 @@ pub(crate) trait Parseable<'a, 'b> {
 //
 // ... levels of indirection make it impossible to digest the output.
 
+#[allow(clippy::format_in_format_args)]
 impl<'a> std::fmt::Debug for Expr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Whether something is a leaf or a branch is pretty internal, don't bother

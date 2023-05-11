@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-
 use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{MatchError, Node, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, word, Match};
+use crate::types::{MatchError, ParseOpts, Parseable, Result};
+use crate::utils::{fn_until, word, Match};
 
 #[derive(Debug, Clone, Copy)]
 pub struct InlineSrc<'a> {
@@ -12,9 +10,9 @@ pub struct InlineSrc<'a> {
     pub body: &'a str,
 }
 
-impl<'a, 'b> Parseable<'a, 'b> for InlineSrc<'a> {
+impl<'a> Parseable<'a> for InlineSrc<'a> {
     fn parse(
-        pool: &'b mut NodePool<'a>,
+        pool: &mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
@@ -62,7 +60,7 @@ impl<'a, 'b> Parseable<'a, 'b> for InlineSrc<'a> {
             }
             // We are whitespace here, which means there was whitespace after the src_
             // so blow up
-            _ => return Err(MatchError::InvalidLogic),
+            _ => Err(MatchError::InvalidLogic),
         }
     }
 }

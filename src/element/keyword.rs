@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-
 use crate::{
-    constants::{COLON, NEWLINE, TAB},
+    constants::COLON,
     node_pool::{NodeID, NodePool},
-    types::{MatchError, Node, ParseOpts, Parseable, Result},
+    types::{MatchError, ParseOpts, Parseable, Result},
     utils::{fn_until, word},
 };
 
@@ -13,9 +11,9 @@ pub struct Keyword<'a> {
     val: &'a str,
 }
 
-impl<'a, 'b> Parseable<'a, 'b> for Keyword<'a> {
+impl<'a> Parseable<'a> for Keyword<'a> {
     fn parse(
-        pool: &'b mut NodePool<'a>,
+        pool: &mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
@@ -30,8 +28,8 @@ impl<'a, 'b> Parseable<'a, 'b> for Keyword<'a> {
         match byte_arr[key_word.end] {
             COLON => {
                 let val = fn_until(byte_arr, key_word.end + 1, |chr: u8| chr == b'\n')?;
-            // TODO: use an fn_until_inclusive to not have to add 1 to the end
-            // (we want to eat the ending nl too)
+                // TODO: use an fn_until_inclusive to not have to add 1 to the end
+                // (we want to eat the ending nl too)
                 Ok(pool.alloc(
                     Self {
                         key: key_word.to_str(byte_arr),

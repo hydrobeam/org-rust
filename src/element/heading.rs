@@ -1,6 +1,6 @@
 use crate::{
-    node_pool::NodeID,
-    types::{Node, ParseOpts, Parseable, Result},
+    node_pool::{NodeID, NodePool},
+    types::{ParseOpts, Parseable, Result},
 };
 
 // STARS KEYWORD PRIORITY TITLE TAGS
@@ -13,9 +13,9 @@ pub struct Heading<'a> {
     title: Option<Vec<NodeID>>,
 }
 
-impl<'a, 'b> Parseable<'a, 'b> for Heading<'a> {
+impl<'a> Parseable<'a> for Heading<'a> {
     fn parse(
-        pool: &'b mut crate::node_pool::NodePool<'a>,
+        pool: &mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,

@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use crate::{
     node_pool::{NodeID, NodePool},
     parse::parse_object,
@@ -18,9 +16,9 @@ pub struct Link<'a> {
     description: Option<Vec<NodeID>>,
 }
 
-impl<'a, 'b> Parseable<'a, 'b> for Link<'a> {
+impl<'a> Parseable<'a> for Link<'a> {
     fn parse(
-        pool: &'b mut NodePool<'a>,
+        pool: &mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,

@@ -5,10 +5,9 @@ mod keyword;
 mod paragraph;
 mod plain_list;
 
-
+pub use block::Block;
 pub use comment::Comment;
 pub use heading::Heading;
 pub use keyword::Keyword;
-pub use block::Block;
 pub use paragraph::Paragraph;
 pub use plain_list::PlainList;

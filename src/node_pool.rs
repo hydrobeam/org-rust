@@ -1,7 +1,7 @@
-use derive_more::From;
 use std::{
     collections::HashMap,
-    ops::{Index, IndexMut}, fmt::{Debug, Write},
+    fmt::Debug,
+    ops::{Index, IndexMut},
 };
 
 use crate::types::{Expr, Node};
@@ -14,8 +14,6 @@ impl std::fmt::Debug for NodeID {
         f.write_fmt(format_args!("{}", self.0))
     }
 }
-
-
 
 type Cache = HashMap<u32, NodeID>;
 
