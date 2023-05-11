@@ -45,8 +45,20 @@ macro_rules! recursive_markup {
                             idx = node.end;
                             if let Expr::MarkupEnd(leaf) = node.obj {
                                 if leaf.contains(MarkupKind::$name) {
-                                    let r = Ok(pool.alloc(Self(content_vec), index, idx, parent));
-                                    return r;
+                                    // TODO: abstract this?
+                                    let new_id = pool.reserve_id();
+                                    for id in content_vec.iter_mut() {
+                                        pool[*id].parent = Some(new_id)
+                                    }
+                                    // we can't just get the next ID because alloc_with_id assumes the node is safe to mutate
+                                    // and we can't access an index beyond the len of the list.
+                                    return Ok(pool.alloc_with_id(
+                                        Self(content_vec),
+                                        index,
+                                        idx,
+                                        parent,
+                                        new_id,
+                                    ));
                                 } else {
                                     return Err(MatchError::InvalidLogic);
                                 }
@@ -108,11 +120,6 @@ macro_rules! plain_markup {
                     }
                 }
 
-                // Ok(Node::make_leaf(
-                //     Self(bytes_to_str(&byte_arr[index + 1..idx])),
-                //     index + 1,
-                //     idx + 1,
-                // ))
                 Ok(pool.alloc(
                     Self(bytes_to_str(&byte_arr[index + 1..idx])),
                     index + 1,
@@ -142,6 +149,7 @@ mod tests {
 
         dbg!(parse_org(inp));
     }
+
     #[test]
     fn basic_code() {
         let inp = "~hello_world~";

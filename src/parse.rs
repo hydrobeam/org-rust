@@ -95,9 +95,7 @@ fn parse_text<'a>(
     parse_opts: ParseOpts,
 ) -> NodeID {
     let mut idx = index;
-    // dbg!("in text");
     loop {
-        // dbg!(idx);
         match parse_object(pool, byte_arr, idx, parent, parse_opts) {
             Ok(_) | Err(MatchError::EofError) => break,
             Err(MatchError::InvalidLogic) => {
@@ -113,6 +111,8 @@ macro_rules! handle_markup {
     ($name: tt, $pool: ident, $byte_arr: ident, $index: ident, $parent: ident, $parse_opts: ident) => {
         if $parse_opts.markup.contains(MarkupKind::$name) && verify_markup($byte_arr, $index, true)
         {
+            // None parent cause this
+            // FIXME: we allocate in the pool for "marker" return types,,
             return Ok($pool.alloc(MarkupKind::$name, $index, $index + 1, None));
         } else if verify_markup($byte_arr, $index, false) {
             let mut new_opts = $parse_opts.clone();
@@ -209,8 +209,11 @@ fn parse_paragraph<'a>(
 
     let mut idx = index;
 
+    // allocte beforehand since we know paragrpah can never fail
+    let new_id = pool.reserve_id();
+
     loop {
-        match parse_object(pool, byte_arr, idx, parent, parse_opts) {
+        match parse_object(pool, byte_arr, idx, Some(new_id), parse_opts) {
             Ok(id) => {
                 idx = pool[id].end;
                 content_vec.push(id);
@@ -222,10 +225,11 @@ fn parse_paragraph<'a>(
         }
     }
 
-    pool.alloc(
+    pool.alloc_with_id(
         Paragraph(content_vec),
         index,
         idx + 1, // newline
         parent,
+        new_id,
     )
 }

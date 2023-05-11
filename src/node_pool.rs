@@ -24,6 +24,7 @@ impl<'a> NodePool<'a> {
     pub fn new() -> Self {
         Self {
             inner_vec: Vec::new(),
+            /// The next free index in the pool.
             counter: 0,
         }
     }
@@ -38,12 +39,55 @@ impl<'a> NodePool<'a> {
         NodeID(prev_id)
     }
 
+    /// Allocates a node in the pool at a given location.
+    ///
+    /// Returns the index that was allocated.
+    ///
+    /// Works well with [`NodePool::reserve_id`].
+    ///
+    /// # Safety:
+    ///
+    /// Must refer to an ID that already exists in the pool.
+    /// Will panic at runtime otherwise.
+    ///
+    pub fn alloc_with_id<T>(
+        &mut self,
+        obj: T,
+        start: usize,
+        end: usize,
+        parent: Option<NodeID>,
+        target_id: NodeID,
+    ) -> NodeID
+    where
+        Expr<'a>: From<T>,
+    {
+        self.inner_vec[target_id.0 as usize] = Node::new(obj, start, end, parent);
+
+        target_id
+    }
+
     pub fn get(&self, id: NodeID) -> Option<&'a Node> {
         self.inner_vec.get(id.0 as usize)
     }
 
     pub fn get_mut(&mut self, id: NodeID) -> Option<&'a mut Node> {
         self.inner_vec.get_mut(id.0 as usize)
+    }
+
+    /// Allocates a defualt Node at in index and returns its index.
+    ///
+    /// To be used when intending to replace the Node at the index
+    /// in conjunction with alloc_from_id.
+    ///
+    pub fn reserve_id(&mut self) -> NodeID {
+        self.inner_vec.push(Node::default());
+        let old_counter = self.counter;
+        self.counter += 1;
+        NodeID(old_counter)
+    }
+
+    pub fn get_next_id(&self) -> NodeID {
+        NodeID(self.counter)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> {
@@ -53,14 +97,6 @@ impl<'a> NodePool<'a> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Node<'a>> {
         IntoIterator::into_iter(&mut self.inner_vec)
     }
-
-    // fn iter(&self) -> Iter<'a, Node> {
-    //     self.inner_vec.iter()
-    // }
-
-    // fn iter_mut(&mut self) -> IterMut<'a, Node> {
-    //     self.inner_vec.iter_mut()
-    // }
 }
 
 impl<'a> Index<NodeID> for NodePool<'a> {
@@ -76,53 +112,3 @@ impl<'a> IndexMut<NodeID> for NodePool<'a> {
         &mut self.inner_vec[index.0 as usize]
     }
 }
-
-// fn swag() {
-//     // ret.alloc(obj, start, end, parent)
-//     // ret.alloc(obj, start, end, parent)
-//     // ret.alloc(obj, start, end, parent)
-//     // ret.alloc(obj, start, end, parent)
-//     // ret.alloc(obj, start, end, parent)
-
-//     // let re = ret.iter_mut().map(|x| match x.obj {
-//     //     Expr::InlineSrc(mut inl_src) => {
-//     //         inl_src.lang = "rust";
-//     //     }
-//     //     _ => {}
-//     // })
-
-//     // let mut_br = ret.iter_mut();
-//     // let mut ret: Vec<Node> = Vec::new();
-//     let mut ret: NodePool = NodePool::new();
-//     for item in ret.iter_mut() {
-//         item.parent = Some(NodeID(1));
-//     }
-
-//     for item in ret.iter_mut() {
-//         item.parent = Some(NodeID(1));
-//     }
-//     // drop(mut_br);
-//     //
-
-//     for item in ret.iter() {
-//         match item.obj {
-//             Expr::InlineSrc(mut inl) => {
-//                 inl.lang = "rust";
-//             }
-//             _ => {}
-//         }
-//     }
-
-//     // let a = &ret;
-//     // ret.iter_mut().map(|x| match x.obj {
-//     //     Expr::InlineSrc(mut inl_src) => {
-//     //         inl_src.lang = "rust";
-//     //     }
-//     //     _ => {}
-//     // });
-
-//     // ret.i
-//     // ret.push(value)
-
-//     // ret.iter()
-// }

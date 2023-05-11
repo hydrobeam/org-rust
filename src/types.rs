@@ -17,6 +17,17 @@ pub struct Node<'a> {
     pub parent: Option<NodeID>,
 }
 
+impl<'a> Default for Node<'a> {
+    fn default() -> Self {
+        Self {
+            obj: Expr::BlankLine,
+            start: Default::default(),
+            end: Default::default(),
+            parent: Default::default(),
+        }
+    }
+}
+
 impl std::fmt::Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
