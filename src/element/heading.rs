@@ -1,17 +1,26 @@
-use crate::types::{Node, ParseOpts, Parseable, Result};
+use crate::{
+    node_pool::NodeID,
+    types::{Node, ParseOpts, Parseable, Result},
+};
 
 // STARS KEYWORD PRIORITY TITLE TAGS
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Heading<'a> {
     level: u8,
     // Org-Todo type stuff
     keyword: Option<&'a str>,
     priority: Option<char>,
-    title: Option<Vec<Node<'a>>>,
+    title: Option<Vec<NodeID>>,
 }
 
 impl<'a> Parseable<'a> for Heading<'a> {
-    fn parse(byte_arr: &'a [u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
+    fn parse(
+        pool: &std::cell::RefCell<crate::node_pool::NodePool<'a>>,
+        byte_arr: &'a [u8],
+        index: usize,
+        parent: Option<NodeID>,
+        parse_opts: ParseOpts,
+    ) -> Result<NodeID> {
         todo!()
     }
 }

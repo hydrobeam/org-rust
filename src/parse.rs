@@ -1,21 +1,20 @@
-use std::arch::x86_64::_MM_MASK_UNDERFLOW;
+use std::cell::RefCell;
 
+use crate::node_pool::{NodeID, NodePool};
 use crate::{constants::*, object};
 
 use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
 use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
-use crate::types::{
-    BlankLine, MarkupKind, Match, MatchError, Node, ParseOpts, Parseable, Result, SoftBreak,
-};
+use crate::types::{Expr, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, fn_until, is_list_start, variant_eq, verify_markup};
 
-pub(crate) fn parse_element(
-    byte_arr: &[u8],
+pub(crate) fn parse_element<'a>(
+    pool: &RefCell<NodePool<'a>>,
+    byte_arr: &'a [u8],
     index: usize,
+    parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
-) -> Result<Node> {
-    // dbg!("testing");
-    // let meow = byte_arr.get(index).ok_or(MatchError)?;
+) -> Result<NodeID> {
     if let None = byte_arr.get(index) {
         return Err(MatchError::EofError);
     }
@@ -30,12 +29,12 @@ pub(crate) fn parse_element(
         //     }
         // }
         POUND => {
-            if let ret @ Ok(_) = Keyword::parse(byte_arr, index, parse_opts) {
+            if let ret @ Ok(_) = Keyword::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
             // else if let Ok(block) = Block::parse(byte_arr, index, parse_opts) {
             //     // return r;
-            else if let ret @ Ok(_) = Comment::parse(byte_arr, index, parse_opts) {
+            else if let ret @ Ok(_) = Comment::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
 
@@ -55,7 +54,12 @@ pub(crate) fn parse_element(
                     let byte = byte_arr[idx];
                     if byte.is_ascii_whitespace() {
                         if byte == NEWLINE {
-                            return Ok(Node::make_leaf(BlankLine, index, idx + 1));
+                            return Ok(pool.borrow_mut().alloc(
+                                Expr::BlankLine,
+                                index,
+                                idx + 1,
+                                parent,
+                            ));
                         } else {
                             parse_opts.indentation_level += 1;
                             idx += 1;
@@ -64,7 +68,7 @@ pub(crate) fn parse_element(
                         // every element will explode if there's an indentation level
                         // except for lsits
                         if is_list_start(byte) {
-                            return PlainList::parse(byte_arr, idx, parse_opts);
+                            return PlainList::parse(pool, byte_arr, index, parent, parse_opts);
                         } else {
                             return Err(MatchError::InvalidLogic);
                         }
@@ -83,18 +87,25 @@ pub(crate) fn parse_element(
     }
 
     if !parse_opts.from_paragraph {
-        return parse_paragraph(byte_arr, index, parse_opts);
+        return Ok(parse_paragraph(pool, byte_arr, index, parent, parse_opts));
     } else {
         return Err(MatchError::InvalidLogic);
     }
     // todo!()
 }
 
-fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Node {
+fn parse_text<'a>(
+    pool: &RefCell<NodePool<'a>>,
+    byte_arr: &'a [u8],
+    index: usize,
+    parent: Option<NodeID>,
+    parse_opts: ParseOpts,
+) -> NodeID {
     let mut idx = index;
-    // let ret = *byte_arr.get(index).ok_or(MatchError)?;
+    // dbg!("in text");
     loop {
-        match parse_object(byte_arr, idx, parse_opts) {
+        // dbg!(idx);
+        match parse_object(pool, byte_arr, idx, parent, parse_opts) {
             Ok(_) | Err(MatchError::EofError) => break,
             Err(MatchError::InvalidLogic) => {
                 idx += 1;
@@ -102,31 +113,36 @@ fn parse_text(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Node {
         }
     }
 
-    Node::make_leaf(bytes_to_str(&byte_arr[index..idx]), index, idx)
+    pool.borrow_mut()
+        .alloc(bytes_to_str(&byte_arr[index..idx]), index, idx, parent)
 }
 
 macro_rules! handle_markup {
-    ($name: tt, $byte_arr: ident, $index: ident, $parse_opts: ident) => {
+    ($name: tt, $pool: ident, $byte_arr: ident, $index: ident, $parent: ident, $parse_opts: ident) => {
         if $parse_opts.markup.contains(MarkupKind::$name) && verify_markup($byte_arr, $index, true)
         {
-            return Ok(Node::make_leaf(MarkupKind::$name, $index, $index + 1));
+            return Ok($pool
+                .borrow_mut()
+                .alloc(MarkupKind::$name, $index, $index + 1, None));
         } else if verify_markup($byte_arr, $index, false) {
             let mut new_opts = $parse_opts.clone();
 
             new_opts.from_object = false;
             new_opts.markup = MarkupKind::$name;
-            if let ret @ Ok(_) = $name::parse($byte_arr, $index, new_opts) {
+            if let ret @ Ok(_) = $name::parse($pool, $byte_arr, $index, $parent, new_opts) {
                 return ret;
             }
         }
     };
 }
 
-pub(crate) fn parse_object(
-    byte_arr: &[u8],
+pub(crate) fn parse_object<'a>(
+    pool: &RefCell<NodePool<'a>>,
+    byte_arr: &'a [u8],
     index: usize,
+    parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
-) -> Result<Node> {
+) -> Result<NodeID> {
     if let None = byte_arr.get(index) {
         return Err(MatchError::EofError);
     }
@@ -134,29 +150,29 @@ pub(crate) fn parse_object(
 
     match byte_arr[index] {
         SLASH => {
-            handle_markup!(Italic, byte_arr, index, parse_opts);
+            handle_markup!(Italic, pool, byte_arr, index, parent, parse_opts);
         }
         STAR => {
-            handle_markup!(Bold, byte_arr, index, parse_opts);
+            handle_markup!(Bold, pool, byte_arr, index, parent, parse_opts);
         }
         UNDERSCORE => {
-            handle_markup!(Underline, byte_arr, index, parse_opts);
+            handle_markup!(Underline, pool, byte_arr, index, parent, parse_opts);
         }
         PLUS => {
-            handle_markup!(StrikeThrough, byte_arr, index, parse_opts);
+            handle_markup!(StrikeThrough, pool, byte_arr, index, parent, parse_opts);
         }
         EQUAL => {
-            if let ret @ Ok(_) = Verbatim::parse(byte_arr, index, parse_opts) {
+            if let ret @ Ok(_) = Verbatim::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
         }
         TILDE => {
-            if let ret @ Ok(_) = Code::parse(byte_arr, index, parse_opts) {
+            if let ret @ Ok(_) = Code::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
         }
         LBRACK => {
-            if let ret @ Ok(_) = Link::parse(byte_arr, index, parse_opts) {
+            if let ret @ Ok(_) = Link::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
         }
@@ -173,10 +189,12 @@ pub(crate) fn parse_object(
         NEWLINE => {
             parse_opts.from_paragraph = true;
 
-            match parse_element(byte_arr, index + 1, parse_opts) {
+            match parse_element(pool, byte_arr, index + 1, parent, parse_opts) {
                 Ok(_) => return Err(MatchError::InvalidLogic),
                 Err(MatchError::InvalidLogic) => {
-                    return Ok(Node::make_leaf(SoftBreak, index, index + 1))
+                    return Ok(pool
+                        .borrow_mut()
+                        .alloc(Expr::SoftBreak, index, index + 1, parent))
                 }
                 Err(MatchError::EofError) => return Err(MatchError::EofError),
             }
@@ -188,21 +206,26 @@ pub(crate) fn parse_object(
         return Err(MatchError::InvalidLogic);
     } else {
         parse_opts.from_object = true;
-        return Ok(parse_text(byte_arr, index, parse_opts));
+        return Ok(parse_text(pool, byte_arr, index, parent, parse_opts));
     }
 }
 
-fn parse_paragraph(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
-    let mut content_vec: Vec<Node> = Vec::new();
+fn parse_paragraph<'a>(
+    pool: &RefCell<NodePool<'a>>,
+    byte_arr: &'a [u8],
+    index: usize,
+    parent: Option<NodeID>,
+    parse_opts: ParseOpts,
+) -> NodeID {
+    let mut content_vec: Vec<NodeID> = Vec::new();
 
     let mut idx = index;
 
     loop {
-        // dbg!(1);
-        match parse_object(byte_arr, idx, parse_opts) {
-            Ok(inner) => {
-                idx = inner.get_end();
-                content_vec.push(inner);
+        match parse_object(pool, byte_arr, idx, parent, parse_opts) {
+            Ok(id) => {
+                idx = pool.borrow()[id].end;
+                content_vec.push(id);
             }
             Err(_) => {
                 // TODO: cache
@@ -211,9 +234,10 @@ fn parse_paragraph(byte_arr: &[u8], index: usize, parse_opts: ParseOpts) -> Resu
         }
     }
 
-    Ok(Node::make_branch(
+    pool.borrow_mut().alloc(
         Paragraph(content_vec),
         index,
         idx + 1, // newline
-    ))
+        parent,
+    )
 }

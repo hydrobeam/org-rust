@@ -1,16 +1,25 @@
+use std::cell::RefCell;
+
 use crate::constants::*;
-use crate::types::{Match, MatchError, Node, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, word};
+use crate::node_pool::{NodeID, NodePool};
+use crate::types::{MatchError, Node, ParseOpts, Parseable, Result};
+use crate::utils::{bytes_to_str, fn_until, word, Match};
 
 #[derive(Debug, Clone, Copy)]
 pub struct InlineSrc<'a> {
-    lang: &'a str,
-    headers: Option<&'a str>,
-    body: &'a str,
+    pub lang: &'a str,
+    pub headers: Option<&'a str>,
+    pub body: &'a str,
 }
 
 impl<'a> Parseable<'a> for InlineSrc<'a> {
-    fn parse(byte_arr: &'a [u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
+    fn parse(
+        pool: &RefCell<NodePool<'a>>,
+        byte_arr: &'a [u8],
+        index: usize,
+        parent: Option<NodeID>,
+        parse_opts: ParseOpts,
+    ) -> Result<NodeID> {
         // TODO: cache this
         // REVIEW: maybe not :3
         let src_word = word(byte_arr, index, "src_")?;
@@ -22,31 +31,33 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         match byte_arr[lang.end] {
             LBRACE => {
                 let body = Self::parse_body(byte_arr, index)?;
-                Ok(Node::make_boxed_leaf(
+                Ok(pool.borrow_mut().alloc(
                     Self {
-                        lang: lang.obj,
+                        lang: body.to_str(byte_arr),
                         headers: None,
-                        body: body.obj,
+                        body: body.to_str(byte_arr),
                     },
                     index,
                     body.end,
+                    None,
                 ))
             }
             LBRACK => {
                 let header = Self::parse_header(byte_arr, lang.end)?;
                 if byte_arr[header.end] != LBRACE {
-                    Err(MatchError::InvalidLogic)
-                } else {
                     let body = Self::parse_body(byte_arr, index)?;
-                    Ok(Node::make_boxed_leaf(
+                    Ok(pool.borrow_mut().alloc(
                         Self {
-                            lang: lang.obj,
-                            headers: Some(header.obj),
-                            body: body.obj,
+                            lang: lang.to_str(byte_arr),
+                            headers: Some(header.to_str(byte_arr)),
+                            body: body.to_str(byte_arr),
                         },
                         index,
                         body.end,
+                        None,
                     ))
+                } else {
+                    Err(MatchError::InvalidLogic)
                 }
             }
             // We are whitespace here, which means there was whitespace after the src_
@@ -58,19 +69,14 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
 
 impl<'a> InlineSrc<'a> {
     // the logic is exactly the same, except for the perimeters
-    fn parse_header(byte_arr: &'a [u8], index: usize) -> Result<Match<&'a str>> {
+    fn parse_header(byte_arr: &'a [u8], index: usize) -> Result<Match> {
         InlineSrc::parse_src(byte_arr, index, LBRACK, RBRACK)
     }
-    fn parse_body(byte_arr: &'a [u8], index: usize) -> Result<Match<&'a str>> {
+    fn parse_body(byte_arr: &'a [u8], index: usize) -> Result<Match> {
         InlineSrc::parse_src(byte_arr, index, LBRACE, RBRACE)
     }
     #[inline(always)]
-    fn parse_src(
-        byte_arr: &'a [u8],
-        index: usize,
-        lperim: u8,
-        rperim: u8,
-    ) -> Result<Match<&'a str>> {
+    fn parse_src(byte_arr: &'a [u8], index: usize, lperim: u8, rperim: u8) -> Result<Match> {
         // Brackets have to be balanced
         // -1 for left bracket
         // +1 for right bracket
@@ -88,11 +94,7 @@ impl<'a> InlineSrc<'a> {
                     if bracket_count == 0 {
                         let start = index;
                         let end = j + 1;
-                        return Ok(Match {
-                            obj: bytes_to_str(&byte_arr[start..end]),
-                            start,
-                            end,
-                        });
+                        return Ok(Match { start, end });
                     }
                 }
                 NEWLINE => {

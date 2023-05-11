@@ -1,7 +1,10 @@
+use std::cell::RefCell;
+
 use crate::{
     constants::{COLON, NEWLINE, TAB},
+    node_pool::{NodeID, NodePool},
     types::{MatchError, Node, ParseOpts, Parseable, Result},
-    utils::{bytes_to_str, fn_until, word},
+    utils::{fn_until, word},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -11,7 +14,13 @@ pub struct Keyword<'a> {
 }
 
 impl<'a> Parseable<'a> for Keyword<'a> {
-    fn parse(byte_arr: &'a [u8], index: usize, parse_opts: ParseOpts) -> Result<Node> {
+    fn parse(
+        pool: &RefCell<NodePool<'a>>,
+        byte_arr: &'a [u8],
+        index: usize,
+        parent: Option<NodeID>,
+        parse_opts: ParseOpts,
+    ) -> Result<NodeID> {
         let cookie = word(byte_arr, index, "#+")?;
 
         let key_word = fn_until(byte_arr, cookie.end, |chr: u8| {
@@ -21,14 +30,17 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         match byte_arr[key_word.end] {
             COLON => {
                 let val = fn_until(byte_arr, key_word.end + 1, |chr: u8| chr == b'\n')?;
-                Ok(Node::make_boxed_leaf(
+            // TODO: use an fn_until_inclusive to not have to add 1 to the end
+            // (we want to eat the ending nl too)
+                Ok(pool.borrow_mut().alloc(
                     Self {
-                        key: key_word.obj,
+                        key: key_word.to_str(byte_arr),
                         // not mentioned in the spec, but org-element trims
-                        val: val.obj.trim(),
+                        val: val.to_str(byte_arr).trim(),
                     },
                     index,
-                    val.end,
+                    val.end + 1,
+                    parent,
                 ))
             }
             chr if chr.is_ascii_whitespace() => Err(MatchError::InvalidLogic),
@@ -47,6 +59,7 @@ mod tests {
     fn basic_keyword() {
         let inp = "#+key:val\n";
 
+        dbg!("haiii");
         dbg!(parse_org(inp));
     }
 

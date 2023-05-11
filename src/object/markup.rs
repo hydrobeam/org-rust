@@ -1,21 +1,24 @@
 use crate::{
     constants::{self, EQUAL, NEWLINE, TILDE},
+    node_pool::{NodeID, NodePool},
     parse::{parse_element, parse_object},
-    types::{MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
+    types::{Expr, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result},
     utils::{bytes_to_str, verify_markup},
 };
 
-#[derive(Debug)]
-pub struct Italic<'a>(Vec<Node<'a>>);
+use std::cell::RefCell;
 
-#[derive(Debug)]
-pub struct Bold<'a>(Vec<Node<'a>>);
+#[derive(Debug, Clone)]
+pub struct Italic(Vec<NodeID>);
 
-#[derive(Debug)]
-pub struct StrikeThrough<'a>(Vec<Node<'a>>);
+#[derive(Debug, Clone)]
+pub struct Bold(Vec<NodeID>);
 
-#[derive(Debug)]
-pub struct Underline<'a>(Vec<Node<'a>>);
+#[derive(Debug, Clone)]
+pub struct StrikeThrough(Vec<NodeID>);
+
+#[derive(Debug, Clone)]
+pub struct Underline(Vec<NodeID>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Verbatim<'a>(&'a str);
@@ -25,27 +28,48 @@ pub struct Code<'a>(&'a str);
 
 macro_rules! recursive_markup {
     ($name: tt) => {
-        impl<'a> Parseable<'a> for $name<'a> {
-            fn parse(byte_arr: &'a [u8], index: usize, mut parse_opts: ParseOpts) -> Result<Node> {
+        impl<'a> Parseable<'a> for $name {
+            fn parse(
+                pool: &RefCell<NodePool<'a>>,
+                byte_arr: &'a [u8],
+                index: usize,
+                parent: Option<NodeID>,
+                mut parse_opts: ParseOpts,
+            ) -> Result<NodeID> {
                 parse_opts.markup.insert(MarkupKind::$name);
 
-                let mut content_vec: Vec<Node> = Vec::new();
+                let mut content_vec: Vec<NodeID> = Vec::new();
                 let mut idx = index;
                 // if we're being called, that means the first split is the thing
                 idx += 1;
                 loop {
-                    match parse_object(byte_arr, idx, parse_opts) {
-                        Ok(Node::MarkupEnd(leaf)) => {
-                            idx = leaf.end;
-                            if leaf.obj.contains(MarkupKind::$name) {
-                                return Ok(Node::make_branch(Self(content_vec), index, idx));
+                    match parse_object(pool, byte_arr, idx, parent, parse_opts) {
+                        Ok(id) => {
+                            // do it like this so that the immmutable borrow doesn't
+                            // interefere with the future mutable borrow
+                            let leaf: MarkupKind;
+                            {
+                                let node = &pool.borrow()[id];
+                                idx = node.end;
+                                if let Expr::MarkupEnd(cont) = node.obj {
+                                    leaf = cont;
+                                } else {
+                                    content_vec.push(id);
+                                    continue;
+                                }
+                            }
+
+                            // leaf exists here
+                            if leaf.contains(MarkupKind::$name) {
+                                return Ok(pool.borrow_mut().alloc(
+                                    Self(content_vec),
+                                    index,
+                                    idx,
+                                    parent,
+                                ));
                             } else {
                                 return Err(MatchError::InvalidLogic);
                             }
-                        }
-                        Ok(ret) => {
-                            idx = ret.get_end();
-                            content_vec.push(ret);
                         }
                         Err(_) => {
                             return Err(MatchError::InvalidLogic);
@@ -61,7 +85,13 @@ macro_rules! recursive_markup {
 macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
         impl<'a> Parseable<'a> for $name<'a> {
-            fn parse(byte_arr: &'a [u8], index: usize, mut parse_opts: ParseOpts) -> Result<Node> {
+            fn parse(
+                pool: &RefCell<NodePool<'a>>,
+                byte_arr: &'a [u8],
+                index: usize,
+                parent: Option<NodeID>,
+                mut parse_opts: ParseOpts,
+            ) -> Result<NodeID> {
                 if !verify_markup(byte_arr, index, false) {
                     return Err(MatchError::InvalidLogic);
                 }
@@ -81,7 +111,7 @@ macro_rules! plain_markup {
                         }
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
-                            match parse_element(byte_arr, idx + 1, parse_opts) {
+                            match parse_element(pool, byte_arr, idx + 1, parent, parse_opts) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {
                                     idx += 1;
@@ -95,10 +125,16 @@ macro_rules! plain_markup {
                     }
                 }
 
-                Ok(Node::make_leaf(
+                // Ok(Node::make_leaf(
+                //     Self(bytes_to_str(&byte_arr[index + 1..idx])),
+                //     index + 1,
+                //     idx + 1,
+                // ))
+                Ok(pool.borrow_mut().alloc(
                     Self(bytes_to_str(&byte_arr[index + 1..idx])),
                     index + 1,
                     idx + 1,
+                    parent,
                 ))
             }
         }
@@ -156,3 +192,24 @@ mod tests {
         dbg!(parse_org(inp));
     }
 }
+
+// Ok(id) => {
+//     let node = pool.borrow()[id].clone();
+//     idx = node.end;
+//     if let Expr::MarkupEnd(leaf) = node.obj {
+//         if leaf.contains(MarkupKind::$name) {
+//             dbg!("before borrow_mut");
+//             let r = Ok(pool.borrow_mut().alloc(
+//                 Self(content_vec),
+//                 index,
+//                 idx,
+//                 parent,
+//             ));
+//             dbg!("after borrow_mut");
+//             return r;
+//         } else {
+//             return Err(MatchError::InvalidLogic);
+//         }
+//     } else {
+//         content_vec.push(id);
+//     }

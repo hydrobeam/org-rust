@@ -1,13 +1,17 @@
+#![feature(rustc_private)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use types::{Node, ParseOpts};
+use std::cell::RefCell;
 
-use crate::{
-    parse::parse_element,
-};
+use node_pool::{NodeID, NodePool};
+use types::{Expr, Node, ParseOpts};
+
+
+use crate::{parse::parse_element, utils::bytes_to_str};
 
 mod element;
+mod node_pool;
 mod object;
 mod parse;
 mod types;
@@ -48,26 +52,40 @@ pub(crate) mod constants {
     pub const NEWLINE     : u8 = b'\n';
 }
 
-pub fn parse_org(input_text: &str) -> Node {
+pub fn parse_org<'a>(input_text: &'a str) -> RefCell<NodePool<'a>> {
     let byte_arr = input_text.as_bytes();
     let index = 0;
     let parse_opts = ParseOpts::default();
 
-    let mut content_vec: Vec<Node> = Vec::new();
+    let mut content_vec: Vec<NodeID> = Vec::new();
     let mut idx = index;
 
+    let mut pool = RefCell::new(NodePool::new());
+    let parent = pool
+        .borrow_mut()
+        .alloc(Expr::Root(Vec::new()), index, idx, None);
+
+
+    // NOTE: while let loop does not run! TODO: find out why
     loop {
-        match parse_element(byte_arr, idx, parse_opts) {
-            Ok(inner) => {
-                idx = inner.get_end();
-                content_vec.push(inner);
+        // dbg!(idx);
+        // dbg!(bytes_to_str(&byte_arr[idx..]));
+        match parse_element(&pool, byte_arr, idx, Some(parent), parse_opts) {
+
+            Ok(id) => {
+                // dbg!(id);
+                // dbg!(&pool.borrow()[id]);
+                idx = pool.borrow()[id].end;
+                content_vec.push(id);
                 // break;
             }
             Err(_) => break,
         }
     }
 
-    Node::make_branch(content_vec, index, idx)
+    pool.borrow_mut()[parent].obj = Expr::Root(content_vec);
+    pool.borrow_mut()[parent].end = idx;
+    pool
 }
 
 #[cfg(test)]

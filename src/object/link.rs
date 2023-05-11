@@ -1,9 +1,12 @@
+use std::cell::RefCell;
+
 use crate::{
+    node_pool::{NodeID, NodePool},
     parse::parse_object,
-    types::{MarkupKind, Match, Node, ParseOpts, Parseable, Result},
+    types::{Expr, MarkupKind, ParseOpts, Parseable, Result},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Link<'a> {
     // actually a pathreg object
     path: &'a str,
@@ -12,35 +15,36 @@ pub struct Link<'a> {
     // inline babel calls, inline source blocks, macros, and statistics cookies.
     // It can also contain another link, but only when it is a plain or angle link.
     // It can contain square brackets, so long as they are balanced.
-    description: Option<&'a str>,
+    description: Option<Vec<NodeID>>,
 }
 
 impl<'a> Parseable<'a> for Link<'a> {
-    fn parse(byte_arr: &'a [u8], index: usize, mut parse_opts: ParseOpts) -> Result<Node> {
+    fn parse(
+        pool: &RefCell<NodePool<'a>>,
+        byte_arr: &'a [u8],
+        index: usize,
+        parent: Option<NodeID>,
+        mut parse_opts: ParseOpts,
+    ) -> Result<NodeID> {
         parse_opts.markup.insert(MarkupKind::Link);
 
-        let mut content_vec: Vec<Node> = Vec::new();
+        let mut content_vec: Vec<NodeID> = Vec::new();
         let mut idx = index;
         // if we're being called, that means the first split is the thing
         idx += 1;
         loop {
-            match parse_object(byte_arr, idx, parse_opts) {
-                Ok(Node::MarkupEnd(leaf)) => {
-                    idx = leaf.end;
-                    if leaf.obj.contains(MarkupKind::Link) {
+            if let Ok(id) = parse_object(pool, byte_arr, idx, parent, parse_opts) {
+                idx = pool.borrow()[id].end;
+                if let Expr::MarkupEnd(leaf) = pool.borrow()[id].obj {
+                    if leaf.contains(MarkupKind::Link) {
                         // close object
                         todo!()
                     } else {
                         // TODO: cache and explode
                         todo!()
                     }
-                }
-                Ok(val) => {
-                    idx = val.get_end();
-                    content_vec.push(val);
-                }
-                Err(_) => {
-                    // cache and explode
+                } else {
+                    content_vec.push(id);
                 }
             }
         }

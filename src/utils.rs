@@ -1,4 +1,7 @@
-use crate::types::{Match, MatchError, Node, Result};
+use crate::{
+    constants::{HYPHEN, PLUS, STAR},
+    types::{MatchError, Result},
+};
 use phf::phf_set;
 
 // Either a whitespace character, -, ., ,, ;, :, !, ?, ', ), }, [, ", or the end of a line.
@@ -47,17 +50,29 @@ pub fn bytes_to_str<'a>(byte_arr: &'a [u8]) -> &'a str {
     unsafe { std::str::from_utf8_unchecked(&byte_arr) }
 }
 
+pub(crate) struct Match {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl<'a> Match {
+    #[inline]
+    pub fn to_str(&self, byte_arr: &'a [u8]) -> &'a str {
+        bytes_to_str(&byte_arr[self.start..self.end])
+    }
+}
+
 // SAFETY: byte_arr came from a valid utf_8 string and we check only on valid
 // utf8 segments. so the resulting string is valid utf8
 // use unsafe to skip the utf8 check since we'd just be unwrap()ing anyways
 //
 // realistically not a big performance hit but no reason to pay the cost
 // unecessarily
-pub fn fn_until<'a>(
+pub(crate) fn fn_until<'a>(
     byte_arr: &'a [u8],
     index: usize,
     func: impl Fn(u8) -> bool,
-) -> Result<Match<&'a str>> {
+) -> Result<Match> {
     // TODO: don't unwrap
     // arr [1, 2, 3]
     // arr.position(|x| x == 2) => 1
@@ -68,25 +83,16 @@ pub fn fn_until<'a>(
         + index;
 
     Ok(Match {
-        obj: bytes_to_str(&byte_arr[index..ret]),
         start: index,
         end: ret,
     })
 }
 
-pub fn word<'a, 'word>(
-    byte_arr: &'a [u8],
-    index: usize,
-    word: &'word str,
-) -> Result<Match<&'a str>> {
+pub(crate) fn word<'a, 'word>(byte_arr: &'a [u8], index: usize, word: &'word str) -> Result<Match> {
     if byte_arr[index..].starts_with(word.as_bytes()) {
         let start = index;
         let end = index + word.len();
-        Ok(Match {
-            obj: bytes_to_str(&byte_arr[start..end]),
-            start,
-            end,
-        })
+        Ok(Match { start, end })
     } else {
         Err(MatchError::InvalidLogic)
     }
@@ -94,7 +100,7 @@ pub fn word<'a, 'word>(
 
 #[inline(always)]
 // pub fn variant_eq(a: Rc<RefCell<Match<Node>>>, b: &Node) -> bool {
-pub fn variant_eq<'t>(a: &Node<'t>, b: &Node<'t>) -> bool {
+pub fn variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
@@ -122,12 +128,14 @@ pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
         } else {
             !before.unwrap().is_ascii_whitespace()
         }
+    } else if let Some(ref val) = before {
+        MARKUP_PRE.contains(val) && !after.unwrap().is_ascii_whitespace()
     } else {
-        if let Some(ref val) = before {
-            MARKUP_PRE.contains(val) && !after.unwrap().is_ascii_whitespace()
-        } else {
-            // bof is always valid
-            !after.unwrap().is_ascii_whitespace()
-        }
+        // bof is always valid
+        !after.unwrap().is_ascii_whitespace()
     }
+}
+
+pub(crate) fn is_list_start(byte: u8) -> bool {
+    byte == HYPHEN || byte == STAR || byte == PLUS || byte.is_ascii_digit()
 }
