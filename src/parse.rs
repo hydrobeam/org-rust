@@ -8,8 +8,8 @@ use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underlin
 use crate::types::{Expr, MarkupKind, MatchError, Node, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, fn_until, is_list_start, variant_eq, verify_markup};
 
-pub(crate) fn parse_element<'a>(
-    pool: &RefCell<NodePool<'a>>,
+pub(crate) fn parse_element<'a, 'b>(
+    pool: &'b mut NodePool<'a>,
     byte_arr: &'a [u8],
     index: usize,
     parent: Option<NodeID>,
@@ -54,7 +54,7 @@ pub(crate) fn parse_element<'a>(
                     let byte = byte_arr[idx];
                     if byte.is_ascii_whitespace() {
                         if byte == NEWLINE {
-                            return Ok(pool.borrow_mut().alloc(
+                            return Ok(pool.alloc(
                                 Expr::BlankLine,
                                 index,
                                 idx + 1,
@@ -94,8 +94,8 @@ pub(crate) fn parse_element<'a>(
     // todo!()
 }
 
-fn parse_text<'a>(
-    pool: &RefCell<NodePool<'a>>,
+fn parse_text<'a, 'b>(
+    pool: &'b mut NodePool<'a>,
     byte_arr: &'a [u8],
     index: usize,
     parent: Option<NodeID>,
@@ -113,7 +113,7 @@ fn parse_text<'a>(
         }
     }
 
-    pool.borrow_mut()
+    pool
         .alloc(bytes_to_str(&byte_arr[index..idx]), index, idx, parent)
 }
 
@@ -122,7 +122,6 @@ macro_rules! handle_markup {
         if $parse_opts.markup.contains(MarkupKind::$name) && verify_markup($byte_arr, $index, true)
         {
             return Ok($pool
-                .borrow_mut()
                 .alloc(MarkupKind::$name, $index, $index + 1, None));
         } else if verify_markup($byte_arr, $index, false) {
             let mut new_opts = $parse_opts.clone();
@@ -136,8 +135,8 @@ macro_rules! handle_markup {
     };
 }
 
-pub(crate) fn parse_object<'a>(
-    pool: &RefCell<NodePool<'a>>,
+pub(crate) fn parse_object<'a, 'b>(
+    pool: &'b mut NodePool<'a>,
     byte_arr: &'a [u8],
     index: usize,
     parent: Option<NodeID>,
@@ -193,7 +192,6 @@ pub(crate) fn parse_object<'a>(
                 Ok(_) => return Err(MatchError::InvalidLogic),
                 Err(MatchError::InvalidLogic) => {
                     return Ok(pool
-                        .borrow_mut()
                         .alloc(Expr::SoftBreak, index, index + 1, parent))
                 }
                 Err(MatchError::EofError) => return Err(MatchError::EofError),
@@ -210,8 +208,8 @@ pub(crate) fn parse_object<'a>(
     }
 }
 
-fn parse_paragraph<'a>(
-    pool: &RefCell<NodePool<'a>>,
+fn parse_paragraph<'a, 'b>(
+    pool: &'b mut NodePool<'a>,
     byte_arr: &'a [u8],
     index: usize,
     parent: Option<NodeID>,
@@ -224,7 +222,7 @@ fn parse_paragraph<'a>(
     loop {
         match parse_object(pool, byte_arr, idx, parent, parse_opts) {
             Ok(id) => {
-                idx = pool.borrow()[id].end;
+                idx = pool[id].end;
                 content_vec.push(id);
             }
             Err(_) => {
@@ -234,7 +232,7 @@ fn parse_paragraph<'a>(
         }
     }
 
-    pool.borrow_mut().alloc(
+    pool.alloc(
         Paragraph(content_vec),
         index,
         idx + 1, // newline

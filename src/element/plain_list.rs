@@ -7,9 +7,9 @@ pub struct PlainList {
 }
 
 
-impl<'a> Parseable<'a> for PlainList {
+impl<'a, 'b> Parseable<'a, 'b> for PlainList {
     fn parse(
-        pool: &std::cell::RefCell<crate::node_pool::NodePool<'a>>,
+        pool: &'b mut crate::node_pool::NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,

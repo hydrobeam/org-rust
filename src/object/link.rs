@@ -18,9 +18,9 @@ pub struct Link<'a> {
     description: Option<Vec<NodeID>>,
 }
 
-impl<'a> Parseable<'a> for Link<'a> {
+impl<'a, 'b> Parseable<'a, 'b> for Link<'a> {
     fn parse(
-        pool: &RefCell<NodePool<'a>>,
+        pool: &'b mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
@@ -34,8 +34,8 @@ impl<'a> Parseable<'a> for Link<'a> {
         idx += 1;
         loop {
             if let Ok(id) = parse_object(pool, byte_arr, idx, parent, parse_opts) {
-                idx = pool.borrow()[id].end;
-                if let Expr::MarkupEnd(leaf) = pool.borrow()[id].obj {
+                idx = pool[id].end;
+                if let Expr::MarkupEnd(leaf) = pool[id].obj {
                     if leaf.contains(MarkupKind::Link) {
                         // close object
                         todo!()

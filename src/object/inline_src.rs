@@ -12,9 +12,9 @@ pub struct InlineSrc<'a> {
     pub body: &'a str,
 }
 
-impl<'a> Parseable<'a> for InlineSrc<'a> {
+impl<'a, 'b> Parseable<'a, 'b> for InlineSrc<'a> {
     fn parse(
-        pool: &RefCell<NodePool<'a>>,
+        pool: &'b mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
@@ -31,7 +31,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         match byte_arr[lang.end] {
             LBRACE => {
                 let body = Self::parse_body(byte_arr, index)?;
-                Ok(pool.borrow_mut().alloc(
+                Ok(pool.alloc(
                     Self {
                         lang: body.to_str(byte_arr),
                         headers: None,
@@ -46,7 +46,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                 let header = Self::parse_header(byte_arr, lang.end)?;
                 if byte_arr[header.end] != LBRACE {
                     let body = Self::parse_body(byte_arr, index)?;
-                    Ok(pool.borrow_mut().alloc(
+                    Ok(pool.alloc(
                         Self {
                             lang: lang.to_str(byte_arr),
                             headers: Some(header.to_str(byte_arr)),

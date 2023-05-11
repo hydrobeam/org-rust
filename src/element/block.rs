@@ -8,9 +8,9 @@ pub struct Block<'a> {
     contents: &'a str,
 }
 
-impl<'a> Parseable<'a> for Block<'a> {
+impl<'a, 'b> Parseable<'a, 'b> for Block<'a> {
     fn parse(
-        pool: &std::cell::RefCell<crate::node_pool::NodePool<'a>>,
+        pool: &'b mut crate::node_pool::NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<crate::node_pool::NodeID>,

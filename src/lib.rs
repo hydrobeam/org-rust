@@ -52,7 +52,7 @@ pub(crate) mod constants {
     pub const NEWLINE     : u8 = b'\n';
 }
 
-pub fn parse_org<'a>(input_text: &'a str) -> RefCell<NodePool<'a>> {
+pub fn parse_org<'a>(input_text: &'a str) -> NodePool<'a> {
     let byte_arr = input_text.as_bytes();
     let index = 0;
     let parse_opts = ParseOpts::default();
@@ -60,9 +60,8 @@ pub fn parse_org<'a>(input_text: &'a str) -> RefCell<NodePool<'a>> {
     let mut content_vec: Vec<NodeID> = Vec::new();
     let mut idx = index;
 
-    let mut pool = RefCell::new(NodePool::new());
+    let mut pool = NodePool::new();
     let parent = pool
-        .borrow_mut()
         .alloc(Expr::Root(Vec::new()), index, idx, None);
 
 
@@ -70,12 +69,12 @@ pub fn parse_org<'a>(input_text: &'a str) -> RefCell<NodePool<'a>> {
     loop {
         // dbg!(idx);
         // dbg!(bytes_to_str(&byte_arr[idx..]));
-        match parse_element(&pool, byte_arr, idx, Some(parent), parse_opts) {
+        match parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
 
             Ok(id) => {
                 // dbg!(id);
                 // dbg!(&pool.borrow()[id]);
-                idx = pool.borrow()[id].end;
+                idx = pool[id].end;
                 content_vec.push(id);
                 // break;
             }
@@ -83,8 +82,8 @@ pub fn parse_org<'a>(input_text: &'a str) -> RefCell<NodePool<'a>> {
         }
     }
 
-    pool.borrow_mut()[parent].obj = Expr::Root(content_vec);
-    pool.borrow_mut()[parent].end = idx;
+    pool[parent].obj = Expr::Root(content_vec);
+    pool[parent].end = idx;
     pool
 }
 

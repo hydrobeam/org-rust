@@ -6,8 +6,6 @@ use crate::{
     utils::{bytes_to_str, verify_markup},
 };
 
-use std::cell::RefCell;
-
 #[derive(Debug, Clone)]
 pub struct Italic(Vec<NodeID>);
 
@@ -28,9 +26,9 @@ pub struct Code<'a>(&'a str);
 
 macro_rules! recursive_markup {
     ($name: tt) => {
-        impl<'a> Parseable<'a> for $name {
+        impl<'a, 'b> Parseable<'a, 'b> for $name {
             fn parse(
-                pool: &RefCell<NodePool<'a>>,
+                pool: &'b mut NodePool<'a>,
                 byte_arr: &'a [u8],
                 index: usize,
                 parent: Option<NodeID>,
@@ -45,30 +43,17 @@ macro_rules! recursive_markup {
                 loop {
                     match parse_object(pool, byte_arr, idx, parent, parse_opts) {
                         Ok(id) => {
-                            // do it like this so that the immmutable borrow doesn't
-                            // interefere with the future mutable borrow
-                            let leaf: MarkupKind;
-                            {
-                                let node = &pool.borrow()[id];
-                                idx = node.end;
-                                if let Expr::MarkupEnd(cont) = node.obj {
-                                    leaf = cont;
+                            let node = &pool[id];
+                            idx = node.end;
+                            if let Expr::MarkupEnd(leaf) = node.obj {
+                                if leaf.contains(MarkupKind::$name) {
+                                    let r = Ok(pool.alloc(Self(content_vec), index, idx, parent));
+                                    return r;
                                 } else {
-                                    content_vec.push(id);
-                                    continue;
+                                    return Err(MatchError::InvalidLogic);
                                 }
-                            }
-
-                            // leaf exists here
-                            if leaf.contains(MarkupKind::$name) {
-                                return Ok(pool.borrow_mut().alloc(
-                                    Self(content_vec),
-                                    index,
-                                    idx,
-                                    parent,
-                                ));
                             } else {
-                                return Err(MatchError::InvalidLogic);
+                                content_vec.push(id);
                             }
                         }
                         Err(_) => {
@@ -84,9 +69,9 @@ macro_rules! recursive_markup {
 
 macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
-        impl<'a> Parseable<'a> for $name<'a> {
+        impl<'a, 'b> Parseable<'a, 'b> for $name<'a> {
             fn parse(
-                pool: &RefCell<NodePool<'a>>,
+                pool: &'b mut NodePool<'a>,
                 byte_arr: &'a [u8],
                 index: usize,
                 parent: Option<NodeID>,
@@ -130,7 +115,7 @@ macro_rules! plain_markup {
                 //     index + 1,
                 //     idx + 1,
                 // ))
-                Ok(pool.borrow_mut().alloc(
+                Ok(pool.alloc(
                     Self(bytes_to_str(&byte_arr[index + 1..idx])),
                     index + 1,
                     idx + 1,
@@ -192,24 +177,3 @@ mod tests {
         dbg!(parse_org(inp));
     }
 }
-
-// Ok(id) => {
-//     let node = pool.borrow()[id].clone();
-//     idx = node.end;
-//     if let Expr::MarkupEnd(leaf) = node.obj {
-//         if leaf.contains(MarkupKind::$name) {
-//             dbg!("before borrow_mut");
-//             let r = Ok(pool.borrow_mut().alloc(
-//                 Self(content_vec),
-//                 index,
-//                 idx,
-//                 parent,
-//             ));
-//             dbg!("after borrow_mut");
-//             return r;
-//         } else {
-//             return Err(MatchError::InvalidLogic);
-//         }
-//     } else {
-//         content_vec.push(id);
-//     }

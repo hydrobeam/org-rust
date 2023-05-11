@@ -113,9 +113,9 @@ bitflags! {
     }
 }
 
-pub(crate) trait Parseable<'a> {
+pub(crate) trait Parseable<'a, 'b> {
     fn parse(
-        pool: &RefCell<NodePool<'a>>,
+        pool: &'b mut NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,

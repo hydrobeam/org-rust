@@ -13,9 +13,9 @@ pub struct Heading<'a> {
     title: Option<Vec<NodeID>>,
 }
 
-impl<'a> Parseable<'a> for Heading<'a> {
+impl<'a, 'b> Parseable<'a, 'b> for Heading<'a> {
     fn parse(
-        pool: &std::cell::RefCell<crate::node_pool::NodePool<'a>>,
+        pool: &'b mut crate::node_pool::NodePool<'a>,
         byte_arr: &'a [u8],
         index: usize,
         parent: Option<NodeID>,
