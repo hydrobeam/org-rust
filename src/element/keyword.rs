@@ -1,9 +1,7 @@
-use crate::{
-    constants::COLON,
-    node_pool::{NodeID, NodePool},
-    types::{MatchError, ParseOpts, Parseable, Result},
-    utils::{fn_until, word},
-};
+use crate::constants::COLON;
+use crate::node_pool::{NodeID, NodePool};
+use crate::types::{MatchError, ParseOpts, Parseable, Result};
+use crate::utils::{fn_until, word};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {

@@ -1,9 +1,9 @@
 use derive_more::From;
 use std::fmt::Debug;
 
-use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
+use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
-use crate::object::{Bold, Code, InlineSrc, Italic, Link, StrikeThrough, Underline, Verbatim};
+use crate::object::*;
 use bitflags::bitflags;
 
 #[derive(Clone)]

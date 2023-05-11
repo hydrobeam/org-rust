@@ -1,8 +1,6 @@
-use crate::{
-    node_pool::{NodeID, NodePool},
-    types::{ParseOpts, Parseable, Result},
-    utils::fn_until,
-};
+use crate::node_pool::{NodeID, NodePool};
+use crate::types::{ParseOpts, Parseable, Result};
+use crate::utils::fn_until;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Comment<'a>(&'a str);

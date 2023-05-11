@@ -1,10 +1,8 @@
-use crate::{
-    constants::{EQUAL, NEWLINE, TILDE},
-    node_pool::{NodeID, NodePool},
-    parse::{parse_element, parse_object},
-    types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result},
-    utils::{bytes_to_str, verify_markup},
-};
+use crate::constants::{EQUAL, NEWLINE, TILDE};
+use crate::node_pool::{NodeID, NodePool};
+use crate::parse::{parse_element, parse_object};
+use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::utils::{bytes_to_str, verify_markup};
 
 #[derive(Debug, Clone)]
 pub struct Italic(Vec<NodeID>);

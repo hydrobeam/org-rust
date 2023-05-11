@@ -1,7 +1,5 @@
-use crate::{
-    node_pool::{NodeID, NodePool},
-    types::{ParseOpts, Parseable, Result},
-};
+use crate::node_pool::{NodeID, NodePool};
+use crate::types::{ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
 pub struct Paragraph(pub Vec<NodeID>);

@@ -1,8 +1,5 @@
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    ops::{Index, IndexMut},
-};
+use std::collections::HashMap;
+use std::ops::{Index, IndexMut};
 
 use crate::types::{Expr, Node};
 

@@ -1,7 +1,5 @@
-use crate::{
-    node_pool::NodePool,
-    types::{ParseOpts, Parseable, Result},
-};
+use crate::node_pool::NodePool;
+use crate::types::{ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
 pub struct Block<'a> {

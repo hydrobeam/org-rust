@@ -1,8 +1,6 @@
-use crate::{
-    node_pool::{NodeID, NodePool},
-    parse::parse_object,
-    types::{Expr, MarkupKind, ParseOpts, Parseable, Result},
-};
+use crate::node_pool::{NodeID, NodePool};
+use crate::parse::parse_object;
+use crate::types::{Expr, MarkupKind, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
 pub struct Link<'a> {

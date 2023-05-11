@@ -1,7 +1,5 @@
-use crate::{
-    constants::{HYPHEN, PLUS, STAR},
-    types::{MatchError, Result},
-};
+use crate::constants::{HYPHEN, PLUS, STAR};
+use crate::types::{MatchError, Result};
 use phf::phf_set;
 
 // Either a whitespace character, -, ., ,, ;, :, !, ?, ', ), }, [, ", or the end of a line.
