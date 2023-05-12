@@ -1,4 +1,4 @@
-use crate::constants::{HYPHEN, PLUS, STAR};
+use crate::constants::{HYPHEN, PLUS, SPACE, STAR};
 use crate::types::{MatchError, Result};
 use phf::phf_set;
 
@@ -44,6 +44,7 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
 /// it's a safe assumption to make that we're indexing into valid utf8,
 /// otherwise we have an internal bug and we'd be unwrapping immediately
 /// afterwards with the safe alternative either way.
+#[inline]
 pub fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
@@ -58,6 +59,10 @@ impl<'a> Match {
     pub fn to_str(&self, byte_arr: &'a [u8]) -> &'a str {
         bytes_to_str(&byte_arr[self.start..self.end])
     }
+
+    pub fn len(&self) -> usize {
+        self.end - self.start
+    }
 }
 
 // SAFETY: byte_arr came from a valid utf_8 string and we check only on valid
@@ -66,8 +71,21 @@ impl<'a> Match {
 //
 // realistically not a big performance hit but no reason to pay the cost
 // unecessarily
+//
+//
+//
+/// Apply `func` until it returns true
+///
+/// # Example
+///
+/// use orgparse::utils::fn_until;
+///
+/// ```no_run
+/// let ret = fn_until("qqqnnn".as_bytes(), 1, |chr: u8| chr != b'q');
+/// assert_eq!(ret.start, 1);
+/// assert_eq!(ret.end, 3);
+/// ```
 pub(crate) fn fn_until(byte_arr: &[u8], index: usize, func: impl Fn(u8) -> bool) -> Result<Match> {
-    // TODO: don't unwrap
     // arr [1, 2, 3]
     // arr.position(|x| x == 2) => 1
     let ret = byte_arr[index..]
@@ -90,6 +108,15 @@ pub(crate) fn word(byte_arr: &[u8], index: usize, word: &str) -> Result<Match> {
     } else {
         Err(MatchError::InvalidLogic)
     }
+}
+
+// TODO: recognize tabs too maybe?
+pub fn skip_ws(byte_arr: &[u8], index: usize) -> usize {
+    let mut idx = index;
+    while byte_arr[idx] == SPACE {
+        idx += 1;
+    }
+    idx
 }
 
 #[inline(always)]
@@ -132,4 +159,16 @@ pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
 
 pub(crate) fn is_list_start(byte: u8) -> bool {
     byte == HYPHEN || byte == STAR || byte == PLUS || byte.is_ascii_digit()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fn_until() {
+        let ret = fn_until("qqqnnn".as_bytes(), 1, |chr: u8| chr != b'q').unwrap();
+        assert_eq!(ret.start, 1);
+        assert_eq!(ret.end, 3);
+    }
 }

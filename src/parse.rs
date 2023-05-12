@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Comment, Keyword, Paragraph, PlainList};
+use crate::element::{Comment, Heading, Keyword, Paragraph, PlainList};
 use crate::object::{Bold, Code, Italic, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, is_list_start, verify_markup};
@@ -19,13 +19,19 @@ pub(crate) fn parse_element<'a>(
     assert!(index < byte_arr.len());
 
     match byte_arr[index] {
-        // STAR => {
-        //     if let ret @ Ok(_) = Heading::parse(byte_arr, index, parse_opts) {
-        //          ret
-        //     } else {
-        //         return parse_paragraph(byte_arr, index, parse_opts);
-        //     }
-        // }
+        STAR => {
+            if let ret @ Ok(_) = Heading::parse(
+                pool,
+                byte_arr,
+                index,
+                parent,
+                // parse_opts, (doesn't totally matter to use the default vs preloaded,
+                // since we account for it, but default makes more sense maybe>?)
+                ParseOpts::default(),
+            ) {
+                return ret;
+            }
+        }
         POUND => {
             if let ret @ Ok(_) = Keyword::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
@@ -114,14 +120,8 @@ macro_rules! handle_markup {
             // None parent cause this
             // FIXME: we allocate in the pool for "marker" return types,,
             return Ok($pool.alloc(MarkupKind::$name, $index, $index + 1, None));
-        } else if verify_markup($byte_arr, $index, false) {
-            let mut new_opts = $parse_opts.clone();
-
-            new_opts.from_object = false;
-            new_opts.markup = MarkupKind::$name;
-            if let ret @ Ok(_) = $name::parse($pool, $byte_arr, $index, $parent, new_opts) {
-                return ret;
-            }
+        } else if let ret @ Ok(_) = $name::parse($pool, $byte_arr, $index, $parent, $parse_opts) {
+            return ret;
         }
     };
 }
@@ -180,7 +180,11 @@ pub(crate) fn parse_object<'a>(
             parse_opts.from_paragraph = true;
 
             match parse_element(pool, byte_arr, index + 1, parent, parse_opts) {
-                Ok(_) => return Err(MatchError::InvalidLogic),
+                Ok(id) => {
+                    // REVIEW: do we need to do this?
+                    // purposefully do not incrememtn the index
+                    return Ok(pool.alloc(Expr::ParagraphStop, index, index + 1, parent));
+                }
                 Err(MatchError::InvalidLogic) => {
                     return Ok(pool.alloc(Expr::SoftBreak, index, index + 1, parent))
                 }
@@ -215,8 +219,12 @@ fn parse_paragraph<'a>(
     loop {
         match parse_object(pool, byte_arr, idx, Some(new_id), parse_opts) {
             Ok(id) => {
-                idx = pool[id].end;
-                content_vec.push(id);
+                if let Expr::ParagraphStop = pool[id].obj {
+                    break;
+                } else {
+                    idx = pool[id].end;
+                    content_vec.push(id);
+                }
             }
             Err(_) => {
                 // TODO: cache

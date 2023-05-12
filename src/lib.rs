@@ -11,7 +11,7 @@ mod node_pool;
 mod object;
 mod parse;
 mod types;
-mod utils;
+pub(crate) mod utils;
 
 #[rustfmt::skip]
 pub(crate) mod constants {
@@ -61,15 +61,10 @@ pub fn parse_org(input_text: &str) -> NodePool<'_> {
 
     // NOTE: while let loop does not run! TODO: find out why
     loop {
-        // dbg!(idx);
-        // dbg!(bytes_to_str(&byte_arr[idx..]));
         match parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
             Ok(id) => {
-                // dbg!(id);
-                // dbg!(&pool.borrow()[id]);
                 idx = pool[id].end;
                 content_vec.push(id);
-                // break;
             }
             Err(_) => break,
         }

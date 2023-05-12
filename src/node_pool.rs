@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 use crate::types::{Expr, Node};
@@ -96,6 +97,10 @@ impl<'a> NodePool<'a> {
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Node<'a>> {
         IntoIterator::into_iter(&mut self.inner_vec)
+    }
+
+    pub fn root(&self) -> &Node {
+        &self.inner_vec[0]
     }
 }
 

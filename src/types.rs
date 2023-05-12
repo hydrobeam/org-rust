@@ -1,5 +1,6 @@
+use core::fmt;
 use derive_more::From;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
@@ -50,6 +51,10 @@ impl<'a> Node<'a> {
             parent,
         }
     }
+
+    pub fn print_tree(&self, pool: &NodePool) {
+        self.obj.print_tree(pool);
+    }
 }
 
 #[derive(From, Clone)]
@@ -70,6 +75,7 @@ pub enum Expr<'a> {
     // ZST
     BlankLine,
     SoftBreak,
+    ParagraphStop,
     // Normal
     Plain(&'a str),
     MarkupEnd(MarkupKind),
@@ -139,6 +145,99 @@ pub(crate) trait Parseable<'a> {
 //
 // ... levels of indirection make it impossible to digest the output.
 
+// TODO: this sucks because implementing Debug to pull data from elsewhere
+// is either hard or not possible
+impl<'a> Expr<'a> {
+    fn print_tree(&self, pool: &NodePool) {
+        match self {
+            Expr::Root(inner) => {
+                print!("Root(");
+                for id in inner {
+                    // print!("{:#?}: ", id);
+                    pool[*id].obj.print_tree(pool);
+                    print!("\n");
+                }
+                print!(")");
+            }
+            Expr::Heading(inner) => {
+                print!("Heading {{\n");
+                println!("heading_level: {:#?}", inner.heading_level);
+                println!("keyword: {:#?}", inner.keyword);
+                println!("priority: {:#?}", inner.priority);
+                println!("tags: {:#?}", inner.tags);
+                print!("title: ");
+                if let Some(title) = &inner.title {
+                    for id in title {
+                        pool[*id].obj.print_tree(pool);
+                    }
+                }
+                print!("\n");
+                print!("children: [");
+                if let Some(children) = &inner.children {
+                    for id in children {
+                        // print!("{:#?}: ", id);
+                        pool[*id].obj.print_tree(pool);
+                        print!(", ");
+                    }
+                }
+                print!("]");
+                print!("}}")
+            }
+            Expr::Block(inner) => println!("{:#?}", inner),
+            Expr::Link(inner) => {}
+            Expr::Paragraph(inner) => {
+                print!("Paragraph {{");
+                for id in &inner.0 {
+                    // print!("{:#?}: ", id);
+                    pool[*id].obj.print_tree(pool);
+                    print!(", ");
+                }
+                print!("}}");
+            }
+
+            Expr::Italic(inner) => {
+                print!("Italic{{");
+                for id in &inner.0 {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
+            Expr::Bold(inner) => {
+                print!("Bold{{");
+                for id in &inner.0 {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
+            Expr::StrikeThrough(inner) => {
+                print!("StrikeThrough{{");
+                for id in &inner.0 {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
+            Expr::Underline(inner) => {
+                print!("Underline{{");
+                for id in &inner.0 {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
+            Expr::PlainList(inner) => todo!(),
+            Expr::BlankLine => print!("BlankLine"),
+            Expr::SoftBreak => print!("SoftBreak"),
+            Expr::ParagraphStop => print!("ParagraphStop"),
+            Expr::Plain(inner) => print!("{:#?}", inner),
+            Expr::MarkupEnd(inner) => print!("{:#?}", inner),
+            Expr::Verbatim(inner) => print!("{:#?}", inner),
+            Expr::Code(inner) => print!("{:#?}", inner),
+            Expr::Comment(inner) => print!("{:#?}", inner),
+            Expr::InlineSrc(inner) => print!("{:#?}", inner),
+            Expr::Keyword(inner) => print!("{:#?}", inner),
+        }
+    }
+}
+
 #[allow(clippy::format_in_format_args)]
 impl<'a> std::fmt::Debug for Expr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -150,6 +249,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
+                Expr::ParagraphStop => f.write_str("ParagraphStop"),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:#?}", inner)),
@@ -173,6 +273,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
             }
         } else {
             match self {
+                Expr::ParagraphStop => f.write_str("ParagraphStop"),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:?}", inner)),

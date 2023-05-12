@@ -5,16 +5,16 @@ use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, verify_markup};
 
 #[derive(Debug, Clone)]
-pub struct Italic(Vec<NodeID>);
+pub struct Italic(pub Vec<NodeID>);
 
 #[derive(Debug, Clone)]
-pub struct Bold(Vec<NodeID>);
+pub struct Bold(pub Vec<NodeID>);
 
 #[derive(Debug, Clone)]
-pub struct StrikeThrough(Vec<NodeID>);
+pub struct StrikeThrough(pub Vec<NodeID>);
 
 #[derive(Debug, Clone)]
-pub struct Underline(Vec<NodeID>);
+pub struct Underline(pub Vec<NodeID>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Verbatim<'a>(&'a str);
@@ -32,6 +32,11 @@ macro_rules! recursive_markup {
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
             ) -> Result<NodeID> {
+                if !verify_markup(byte_arr, index, false) {
+                    return Err(MatchError::InvalidLogic);
+                }
+                parse_opts.from_object = false;
+                parse_opts.markup = MarkupKind::$name;
                 parse_opts.markup.insert(MarkupKind::$name);
 
                 let mut content_vec: Vec<NodeID> = Vec::new();
