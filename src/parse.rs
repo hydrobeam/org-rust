@@ -180,15 +180,13 @@ pub(crate) fn parse_object<'a>(
             parse_opts.from_paragraph = true;
 
             match parse_element(pool, byte_arr, index + 1, parent, parse_opts) {
-                Ok(id) => {
-                    // REVIEW: do we need to do this?
-                    // purposefully do not incrememtn the index
-                    return Ok(pool.alloc(Expr::ParagraphStop, index, index + 1, parent));
-                }
                 Err(MatchError::InvalidLogic) => {
                     return Ok(pool.alloc(Expr::SoftBreak, index, index + 1, parent))
                 }
-                Err(MatchError::EofError) => return Err(MatchError::EofError),
+                // EofError isn't exactly the right error for the Ok(_) case
+                // but we do it to send a signal to `parse_text` to stop collecting:
+                // it catches on EofError
+                Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
             }
         }
         _ => {}
@@ -219,12 +217,8 @@ fn parse_paragraph<'a>(
     loop {
         match parse_object(pool, byte_arr, idx, Some(new_id), parse_opts) {
             Ok(id) => {
-                if let Expr::ParagraphStop = pool[id].obj {
-                    break;
-                } else {
-                    idx = pool[id].end;
-                    content_vec.push(id);
-                }
+                idx = pool[id].end;
+                content_vec.push(id);
             }
             Err(_) => {
                 // TODO: cache

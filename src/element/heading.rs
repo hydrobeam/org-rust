@@ -157,10 +157,10 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         let mut section_vec: Vec<NodeID> = Vec::new();
 
-        while let Ok(title_id) =
+        while let Ok(element_id) =
             parse_element(pool, byte_arr, curr_ind, Some(reserved_id), parse_opts)
         {
-            match pool[title_id].obj {
+            match pool[element_id].obj {
                 Expr::Heading(ref mut heading) => {
                     if u8::from(heading_level) < u8::from(heading.heading_level) {
                         if let Some(tag_vec) = &mut heading.tags {
@@ -168,15 +168,15 @@ impl<'a> Parseable<'a> for Heading<'a> {
                         } else {
                             heading.tags = Some(vec![Tag::Loc(reserved_id)]);
                         }
-                        section_vec.push(title_id);
-                        curr_ind = pool[title_id].end;
+                        section_vec.push(element_id);
+                        curr_ind = pool[element_id].end;
                     } else {
                         break;
                     }
                 }
                 _ => {
-                    section_vec.push(title_id);
-                    curr_ind = pool[title_id].end;
+                    section_vec.push(element_id);
+                    curr_ind = pool[element_id].end;
                 }
             }
         }
@@ -424,7 +424,7 @@ subcontent
 this
 
 is a different paragraph
-
+id) =
 more subcontent
 
 * [#4] separate andy

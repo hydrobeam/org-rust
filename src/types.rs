@@ -1,6 +1,5 @@
-use core::fmt;
 use derive_more::From;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
@@ -75,7 +74,6 @@ pub enum Expr<'a> {
     // ZST
     BlankLine,
     SoftBreak,
-    ParagraphStop,
     // Normal
     Plain(&'a str),
     MarkupEnd(MarkupKind),
@@ -226,7 +224,6 @@ impl<'a> Expr<'a> {
             Expr::PlainList(inner) => todo!(),
             Expr::BlankLine => print!("BlankLine"),
             Expr::SoftBreak => print!("SoftBreak"),
-            Expr::ParagraphStop => print!("ParagraphStop"),
             Expr::Plain(inner) => print!("{:#?}", inner),
             Expr::MarkupEnd(inner) => print!("{:#?}", inner),
             Expr::Verbatim(inner) => print!("{:#?}", inner),
@@ -249,7 +246,6 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
-                Expr::ParagraphStop => f.write_str("ParagraphStop"),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:#?}", inner)),
@@ -273,7 +269,6 @@ impl<'a> std::fmt::Debug for Expr<'a> {
             }
         } else {
             match self {
-                Expr::ParagraphStop => f.write_str("ParagraphStop"),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:?}", inner)),
