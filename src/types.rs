@@ -181,7 +181,19 @@ impl<'a> Expr<'a> {
                 print!("]");
                 print!("}}")
             }
-            Expr::Block(inner) => println!("{:#?}", inner),
+            Expr::Block(inner) => match &inner.contents {
+                BlockContents::Greater(children) => {
+                    print!("Block{{\n");
+                    for id in children {
+                        pool[*id].obj.print_tree(pool);
+                        print!(",\n ");
+                    }
+                    print!("\nEndBlock}}");
+                }
+                BlockContents::Lesser(cont) => {
+                    println!("{:#?}", inner);
+                }
+            },
             Expr::Link(inner) => {}
             Expr::Paragraph(inner) => {
                 print!("Paragraph {{");

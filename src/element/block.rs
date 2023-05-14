@@ -7,13 +7,14 @@ use memchr::memmem;
 
 #[derive(Debug, Clone)]
 pub struct Block<'a> {
-    kind: BlockKind<'a>,
-    parameters: Option<&'a str>,
-    contents: BlockContents<'a>,
+    pub kind: BlockKind<'a>,
+    pub parameters: Option<&'a str>,
+    pub contents: BlockContents<'a>,
 }
 
+// TODO; just expost these two different kinds as structs?
 #[derive(Debug, Clone)]
-enum BlockContents<'a> {
+pub enum BlockContents<'a> {
     Greater(Vec<NodeID>),
     Lesser(&'a str),
 }
@@ -27,13 +28,16 @@ impl<'a> Parseable<'a> for Block<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let begin_cookie = word(byte_arr, index, "#+begin_")?;
+
         let block_name_match = fn_until(byte_arr, begin_cookie.end, |chr: u8| {
             chr.is_ascii_whitespace()
         })?;
 
         let block_kind: BlockKind;
         let parameters: Option<&str>;
-        if begin_cookie.end != block_name_match.end {
+        // if no progress was made looking for the block_type:
+        // i.e.: #+begin_\n
+        if begin_cookie.end == block_name_match.end {
             return Err(MatchError::InvalidLogic);
         }
         // parse paramters
@@ -58,9 +62,11 @@ impl<'a> Parseable<'a> for Block<'a> {
         } else {
             let params_match = fn_until(byte_arr, curr_ind, |chr| chr == NEWLINE)?;
             parameters = Some(params_match.to_str(byte_arr));
-            // skip the newline
-            curr_ind = params_match.end + 1;
+            curr_ind = params_match.end;
         }
+
+        // skip the newline
+        curr_ind += 1;
 
         let mut it;
         // have to predeclare these so that the allocated string
@@ -73,21 +79,20 @@ impl<'a> Parseable<'a> for Block<'a> {
         if let Some(block_end) = block_kind.to_end() {
             needle = block_end;
         } else {
-            alloc_str = format!("#+end_{}\n", block_name_match.to_str(byte_arr));
+            alloc_str = format!("\n#+end_{}\n", block_name_match.to_str(byte_arr));
             needle = &alloc_str;
         }
 
         it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
-        let loc = it.next().ok_or(MatchError::InvalidLogic)?;
+        // returns result at the start of the needle
+        let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
 
         if block_kind.is_lesser() {
             Ok(pool.alloc(
                 Self {
                     kind: block_kind,
                     parameters,
-                    contents: BlockContents::Lesser(bytes_to_str(
-                        &byte_arr[curr_ind..(curr_ind + loc)],
-                    )),
+                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind..loc])),
                 },
                 index,
                 curr_ind + needle.len(),
@@ -95,14 +100,15 @@ impl<'a> Parseable<'a> for Block<'a> {
             ))
         } else {
             let mut content_vec: Vec<NodeID> = Vec::new();
+            let reserve_id = pool.reserve_id();
             while let Ok(element_id) =
-                parse_element(pool, &byte_arr[..loc], curr_ind, parent, parse_opts)
+                parse_element(pool, &byte_arr[..loc], curr_ind, Some(reserve_id), parse_opts)
             {
                 content_vec.push(element_id);
                 curr_ind = pool[element_id].end;
             }
 
-            Ok(pool.alloc(
+            Ok(pool.alloc_with_id(
                 Self {
                     kind: block_kind,
                     parameters,
@@ -111,13 +117,14 @@ impl<'a> Parseable<'a> for Block<'a> {
                 index,
                 curr_ind + needle.len(),
                 parent,
+                reserve_id
             ))
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-enum BlockKind<'a> {
+pub enum BlockKind<'a> {
     // Greater
     Center,
     Quote,
@@ -132,7 +139,7 @@ enum BlockKind<'a> {
 }
 
 impl<'a> BlockKind<'_> {
-    fn is_lesser(&self) -> bool {
+    pub fn is_lesser(&self) -> bool {
         matches!(
             self,
             BlockKind::Comment
@@ -145,13 +152,13 @@ impl<'a> BlockKind<'_> {
 
     fn to_end(&self) -> Option<&str> {
         match self {
-            BlockKind::Center => Some("#+end_center\n"),
-            BlockKind::Quote => Some("#+end_quote\n"),
-            BlockKind::Comment => Some("#+end_comment\n"),
-            BlockKind::Example => Some("#+end_example\n"),
-            BlockKind::Export => Some("#+end_export\n"),
-            BlockKind::Src(_) => Some("#+end_src\n"),
-            BlockKind::Verse => Some("#+end_verse\n"),
+            BlockKind::Center => Some("\n#+end_center\n"),
+            BlockKind::Quote => Some("\n#+end_quote\n"),
+            BlockKind::Comment => Some("\n#+end_comment\n"),
+            BlockKind::Example => Some("\n#+end_example\n"),
+            BlockKind::Export => Some("\n#+end_export\n"),
+            BlockKind::Src(_) => Some("\n#+end_src\n"),
+            BlockKind::Verse => Some("\n#+end_verse\n"),
             BlockKind::Special(_) => None,
         }
     }
@@ -172,5 +179,98 @@ impl<'a> From<&'a str> for BlockKind<'a> {
             "src" => unreachable!(),
             _ => Self::Special(value),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_org;
+
+    #[test]
+    fn test_basic_block() {
+        let inp = "#+begin_export\n#+end_export\n";
+
+        dbg!(parse_org(inp));
+    }
+    #[test]
+    fn test_special_block() {
+        let inp = "#+begin_rainbow\n#+end_rainbow\n";
+
+        dbg!(parse_org(inp));
+    }
+    #[test]
+    fn test_src_block() {
+        let inp = "#+begin_src python\n#+end_src\n";
+
+        dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn test_src_block_params() {
+        let inp = "#+begin_src python yay i love python\n#+end_src\n";
+
+        dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn test_block_params() {
+        let inp = "#+begin_example gotta love examples\n#+end_example\n";
+
+        dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn test_lesser_block_content() {
+        let inp = "#+begin_example gotta love examples\nsmallexp\n#+end_example\n";
+
+        dbg!(parse_org(inp));
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn test_big_lesser_block_content() {
+        let inp =
+r"#+begin_example
+this is a larger example gotta love examples
+to demonstrate that it works
+string substring
+big
+one two three
+/formatted text? no such thing!/
+*abc*
+#+end_example
+";
+        dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn test_big_greater_block_content() {
+        let inp = r"
+#+begin_quote
+
+/formatted text? such thing!/
+*abc*
+
+* headlines too
+anything is possible
+
+blank lines
+
+#+keyword: one
+
+#+begin_src rust
+let nest = Some()
+
+if let Some(nested) = nest {
+    dbg!(meta);
+}
+
+#+end_src
+
+** headline :tag:meow:
+#+end_quote
+";
+        let ret = parse_org(inp);
+        ret.root().print_tree(&ret);
     }
 }

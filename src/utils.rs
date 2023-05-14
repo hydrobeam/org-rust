@@ -80,9 +80,11 @@ impl<'a> Match {
 ///
 /// use orgparse::utils::fn_until;
 ///
+/// ```ignore
 /// let ret = fn_until("qqqnnn".as_bytes(), 1, |chr: u8| chr != b'q');
 /// assert_eq!(ret.start, 1);
 /// assert_eq!(ret.end, 3);
+/// ```
 pub(crate) fn fn_until(byte_arr: &[u8], index: usize, func: impl Fn(u8) -> bool) -> Result<Match> {
     // arr [1, 2, 3]
     // arr.position(|x| x == 2) => 1

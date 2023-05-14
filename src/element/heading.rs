@@ -110,11 +110,13 @@ impl<'a> Parseable<'a> for Heading<'a> {
             }
         }
 
-        let nl = byte_arr[curr_ind..]
+        let byte_slice = &byte_arr[curr_ind..];
+        let nl = byte_slice
             .iter()
             .position(|&x| x == NEWLINE)
-            .ok_or(MatchError::EofError)?
+            .unwrap_or(byte_slice.len()) // EOF case, just go to the end
             + curr_ind;
+
         // the only error is an eof error.
         // temp_ind = min(first_tag, newline(no tags))
         let (temp_ind, tags) = Heading::parse_tag(byte_arr, curr_ind, nl);
@@ -280,6 +282,7 @@ impl<'a> Heading<'a> {
     fn parse_tag(byte_arr: &[u8], curr_ind: usize, nl_loc: usize) -> (usize, Option<Vec<Tag>>) {
         let mut temp_ind = nl_loc - 1;
         // might help optimize out bounds checks?
+
         assert!(temp_ind < byte_arr.len());
 
         while byte_arr[temp_ind] == SPACE {
