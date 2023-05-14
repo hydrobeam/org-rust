@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList};
+use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList, LatexEnv};
 use crate::object::{Bold, Code, Italic, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, is_list_start, verify_markup};
@@ -38,6 +38,11 @@ pub(crate) fn parse_element<'a>(
             } else if let ret @ Ok(_) = Block::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             } else if let ret @ Ok(_) = Comment::parse(pool, byte_arr, index, parent, parse_opts) {
+                return ret;
+            }
+        }
+        BACKSLASH => {
+            if let ret @ Ok(_) = LatexEnv::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
         }

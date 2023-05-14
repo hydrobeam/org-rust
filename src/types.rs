@@ -71,7 +71,6 @@ pub enum Expr<'a> {
     PlainList(PlainList),
 
     // Leaf
-    // ZST
     BlankLine,
     SoftBreak,
     // Normal
@@ -80,9 +79,9 @@ pub enum Expr<'a> {
     Verbatim(Verbatim<'a>),
     Code(Code<'a>),
     Comment(Comment<'a>),
-    // Boxed
     InlineSrc(InlineSrc<'a>),
     Keyword(Keyword<'a>),
+    LatexEnv(LatexEnv<'a>),
 }
 
 pub type Result<T> = std::result::Result<T, MatchError>;
@@ -243,6 +242,7 @@ impl<'a> Expr<'a> {
             Expr::Comment(inner) => print!("{:#?}", inner),
             Expr::InlineSrc(inner) => print!("{:#?}", inner),
             Expr::Keyword(inner) => print!("{:#?}", inner),
+            Expr::LatexEnv(inner) =>  print!("{:#?}", inner),
         }
     }
 }
@@ -278,9 +278,12 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Comment(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Keyword(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{:#?}", inner)),
             }
         } else {
             match self {
+
+                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:?}", inner)),

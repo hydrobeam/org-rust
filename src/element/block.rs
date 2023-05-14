@@ -65,9 +65,6 @@ impl<'a> Parseable<'a> for Block<'a> {
             curr_ind = params_match.end;
         }
 
-        // skip the newline
-        curr_ind += 1;
-
         let mut it;
         // have to predeclare these so that the allocated string
         // doesn't go out of scope and we can still pull a reference
