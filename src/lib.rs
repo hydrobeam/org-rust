@@ -46,6 +46,8 @@ pub(crate) mod constants {
     pub const QUESTION    : u8 = b'?';
     pub const DOUBLEQUOTE : u8 = b'"';
     pub const NEWLINE     : u8 = b'\n';
+    pub const LPAREN : u8  = b'(';
+    pub const RPAREN : u8  = b')';
 }
 
 pub fn parse_org(input_text: &str) -> NodePool<'_> {

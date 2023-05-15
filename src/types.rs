@@ -82,6 +82,7 @@ pub enum Expr<'a> {
     InlineSrc(InlineSrc<'a>),
     Keyword(Keyword<'a>),
     LatexEnv(LatexEnv<'a>),
+    LatexFragment(LatexFragment<'a>),
 }
 
 pub type Result<T> = std::result::Result<T, MatchError>;
@@ -147,6 +148,7 @@ pub(crate) trait Parseable<'a> {
 impl<'a> Expr<'a> {
     fn print_tree(&self, pool: &NodePool) {
         match self {
+            Expr::LatexFragment(inner) => print!("{inner:#?}"),
             Expr::Root(inner) => {
                 print!("Root(");
                 for id in inner {
@@ -258,6 +260,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
+                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:#?}", inner)),
                 Expr::Block(inner) => f.write_fmt(format_args!("{:#?}", inner)),
@@ -282,7 +285,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
             }
         } else {
             match self {
-
+                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::LatexEnv(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Root(inner) => f.write_fmt(format_args!("{:?}", inner)),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{:?}", inner)),

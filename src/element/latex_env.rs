@@ -33,8 +33,6 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
             return Err(MatchError::InvalidLogic);
         };
 
-        // let mut curr_ind = skip_ws(byte_arr, name_match.end);
-
         if byte_arr[name_match.end + 1] != NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
