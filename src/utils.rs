@@ -1,4 +1,4 @@
-use crate::constants::{HYPHEN, PLUS, SPACE, STAR};
+use crate::constants::{DOLLAR, HYPHEN, PLUS, SPACE, STAR};
 use crate::types::{MatchError, Result};
 use phf::phf_set;
 
@@ -125,18 +125,14 @@ pub fn variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
-pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
-    // REVIEW: consider  {pre/ap}pending bof/eof to not need to check
-    // and to handle improperly terminated files
-    // concern: this might require a copy?
-
+pub(crate) fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
     let before = if index == 0 {
         None
     } else {
         Some(byte_arr[index - 1])
     };
 
-    let after = if index + 1 >= byte_arr.len() {
+    let after_maybe = if index + 1 >= byte_arr.len() {
         None
     } else {
         Some(byte_arr[index + 1])
@@ -144,17 +140,80 @@ pub fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
 
     if post {
         // if we're in post, then a character before the markup Must Exist
-        if let Some(ref val) = after {
-            MARKUP_POST.contains(val) && !before.unwrap().is_ascii_whitespace()
-        } else {
-            !before.unwrap().is_ascii_whitespace()
-        }
-    } else if let Some(ref val) = before {
-        MARKUP_PRE.contains(val) && !after.unwrap().is_ascii_whitespace()
+        !before.unwrap().is_ascii_whitespace()
+            && if let Some(ref val) = after_maybe {
+                MARKUP_POST.contains(val)
+            } else {
+                true
+            }
     } else {
-        // bof is always valid
-        !after.unwrap().is_ascii_whitespace()
+        if let Some(after) = after_maybe {
+            !after.is_ascii_whitespace()
+                && if let Some(ref val) = before {
+                    MARKUP_PRE.contains(val)
+                } else {
+                    // bof is always valid
+                    true
+                }
+        } else {
+            // if there's no after, cannot be valid markup
+            false
+        }
     }
+}
+
+pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bool {
+    let before = if index == 0 {
+        None
+    } else {
+        Some(byte_arr[index - 1])
+    };
+
+    let after_maybe = if index + 1 >= byte_arr.len() {
+        None
+    } else {
+        Some(byte_arr[index + 1])
+    };
+
+    if post {
+        // if we're in post, then a character before the markup Must Exist
+        (!before.unwrap().is_ascii_whitespace() && !matches!(before.unwrap(), b'.' | b',' | b'$'))
+            && if let Some(ref after) = after_maybe {
+                after.is_ascii_punctuation() || after.is_ascii_whitespace()
+            } else {
+                // no after => valid
+                true
+            }
+    } else {
+        if let Some(after) = after_maybe {
+            !after.is_ascii_whitespace()
+                && !matches!(after, b'.' | b',' | b';' | b'$')
+                && if let Some(val) = before {
+                    val != DOLLAR
+                } else {
+                    // bof is valid
+                    true
+                }
+        } else {
+            // if there's no after, cannot be valid markup
+            false
+        }
+    }
+}
+
+pub(crate) fn verify_single_char_latex_frag(pre: Option<u8>, inner: u8, post: Option<u8>) -> bool {
+    !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b'|' | b'?' | b';' | b'"'))
+        // both could be dne
+        && if let Some(after) = post {
+            after.is_ascii_punctuation() || after.is_ascii_whitespace()
+        } else {
+            true
+        }
+        && if let Some(before) = pre {
+            before != DOLLAR
+        } else {
+            true
+        }
 }
 
 pub(crate) fn is_list_start(byte: u8) -> bool {

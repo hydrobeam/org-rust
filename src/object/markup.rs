@@ -232,4 +232,11 @@ mod tests {
     }
     // #[test]
     // fn
+    #[test]
+    fn markup_not_fail_on_eof() {
+        let inp = "/";
+        let a = parse_org(inp);
+
+        a.root().print_tree(&a);
+    }
 }
