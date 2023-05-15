@@ -126,17 +126,11 @@ pub fn variant_eq<T>(a: &T, b: &T) -> bool {
 }
 
 pub(crate) fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
-    let before = if index == 0 {
-        None
-    } else {
-        Some(byte_arr[index - 1])
-    };
+    // handle access this way in case of underflow
+    let before = index.checked_sub(1).and_then(|num| byte_arr.get(num));
 
-    let after_maybe = if index + 1 >= byte_arr.len() {
-        None
-    } else {
-        Some(byte_arr[index + 1])
-    };
+    // pretty much never going to overflow
+    let after_maybe = byte_arr.get(index + 1);
 
     if post {
         // if we're in post, then a character before the markup Must Exist
@@ -163,17 +157,10 @@ pub(crate) fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
 }
 
 pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bool {
-    let before = if index == 0 {
-        None
-    } else {
-        Some(byte_arr[index - 1])
-    };
-
-    let after_maybe = if index + 1 >= byte_arr.len() {
-        None
-    } else {
-        Some(byte_arr[index + 1])
-    };
+    // handle access this way in case of underflow
+    let before = index.checked_sub(1).and_then(|num| byte_arr.get(num));
+    // pretty much never going to overflow
+    let after_maybe = byte_arr.get(index + 1);
 
     if post {
         // if we're in post, then a character before the markup Must Exist
@@ -189,7 +176,7 @@ pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bo
             !after.is_ascii_whitespace()
                 && !matches!(after, b'.' | b',' | b';' | b'$')
                 && if let Some(val) = before {
-                    val != DOLLAR
+                    *val != DOLLAR
                 } else {
                     // bof is valid
                     true
@@ -201,7 +188,18 @@ pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bo
     }
 }
 
-pub(crate) fn verify_single_char_latex_frag(pre: Option<u8>, inner: u8, post: Option<u8>) -> bool {
+pub(crate) fn verify_single_char_latex_frag(byte_arr: &[u8], index: usize) -> bool {
+    // distances:
+    // 21012
+    // p$i$c
+
+    // handle access this way in case of underflow
+    let pre = index.checked_sub(2).and_then(|num| byte_arr.get(num));
+    // pretty much never going to overflow
+    let post = byte_arr.get(index + 2);
+
+    let inner = byte_arr[index];
+
     !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b'|' | b'?' | b';' | b'"'))
         // both could be dne
         && if let Some(after) = post {
@@ -210,7 +208,7 @@ pub(crate) fn verify_single_char_latex_frag(pre: Option<u8>, inner: u8, post: Op
             true
         }
         && if let Some(before) = pre {
-            before != DOLLAR
+            *before != DOLLAR
         } else {
             true
         }

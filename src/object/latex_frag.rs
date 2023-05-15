@@ -69,18 +69,8 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 curr_ind += 1;
                 double_ending!(pool, byte_arr, index, curr_ind, parse_opts, parent, DOLLAR, DOLLAR)
             } else {
-                // i is curr_ind
-                // 21012
-                // p$i$c
-                let single_andy: bool;
                 if *byte_arr.get(curr_ind + 1).ok_or(MatchError::EofError)? == DOLLAR {
-                    let pre = byte_arr.get(curr_ind - 2);
-                    let post = byte_arr.get(curr_ind + 2);
-                    if verify_single_char_latex_frag(
-                        pre.copied(),
-                        byte_arr[curr_ind],
-                        post.copied(),
-                    ) {
+                    if verify_single_char_latex_frag(byte_arr, curr_ind) {
                         return Ok(pool.alloc(
                             Self::Inline(bytes_to_str(&byte_arr[curr_ind..curr_ind + 1])),
                             index,
