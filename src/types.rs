@@ -1,12 +1,13 @@
 use derive_more::From;
 use std::fmt::Debug;
 
+use crate::constants::{STAR, SLASH, UNDERSCORE, PLUS, RBRACK, TILDE, EQUAL};
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::*;
 use bitflags::bitflags;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Node<'a> {
     pub obj: Expr<'a>,
     pub start: usize,
@@ -24,16 +25,6 @@ impl<'a> Default for Node<'a> {
             start: Default::default(),
             end: Default::default(),
             parent: Default::default(),
-        }
-    }
-}
-
-impl std::fmt::Debug for Node<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if f.alternate() {
-            f.write_fmt(format_args!("{:#?}", self.obj))
-        } else {
-            f.write_fmt(format_args!("{:?}", self.obj))
         }
     }
 }
@@ -112,7 +103,7 @@ impl std::fmt::Display for MatchError {
 }
 
 bitflags! {
-    #[derive(Debug, Clone, Copy, Default)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
     pub struct MarkupKind: u32 {
         const Italic        = 1 << 0;
         const Bold          = 1 << 1;
@@ -123,6 +114,33 @@ bitflags! {
         const Link          = 1 << 6;
         const LinkDescBegin = 1 << 7;
         const LinkEnd       = 1 << 8;
+    }
+}
+
+impl MarkupKind {
+    /// For use in plain markup types (code & verbatim)
+    /// to determine if they have hit an end marker in a nested
+    /// markup situation
+    ///
+    /// /abc ~one tw/ o~
+    /// should be:
+    ///     Italic{abc ~one tw} o~
+    ///
+    /// not:
+    ///    /abc Code{one tw/ o}
+    ///
+    pub(crate) fn byte_match(self, byte: u8) -> bool {
+        match self {
+            MarkupKind::Bold          => {byte == STAR},
+            MarkupKind::Italic        => {byte == SLASH},
+            MarkupKind::Underline     => {byte == UNDERSCORE},
+            MarkupKind::StrikeThrough => {byte == PLUS},
+            MarkupKind::LinkEnd       => {byte == RBRACK},
+            MarkupKind::Code          => {byte == TILDE},
+            MarkupKind::Verbatim      => {byte == EQUAL}
+            _ => false
+        }
+
     }
 }
 

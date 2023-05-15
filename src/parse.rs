@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Block, Comment, Heading, Keyword, Paragraph, PlainList, LatexEnv};
+use crate::element::{Block, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList};
 use crate::object::{Bold, Code, Italic, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, is_list_start, verify_markup};
@@ -115,11 +115,15 @@ fn parse_text<'a>(
 
 macro_rules! handle_markup {
     ($name: tt, $pool: ident, $byte_arr: ident, $index: ident, $parent: ident, $parse_opts: ident) => {
-        if $parse_opts.markup.contains(MarkupKind::$name) && verify_markup($byte_arr, $index, true)
+        if $parse_opts.markup.contains(MarkupKind::$name)
         {
             // None parent cause this
             // FIXME: we allocate in the pool for "marker" return types,,
-            return Ok($pool.alloc(MarkupKind::$name, $index, $index + 1, None));
+            if verify_markup($byte_arr, $index, true) {
+                return Ok($pool.alloc(MarkupKind::$name, $index, $index + 1, None));
+            } else {
+                return Err(MatchError::InvalidLogic);
+            }
         } else if let ret @ Ok(_) = $name::parse($pool, $byte_arr, $index, $parent, $parse_opts) {
             return ret;
         }

@@ -107,16 +107,16 @@ mod tests {
     fn test_basic_markup() {
         let inp = "hello /italic/ more text after\n";
 
-        // dbg!(parse_org(inp));
-        println!("{:?}", parse_org(inp));
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
     }
 
     #[test]
-    fn test_newline_in_italic() {
+    fn test_newline_in_italic_markup() {
         let inp = "hello /italic \n newline/ more text after\n";
 
-        // dbg!(parse_org(inp));
-        println!("{:?}", parse_org(inp));
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
     }
 
     #[test]

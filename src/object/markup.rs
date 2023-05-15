@@ -32,24 +32,25 @@ macro_rules! recursive_markup {
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
             ) -> Result<NodeID> {
+                let mut idx = index;
                 if !verify_markup(byte_arr, index, false) {
                     return Err(MatchError::InvalidLogic);
                 }
+                idx += 1;
                 parse_opts.from_object = false;
-                parse_opts.markup = MarkupKind::$name;
                 parse_opts.markup.insert(MarkupKind::$name);
 
                 let mut content_vec: Vec<NodeID> = Vec::new();
-                let mut idx = index;
                 // if we're being called, that means the first split is the thing
-                idx += 1;
                 loop {
                     match parse_object(pool, byte_arr, idx, parent, parse_opts) {
                         Ok(id) => {
                             let node = &pool[id];
                             idx = node.end;
                             if let Expr::MarkupEnd(leaf) = node.obj {
-                                if leaf.contains(MarkupKind::$name) {
+                                if leaf.contains(MarkupKind::$name) && idx > index + 2
+                                // prevent ** from being Bold{}
+                                {
                                     // TODO: abstract this?
                                     let new_id = pool.reserve_id();
                                     for id in content_vec.iter_mut() {
@@ -98,12 +99,16 @@ macro_rules! plain_markup {
 
                 // skip the opening character, we checked it's valid markup
 
+                parse_opts.markup.insert(MarkupKind::$name);
+
                 let mut idx = index + 1;
 
                 loop {
                     match *byte_arr.get(idx).ok_or(MatchError::EofError)? {
-                        $byte => {
-                            if verify_markup(byte_arr, idx, true) {
+                        //
+                        chr if parse_opts.markup.byte_match($byte) => {
+                            if idx > index + 1 // prevent ~~ from being Bold{}
+                                && verify_markup(byte_arr, idx, true) {
                                 break;
                             } else {
                                 idx += 1;
@@ -185,4 +190,46 @@ mod tests {
 
         dbg!(parse_org(inp));
     }
+
+    #[test]
+    fn markup_recursive_empty() {
+        let inp = "**";
+
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn markup_plain_empty() {
+        let inp = "~~";
+
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn nested_markup() {
+        let inp = "abc /one *two* three/ four";
+
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn leaky_markup() {
+        let inp = "abc /one *two thr/ ee* three four";
+
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn mixed_plain_recursive_leaky_markup() {
+        let inp = "abc /one ~two thr/ ee~ three four";
+
+        let a = parse_org(inp);
+        a.root().print_tree(&a);
+    }
+    // #[test]
+    // fn
 }
