@@ -1,4 +1,5 @@
 use crate::node_pool::{NodeID, NodePool};
+use crate::parse::parse_object;
 use crate::types::{ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
@@ -12,6 +13,23 @@ impl<'a> Parseable<'a> for Paragraph {
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        todo!()
+        let mut content_vec: Vec<NodeID> = Vec::new();
+        let mut idx = index;
+
+        // allocte beforehand since we know paragrpah can never fail
+        let new_id = pool.reserve_id();
+
+        while let Ok(id) = parse_object(pool, byte_arr, idx, Some(new_id), parse_opts) {
+            idx = pool[id].end;
+            content_vec.push(id);
+        }
+
+        Ok(pool.alloc_with_id(
+            Paragraph(content_vec),
+            index,
+            idx + 1, // newline
+            parent,
+            new_id,
+        ))
     }
 }

@@ -86,7 +86,7 @@ pub(crate) fn parse_element<'a>(
     }
 
     if !parse_opts.from_paragraph {
-        Ok(parse_paragraph(pool, byte_arr, index, parent, parse_opts))
+        Paragraph::parse(pool, byte_arr, index, parent, parse_opts)
     } else {
         Err(MatchError::InvalidLogic)
     }
@@ -211,40 +211,4 @@ pub(crate) fn parse_object<'a>(
         parse_opts.from_object = true;
         Ok(parse_text(pool, byte_arr, index, parent, parse_opts))
     }
-}
-
-fn parse_paragraph<'a>(
-    pool: &mut NodePool<'a>,
-    byte_arr: &'a [u8],
-    index: usize,
-    parent: Option<NodeID>,
-    parse_opts: ParseOpts,
-) -> NodeID {
-    let mut content_vec: Vec<NodeID> = Vec::new();
-
-    let mut idx = index;
-
-    // allocte beforehand since we know paragrpah can never fail
-    let new_id = pool.reserve_id();
-
-    loop {
-        match parse_object(pool, byte_arr, idx, Some(new_id), parse_opts) {
-            Ok(id) => {
-                idx = pool[id].end;
-                content_vec.push(id);
-            }
-            Err(_) => {
-                // TODO: cache
-                break;
-            }
-        }
-    }
-
-    pool.alloc_with_id(
-        Paragraph(content_vec),
-        index,
-        idx + 1, // newline
-        parent,
-        new_id,
-    )
 }
