@@ -19,16 +19,16 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        let begin_cookie = word(byte_arr, index, r"\begin{")?;
-        let name_match = fn_until(byte_arr, begin_cookie.end, |chr| {
+        let begin_cookie_end = word(byte_arr, index, r"\begin{")?;
+        let name_match = fn_until(byte_arr, begin_cookie_end, |chr| {
             !chr.is_ascii_alphanumeric() && chr != STAR || (chr == NEWLINE || chr == RBRACE)
         })?;
 
         #[rustfmt::skip]
         let name = if byte_arr[name_match.end] == RBRACE
-            && name_match.end != begin_cookie.end // \begin{} case
+            && name_match.end != begin_cookie_end // \begin{} case
         {
-            name_match.to_str(byte_arr)
+            name_match.obj
         } else {
             return Err(MatchError::InvalidLogic);
         };

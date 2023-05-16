@@ -80,61 +80,49 @@ impl<'a> Parseable<'a> for Heading<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let mut curr_ind = index;
-        let star_match = Heading::parse_stars(byte_arr, curr_ind)?;
-        let heading_level: HeadingLevel = star_match.len().try_into()?;
-        dbg!(heading_level);
+
+        let stars = Heading::parse_stars(byte_arr, curr_ind)?;
+        let heading_level = stars.obj;
 
         // guaranteed to allocate since this is a valid headline. Setup the id
         let reserved_id = pool.reserve_id();
-        curr_ind = star_match.end;
+        curr_ind = stars.end;
 
-        let (i, todo_match): (usize, Result<Match>) = Heading::parse_keyword(byte_arr, curr_ind);
+        let keyword: Option<&str> =
+            if let Ok(keyword_match) = Heading::parse_keyword(byte_arr, curr_ind) {
+                curr_ind = keyword_match.end;
+                Some(keyword_match.obj)
+            } else {
+                None
+            };
 
-        let mut keyword: Option<&str> = None;
-        if let Ok(ret_match) = todo_match {
-            if byte_arr[ret_match.end].is_ascii_whitespace() {
-                keyword = Some(ORG_TODO_KEYWORDS[i]);
-                curr_ind = ret_match.end;
-            }
-        }
-
-        let priority_ret = Heading::parse_priority(byte_arr, curr_ind);
-        let priority: Option<Priority>;
-        match priority_ret {
-            Ok((prio, prio_match)) => {
-                priority = Some(prio);
+        let priority: Option<Priority> =
+            if let Ok(prio_match) = Heading::parse_priority(byte_arr, curr_ind) {
                 curr_ind = prio_match.end;
-            }
-            _ => {
-                priority = None;
-            }
-        }
+                Some(prio_match.obj)
+            } else {
+                None
+            };
 
-        let byte_slice = &byte_arr[curr_ind..];
-        let nl = byte_slice
-            .iter()
-            .position(|&x| x == NEWLINE)
-            .unwrap_or(byte_slice.len()) // EOF case, just go to the end
-            + curr_ind;
-
-        // the only error is an eof error.
-        // temp_ind = min(first_tag, newline(no tags))
-        let (temp_ind, tags) = Heading::parse_tag(byte_arr, curr_ind, nl);
-
-        let mut title_vec: Vec<NodeID> = Vec::new();
-        // if the tags are valid, temp_ind points to a colon
-        // otherwise, temp_ind points to a newline.
-        // assume parse_object handles eof
-
-        // fails when the byte_arr is empty (due to trimming out whitespace),
-        // i.e. no title
+        let tag_match = Heading::parse_tag(byte_arr, curr_ind);
+        // if the tags are valid:
+        // tag_match.start: space
+        // tag_match.end: past newline
+        //
+        // otherwise:
+        //
+        // tag_match.start: newline
+        // tag_match.end: past newline
+        let tags = tag_match.obj;
 
         // use separate idx and shorten the bottom and top of the byte_arr
         // to trim
+
         let mut title_idx = 0;
+        let mut title_vec: Vec<NodeID> = Vec::new();
         while let Ok(title_id) = parse_object(
             pool,
-            bytes_to_str(&byte_arr[curr_ind..temp_ind])
+            bytes_to_str(&byte_arr[curr_ind..tag_match.start])
                 .trim()
                 .as_bytes(),
             // run this song and dance to get the trim method
@@ -152,8 +140,9 @@ impl<'a> Parseable<'a> for Heading<'a> {
         } else {
             Some(title_vec)
         };
+
         // jump past the newline
-        curr_ind = nl + 1;
+        curr_ind = tag_match.end;
 
         // Handle subelements
 
@@ -162,24 +151,21 @@ impl<'a> Parseable<'a> for Heading<'a> {
         while let Ok(element_id) =
             parse_element(pool, byte_arr, curr_ind, Some(reserved_id), parse_opts)
         {
-            match pool[element_id].obj {
-                Expr::Heading(ref mut heading) => {
-                    if u8::from(heading_level) < u8::from(heading.heading_level) {
-                        if let Some(tag_vec) = &mut heading.tags {
-                            tag_vec.push(Tag::Loc(reserved_id));
-                        } else {
-                            heading.tags = Some(vec![Tag::Loc(reserved_id)]);
-                        }
-                        section_vec.push(element_id);
-                        curr_ind = pool[element_id].end;
+            if let Expr::Heading(ref mut heading) = pool[element_id].obj {
+                if u8::from(heading_level) < u8::from(heading.heading_level) {
+                    if let Some(tag_vec) = &mut heading.tags {
+                        tag_vec.push(Tag::Loc(reserved_id));
                     } else {
-                        break;
+                        heading.tags = Some(vec![Tag::Loc(reserved_id)]);
                     }
-                }
-                _ => {
                     section_vec.push(element_id);
                     curr_ind = pool[element_id].end;
+                } else {
+                    break;
                 }
+            } else {
+                section_vec.push(element_id);
+                curr_ind = pool[element_id].end;
             }
         }
 
@@ -207,26 +193,39 @@ impl<'a> Parseable<'a> for Heading<'a> {
 }
 
 impl<'a> Heading<'a> {
-    fn parse_stars(byte_arr: &[u8], index: usize) -> Result<Match> {
+    fn parse_stars(byte_arr: &[u8], index: usize) -> Result<Match<HeadingLevel>> {
         let ret = fn_until(byte_arr, index, |chr: u8| chr != STAR)?;
 
         if byte_arr[ret.end] != SPACE {
             Err(MatchError::InvalidLogic)
         } else {
-            Ok(ret)
+            let heading_level: HeadingLevel = (ret.end - index).try_into()?;
+            Ok(Match {
+                start: index,
+                end: ret.end,
+                obj: heading_level,
+            })
+            // Ok(ret.end);
         }
     }
 
-    fn parse_keyword(byte_arr: &[u8], index: usize) -> (usize, Result<Match>) {
+    fn parse_keyword(byte_arr: &[u8], index: usize) -> Result<Match<&str>> {
         let idx = skip_ws(byte_arr, index);
 
         for (i, val) in ORG_TODO_KEYWORDS.iter().enumerate() {
-            if let ret @ Ok(_) = word(byte_arr, idx, val) {
-                return (i, ret);
+            if let Ok(word_end) = word(byte_arr, idx, val) {
+                // can probably break out if this isn't true
+                if byte_arr[word_end].is_ascii_whitespace() {
+                    return Ok(Match {
+                        start: index,
+                        end: word_end,
+                        obj: val,
+                    });
+                }
             }
         }
 
-        (0, Err(MatchError::InvalidLogic))
+        Err(MatchError::InvalidLogic)
     }
 
     // Recognizes the following patterns:
@@ -234,55 +233,55 @@ impl<'a> Heading<'a> {
     // [#1]
     // [#12]
     // TODO: we don't respect the 65 thing for numbers
-    fn parse_priority(byte_arr: &[u8], index: usize) -> Result<(Priority, Match)> {
+    fn parse_priority(byte_arr: &[u8], index: usize) -> Result<Match<Priority>> {
         let idx = skip_ws(byte_arr, index);
         // one digit: then idx + 4 points to a newline, this must exist
         // two digit: idx + 4 points to RBRACK, also must exist.
-        if byte_arr.len() <= idx + 4 {
+        if byte_arr.len() <= idx + 4 && !(byte_arr[idx] == LBRACK && byte_arr[idx + 1] == POUND) {
             return Err(MatchError::EofError);
         }
 
         let end_idx;
         let ret_prio: Priority;
 
-        if byte_arr[idx] == LBRACK && byte_arr[idx + 1] == POUND {
-            if byte_arr[idx + 2].is_ascii_alphanumeric() && byte_arr[idx + 3] == RBRACK {
-                end_idx = idx + 4;
-                ret_prio = match byte_arr[idx + 2] {
-                    b'A' => Priority::A,
-                    b'B' => Priority::B,
-                    b'C' => Priority::C,
-                    num => Priority::Num(num - 48),
-                };
-            } else if byte_arr[idx + 2].is_ascii_digit()
-                && byte_arr[idx + 3].is_ascii_digit()
-                && byte_arr[idx + 4] == RBRACK
-            {
-                end_idx = idx + 5;
-                // convert digits from their ascii rep, then add.
-                // NOTE: all two digit numbers are valid u8, cannot overflow
-                ret_prio = Priority::Num(10 * (byte_arr[idx + 2] - 48) + (byte_arr[idx + 3] - 48));
-            } else {
-                return Err(MatchError::InvalidLogic);
-            }
+        if byte_arr[idx + 2].is_ascii_alphanumeric() && byte_arr[idx + 3] == RBRACK {
+            end_idx = idx + 4;
+            ret_prio = match byte_arr[idx + 2] {
+                b'A' => Priority::A,
+                b'B' => Priority::B,
+                b'C' => Priority::C,
+                num => Priority::Num(num - 48),
+            };
+        } else if byte_arr[idx + 2].is_ascii_digit()
+            && byte_arr[idx + 3].is_ascii_digit()
+            && byte_arr[idx + 4] == RBRACK
+        {
+            end_idx = idx + 5;
+            // convert digits from their ascii rep, then add.
+            // NOTE: all two digit numbers are valid u8, cannot overflow
+            ret_prio = Priority::Num(10 * (byte_arr[idx + 2] - 48) + (byte_arr[idx + 3] - 48));
         } else {
             return Err(MatchError::InvalidLogic);
         }
 
-        return Ok((
-            ret_prio,
-            Match {
-                start: index,
-                end: end_idx,
-            },
-        ));
+        Ok(Match {
+            start: index,
+            end: end_idx,
+            obj: ret_prio,
+        })
     }
 
     // return usize is the end of where we parse the title
-    fn parse_tag(byte_arr: &[u8], curr_ind: usize, nl_loc: usize) -> (usize, Option<Vec<Tag>>) {
-        let mut temp_ind = nl_loc - 1;
-        // might help optimize out bounds checks?
+    fn parse_tag(byte_arr: &[u8], curr_ind: usize) -> Match<Option<Vec<Tag>>> {
+        let nl_loc = byte_arr[curr_ind..]
+            .iter()
+            .position(|&x| x == NEWLINE)
+            .unwrap_or((&byte_arr[curr_ind..]).len()) // EOF case, just go to the end
+            + curr_ind;
 
+        let mut temp_ind = nl_loc - 1;
+
+        // might help optimize out bounds checks?
         assert!(temp_ind < byte_arr.len());
 
         while byte_arr[temp_ind] == SPACE {
@@ -305,18 +304,31 @@ impl<'a> Heading<'a> {
                     clamp_ind = temp_ind;
                     if byte_arr[temp_ind - 1] == SPACE {
                         // end the search
-                        return (temp_ind - 1, Some(tag_vec));
+                        return Match {
+                            start: temp_ind - 1,
+                            end: nl_loc + 1,
+                            obj: Some(tag_vec),
+                        };
                     } else {
                         // otherwise, keep going
                         temp_ind -= 1;
                     }
                 } else {
                     // invalid input: reset temp_ind back to end
-                    return (nl_loc, None);
+                    return Match {
+                        start: nl_loc,
+                        end: nl_loc + 1,
+                        obj: None,
+                    };
                 }
             }
         }
-        (nl_loc, None)
+
+        Match {
+            start: nl_loc,
+            end: nl_loc + 1,
+            obj: None,
+        }
         // we reached the start element, without hitting a space. no tags
     }
 }

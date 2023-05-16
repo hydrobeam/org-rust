@@ -49,12 +49,14 @@ pub fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 
-pub(crate) struct Match {
+#[derive(Debug)]
+pub(crate) struct Match<T> {
     pub start: usize,
     pub end: usize,
+    pub obj: T,
 }
 
-impl<'a> Match {
+impl<'a, T> Match<T> {
     #[inline]
     pub fn to_str(&self, byte_arr: &'a [u8]) -> &'a str {
         bytes_to_str(&byte_arr[self.start..self.end])
@@ -85,7 +87,11 @@ impl<'a> Match {
 /// assert_eq!(ret.start, 1);
 /// assert_eq!(ret.end, 3);
 /// ```
-pub(crate) fn fn_until(byte_arr: &[u8], index: usize, func: impl Fn(u8) -> bool) -> Result<Match> {
+pub(crate) fn fn_until(
+    byte_arr: &[u8],
+    index: usize,
+    func: impl Fn(u8) -> bool,
+) -> Result<Match<&str>> {
     // arr [1, 2, 3]
     // arr.position(|x| x == 2) => 1
     let ret = byte_arr[index..]
@@ -97,14 +103,13 @@ pub(crate) fn fn_until(byte_arr: &[u8], index: usize, func: impl Fn(u8) -> bool)
     Ok(Match {
         start: index,
         end: ret,
+        obj: bytes_to_str(&byte_arr[index..ret]),
     })
 }
 
-pub(crate) fn word(byte_arr: &[u8], index: usize, word: &str) -> Result<Match> {
+pub(crate) fn word(byte_arr: &[u8], index: usize, word: &str) -> Result<usize> {
     if byte_arr[index..].starts_with(word.as_bytes()) {
-        let start = index;
-        let end = index + word.len();
-        Ok(Match { start, end })
+        Ok(index + word.len())
     } else {
         Err(MatchError::InvalidLogic)
     }
@@ -165,7 +170,7 @@ pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bo
     if post {
         // if we're in post, then a character before the markup Must Exist
         (!before.unwrap().is_ascii_whitespace() && !matches!(before.unwrap(), b'.' | b',' | b'$'))
-            && if let Some(ref after) = after_maybe {
+            && if let Some(after) = after_maybe {
                 after.is_ascii_punctuation() || after.is_ascii_whitespace()
             } else {
                 // no after => valid
@@ -200,9 +205,7 @@ pub(crate) fn verify_single_char_latex_frag(byte_arr: &[u8], index: usize) -> bo
     // pretty much never going to overflow
     let post = byte_arr.get(index + 3);
 
-    let inner = if let Some(inside) = byte_arr.get(index + 1) {
-        inside
-    } else {
+    let Some(inner) = byte_arr.get(index + 1) else {
         return false;
     };
 

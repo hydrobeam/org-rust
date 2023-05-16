@@ -19,7 +19,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
     ) -> Result<NodeID> {
         let cookie = word(byte_arr, index, "#+")?;
 
-        let key_word = fn_until(byte_arr, cookie.end, |chr: u8| {
+        let key_word = fn_until(byte_arr, cookie, |chr: u8| {
             chr == b':' || chr.is_ascii_whitespace()
         })?;
 
@@ -30,9 +30,9 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 // (we want to eat the ending nl too)
                 Ok(pool.alloc(
                     Self {
-                        key: key_word.to_str(byte_arr),
+                        key: key_word.obj,
                         // not mentioned in the spec, but org-element trims
-                        val: val.to_str(byte_arr).trim(),
+                        val: val.obj.trim(),
                     },
                     index,
                     val.end + 1,

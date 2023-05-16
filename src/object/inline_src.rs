@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{fn_until, word, Match};
+use crate::utils::{bytes_to_str, fn_until, word, Match};
 
 #[derive(Debug, Clone, Copy)]
 pub struct InlineSrc<'a> {
@@ -22,7 +22,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         // REVIEW: maybe not :3
         let src_word = word(byte_arr, index, "src_")?;
 
-        let lang = fn_until(byte_arr, src_word.end, |chr: u8| {
+        let lang = fn_until(byte_arr, src_word, |chr: u8| {
             !(chr == b'[' || chr == b'{' || chr.is_ascii_whitespace())
         })?;
 
@@ -31,9 +31,9 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                 let body = Self::parse_body(byte_arr, index)?;
                 Ok(pool.alloc(
                     Self {
-                        lang: body.to_str(byte_arr),
+                        lang: body.obj,
                         headers: None,
-                        body: body.to_str(byte_arr),
+                        body: body.obj,
                     },
                     index,
                     body.end,
@@ -46,9 +46,9 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                     let body = Self::parse_body(byte_arr, index)?;
                     Ok(pool.alloc(
                         Self {
-                            lang: lang.to_str(byte_arr),
-                            headers: Some(header.to_str(byte_arr)),
-                            body: body.to_str(byte_arr),
+                            lang: lang.obj,
+                            headers: Some(header.obj),
+                            body: body.obj,
                         },
                         index,
                         body.end,
@@ -67,14 +67,14 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
 
 impl<'a> InlineSrc<'a> {
     // the logic is exactly the same, except for the perimeters
-    fn parse_header(byte_arr: &'a [u8], index: usize) -> Result<Match> {
+    fn parse_header(byte_arr: &'a [u8], index: usize) -> Result<Match<&str>> {
         InlineSrc::parse_src(byte_arr, index, LBRACK, RBRACK)
     }
-    fn parse_body(byte_arr: &'a [u8], index: usize) -> Result<Match> {
+    fn parse_body(byte_arr: &'a [u8], index: usize) -> Result<Match<&str>> {
         InlineSrc::parse_src(byte_arr, index, LBRACE, RBRACE)
     }
     #[inline(always)]
-    fn parse_src(byte_arr: &'a [u8], index: usize, lperim: u8, rperim: u8) -> Result<Match> {
+    fn parse_src(byte_arr: &'a [u8], index: usize, lperim: u8, rperim: u8) -> Result<Match<&str>> {
         // Brackets have to be balanced
         // -1 for left bracket
         // +1 for right bracket
@@ -92,7 +92,11 @@ impl<'a> InlineSrc<'a> {
                     if bracket_count == 0 {
                         let start = index;
                         let end = j + 1;
-                        return Ok(Match { start, end });
+                        return Ok(Match {
+                            start,
+                            end,
+                            obj: bytes_to_str(&byte_arr[start..end]),
+                        });
                     }
                 }
                 NEWLINE => {

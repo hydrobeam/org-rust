@@ -29,7 +29,7 @@ impl<'a> Parseable<'a> for Block<'a> {
     ) -> Result<NodeID> {
         let begin_cookie = word(byte_arr, index, "#+begin_")?;
 
-        let block_name_match = fn_until(byte_arr, begin_cookie.end, |chr: u8| {
+        let block_name_match = fn_until(byte_arr, begin_cookie, |chr: u8| {
             chr.is_ascii_whitespace()
         })?;
 
@@ -37,13 +37,13 @@ impl<'a> Parseable<'a> for Block<'a> {
         let parameters: Option<&str>;
         // if no progress was made looking for the block_type:
         // i.e.: #+begin_\n
-        if begin_cookie.end == block_name_match.end {
+        if begin_cookie == block_name_match.end {
             return Err(MatchError::InvalidLogic);
         }
         // parse paramters
         let mut curr_ind = skip_ws(byte_arr, block_name_match.end);
 
-        if block_name_match.to_str(byte_arr) == "src" {
+        if block_name_match.obj == "src" {
             // skip_ws skipped to the end of the line:
             // i.e. there is no language
             if curr_ind == block_name_match.end {
@@ -51,17 +51,17 @@ impl<'a> Parseable<'a> for Block<'a> {
             }
             let lang = fn_until(byte_arr, curr_ind, |chr| chr.is_ascii_whitespace())?;
 
-            block_kind = BlockKind::Src(lang.to_str(byte_arr));
+            block_kind = BlockKind::Src(lang.obj);
             curr_ind = skip_ws(byte_arr, lang.end);
         } else {
-            block_kind = block_name_match.to_str(byte_arr).into();
+            block_kind = block_name_match.obj.into();
         }
 
         if byte_arr[curr_ind] == NEWLINE {
             parameters = None;
         } else {
             let params_match = fn_until(byte_arr, curr_ind, |chr| chr == NEWLINE)?;
-            parameters = Some(params_match.to_str(byte_arr));
+            parameters = Some(params_match.obj);
             curr_ind = params_match.end;
         }
 
@@ -76,7 +76,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         if let Some(block_end) = block_kind.to_end() {
             needle = block_end;
         } else {
-            alloc_str = format!("\n#+end_{}\n", block_name_match.to_str(byte_arr));
+            alloc_str = format!("\n#+end_{}\n", block_name_match.obj);
             needle = &alloc_str;
         }
 

@@ -17,7 +17,7 @@ impl<'a> Parseable<'a> for Comment<'a> {
             let content = fn_until(byte_arr, index + 1, |chr: u8| chr == b'\n')?;
             // TODO: use an fn_until_inclusive to not have to add 1 to the end
             // (we want to eat the ending nl too)
-            Ok(pool.alloc(Self(content.to_str(byte_arr)), index, content.end + 1, None))
+            Ok(pool.alloc(Self(content.obj), index, content.end + 1, parent))
         } else {
             Err(crate::types::MatchError::InvalidLogic)
         }
