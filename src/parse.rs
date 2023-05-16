@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::node_pool::{NodeID, NodePool};
 
 use crate::element::{Block, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList};
-use crate::object::{Bold, Code, Italic, Link, StrikeThrough, Underline, Verbatim};
+use crate::object::{Bold, Code, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, is_list_start, verify_markup};
 
@@ -166,6 +166,16 @@ pub(crate) fn parse_object<'a>(
         }
         LBRACK => {
             if let ret @ Ok(_) = Link::parse(pool, byte_arr, index, parent, parse_opts) {
+                return ret;
+            }
+        }
+        BACKSLASH => {
+            if let ret @ Ok(_) = LatexFragment::parse(pool, byte_arr, index, parent, parse_opts) {
+                return ret;
+            }
+        }
+        DOLLAR => {
+            if let ret @ Ok(_) = LatexFragment::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
             }
         }

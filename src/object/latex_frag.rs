@@ -1,5 +1,5 @@
 use crate::constants::{
-    BACKSLASH, DOLLAR, LBRACE, LBRACK, LPAREN, NEWLINE, RBRACE, RBRACK, RPAREN, SLASH,
+    BACKSLASH, DOLLAR, LBRACE, LBRACK, LPAREN, NEWLINE, RBRACE, RBRACK, RPAREN,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
@@ -13,7 +13,9 @@ macro_rules! double_ending {
      $curr_ind: tt,
      $parse_opts: ident,
      $parent: ident,
-     $byte_1: tt, $byte_2: tt) => {
+     $byte_1: tt, $byte_2: tt,
+     $type: ident
+    ) => {
         loop {
             match *$byte_arr.get($curr_ind).ok_or(MatchError::EofError)? {
                 NEWLINE => {
@@ -28,7 +30,7 @@ macro_rules! double_ending {
                 $byte_1 => {
                     if *$byte_arr.get($curr_ind + 1).ok_or(MatchError::EofError)? == $byte_2 {
                         return Ok($pool.alloc(
-                            Self::Display(bytes_to_str(&$byte_arr[$index + 2..$curr_ind])),
+                            Self::$type(bytes_to_str(&$byte_arr[$index + 2..$curr_ind])),
                             $index,
                             $curr_ind + 2,
                             $parent,
@@ -64,58 +66,51 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         let mut curr_ind = index;
         // figure out which fragment we have
         if byte_arr[curr_ind] == DOLLAR {
-            curr_ind += 1;
-            if *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? == DOLLAR {
+            if *byte_arr.get(curr_ind + 1).ok_or(MatchError::EofError)? == DOLLAR {
+                curr_ind += 2;
+                double_ending!(
+                    pool, byte_arr, index, curr_ind, parse_opts, parent, DOLLAR, DOLLAR, Display
+                )
+            } else if *byte_arr.get(curr_ind + 2).ok_or(MatchError::EofError)? == DOLLAR
+                && verify_single_char_latex_frag(byte_arr, curr_ind)
+            {
+                return Ok(pool.alloc(
+                    Self::Inline(bytes_to_str(&byte_arr[(curr_ind + 1)..(curr_ind + 2)])),
+                    index,
+                    curr_ind + 3,
+                    parent,
+                ));
+            } else if verify_latex_frag(byte_arr, curr_ind, false) {
                 curr_ind += 1;
-                double_ending!(pool, byte_arr, index, curr_ind, parse_opts, parent, DOLLAR, DOLLAR)
-            } else {
-                if *byte_arr.get(curr_ind + 1).ok_or(MatchError::EofError)? == DOLLAR {
-                    if verify_single_char_latex_frag(byte_arr, curr_ind) {
-                        return Ok(pool.alloc(
-                            Self::Inline(bytes_to_str(&byte_arr[curr_ind..curr_ind + 1])),
-                            index,
-                            curr_ind + 2,
-                            parent,
-                        ));
-                    } else {
-                        return Err(MatchError::InvalidLogic);
-                    }
-                } else {
-                    if !verify_latex_frag(byte_arr, curr_ind, false) {
-                        // REVIEW: how important is it to return the right error here
-                        return Err(MatchError::InvalidLogic);
-                    }
-                    loop {
-                        match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
-                            NEWLINE => {
-                                match parse_element(
-                                    pool,
-                                    byte_arr,
-                                    curr_ind + 1, // skip the newline
-                                    parent,
-                                    parse_opts,
-                                ) {
-                                    Ok(_) | Err(MatchError::EofError) => {
-                                        return Err(MatchError::EofError)
-                                    }
-                                    Err(MatchError::InvalidLogic) => {}
-                                }
+                loop {
+                    match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                        NEWLINE => {
+                            if let Ok(_) | Err(MatchError::EofError) = parse_element(
+                                pool,
+                                byte_arr,
+                                curr_ind + 1, // skip the newline
+                                parent,
+                                parse_opts,
+                            ) {
+                                return Err(MatchError::EofError);
                             }
-                            DOLLAR => {
-                                if verify_latex_frag(byte_arr, curr_ind, true) {
-                                    return Ok(pool.alloc(
-                                        Self::Inline(bytes_to_str(&byte_arr[index + 1..curr_ind])),
-                                        index,
-                                        curr_ind + 1,
-                                        parent,
-                                    ));
-                                }
-                            }
-                            _ => {}
                         }
-                        curr_ind += 1;
+                        DOLLAR => {
+                            if verify_latex_frag(byte_arr, curr_ind, true) {
+                                return Ok(pool.alloc(
+                                    Self::Inline(bytes_to_str(&byte_arr[index + 1..curr_ind])),
+                                    index,
+                                    curr_ind + 1,
+                                    parent,
+                                ));
+                            }
+                        }
+                        _ => {}
                     }
+                    curr_ind += 1;
                 }
+            } else {
+                return Err(MatchError::InvalidLogic);
             }
         } else if byte_arr[curr_ind] == BACKSLASH {
             curr_ind += 1;
@@ -123,16 +118,19 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 LPAREN => {
                     curr_ind += 1;
                     double_ending!(
-                        pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RPAREN
+                        pool, byte_arr, index, curr_ind, parse_opts, parent, BACKSLASH, RPAREN,
+                        Inline
                     )
                 }
+
                 LBRACK => {
                     curr_ind += 1;
                     double_ending!(
-                        pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RBRACK
+                        pool, byte_arr, index, curr_ind, parse_opts, parent, BACKSLASH, RBRACK,
+                        Display
                     )
                 }
-                chr if !chr.is_ascii_whitespace() => {
+                chr if chr.is_ascii_alphabetic() => {
                     let name_match = fn_until(byte_arr, curr_ind, |chr| {
                         !chr.is_ascii_alphabetic()
                             || chr.is_ascii_whitespace()
@@ -149,55 +147,62 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                     let end_name_ind = curr_ind;
                     // TODO check if the name is an entity first.
 
+                    // dbg!(bytes_to_str(&byte_arr[prev_name_ind..end_name_ind],));
                     match byte_arr[curr_ind] {
-                        LBRACE => loop {
-                            match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
-                                NEWLINE | LBRACE => {
-                                    return Err(MatchError::InvalidLogic);
-                                }
-                                RBRACE => {
-                                    return Ok(pool.alloc(
-                                        Self::Command {
-                                            name: bytes_to_str(
-                                                &byte_arr[prev_name_ind..end_name_ind],
-                                            ),
-                                            contents: Some(bytes_to_str(
-                                                &byte_arr[end_name_ind..curr_ind],
-                                            )),
-                                        },
-                                        index,
-                                        curr_ind + 1,
-                                        parent,
-                                    ))
-                                }
-                                _ => {}
-                            }
+                        LBRACE => {
                             curr_ind += 1;
-                        },
-                        LBRACK => loop {
-                            match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
-                                NEWLINE | LBRACE | LBRACK | RBRACE => {
-                                    return Err(MatchError::InvalidLogic);
+                            loop {
+                                match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                                    NEWLINE | LBRACE => {
+                                        return Err(MatchError::InvalidLogic);
+                                    }
+                                    RBRACE => {
+                                        return Ok(pool.alloc(
+                                            Self::Command {
+                                                name: bytes_to_str(
+                                                    &byte_arr[prev_name_ind..end_name_ind],
+                                                ),
+                                                contents: Some(bytes_to_str(
+                                                    &byte_arr[(end_name_ind + 1)..curr_ind],
+                                                )),
+                                            },
+                                            index,
+                                            curr_ind + 1,
+                                            parent,
+                                        ))
+                                    }
+                                    _ => {}
                                 }
-                                RBRACK => {
-                                    return Ok(pool.alloc(
-                                        Self::Command {
-                                            name: bytes_to_str(
-                                                &byte_arr[prev_name_ind..end_name_ind],
-                                            ),
-                                            contents: Some(bytes_to_str(
-                                                &byte_arr[end_name_ind..curr_ind],
-                                            )),
-                                        },
-                                        index,
-                                        curr_ind + 1,
-                                        parent,
-                                    ))
-                                }
-                                _ => {}
+                                curr_ind += 1;
                             }
+                        }
+                        LBRACK => {
                             curr_ind += 1;
-                        },
+                            loop {
+                                match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                                    NEWLINE | LBRACE | LBRACK | RBRACE => {
+                                        return Err(MatchError::InvalidLogic);
+                                    }
+                                    RBRACK => {
+                                        return Ok(pool.alloc(
+                                            Self::Command {
+                                                name: bytes_to_str(
+                                                    &byte_arr[prev_name_ind..end_name_ind],
+                                                ),
+                                                contents: Some(bytes_to_str(
+                                                    &byte_arr[(end_name_ind + 1)..curr_ind],
+                                                )),
+                                            },
+                                            index,
+                                            curr_ind + 1,
+                                            parent,
+                                        ))
+                                    }
+                                    _ => {}
+                                }
+                                curr_ind += 1;
+                            }
+                        }
                         _ => {
                             return Ok(pool.alloc(
                                 Self::Command {
@@ -218,5 +223,147 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         } else {
             return Err(MatchError::InvalidLogic);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_org;
+
+    #[test]
+    fn basic_latex_frag() {
+        let inp = r"\(abc\)";
+
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_display() {
+        let inp = r"\[abc\]";
+
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_display_dollars() {
+        let inp = r"$$abc$$";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_inline_dollar() {
+        let inp = r"$abc$";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_char_inline_dollar() {
+        let inp = r"$c$";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_char_inline_dollar_invalid() {
+        let inp = r"$,$";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_command_1() {
+        let inp = r"\command{swag}";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+    #[test]
+    fn latex_frag_command_2() {
+        let inp = r"\command[swag]";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_command_3() {
+        let inp = r"\command no command!";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_command_4() {
+        // one backslash + invalid char => not a command!
+        let inp = r"\) not a command";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_newline() {
+        let inp = r"$ab
+
+c$";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_newline_2() {
+        let inp = r"\(ab
+
+c$\)";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_newline_3() {
+        let inp = r"\(ab
+c
+con
+t
+ent
+$\)";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_all() {
+        let inp = r"
+$\alpha$ $$do
+llar$$
+\[display
+ block\] \(consecutive gaming\)
+
+\command
+
+\comma
+and
+
+\command{ab
+c}
+
+";
+        let pool = parse_org(inp);
+
+        pool.root().print_tree(&pool);
     }
 }

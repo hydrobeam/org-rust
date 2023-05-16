@@ -190,17 +190,23 @@ pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bo
 
 pub(crate) fn verify_single_char_latex_frag(byte_arr: &[u8], index: usize) -> bool {
     // distances:
-    // 21012
+    // 10123
     // p$i$c
+    //
+    // we are at the dollar
 
     // handle access this way in case of underflow
-    let pre = index.checked_sub(2).and_then(|num| byte_arr.get(num));
+    let pre = index.checked_sub(1).and_then(|num| byte_arr.get(num));
     // pretty much never going to overflow
-    let post = byte_arr.get(index + 2);
+    let post = byte_arr.get(index + 3);
 
-    let inner = byte_arr[index];
+    let inner = if let Some(inside) = byte_arr.get(index + 1) {
+        inside
+    } else {
+        return false;
+    };
 
-    !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b'|' | b'?' | b';' | b'"'))
+    !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b',' | b'?' | b';' | b'"'))
         // both could be dne
         && if let Some(after) = post {
             after.is_ascii_punctuation() || after.is_ascii_whitespace()
