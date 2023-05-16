@@ -115,8 +115,7 @@ fn parse_text<'a>(
 
 macro_rules! handle_markup {
     ($name: tt, $pool: ident, $byte_arr: ident, $index: ident, $parent: ident, $parse_opts: ident) => {
-        if $parse_opts.markup.contains(MarkupKind::$name)
-        {
+        if $parse_opts.markup.contains(MarkupKind::$name) {
             // None parent cause this
             // FIXME: we allocate in the pool for "marker" return types,,
             if verify_markup($byte_arr, $index, true) {

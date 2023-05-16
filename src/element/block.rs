@@ -98,9 +98,13 @@ impl<'a> Parseable<'a> for Block<'a> {
         } else {
             let mut content_vec: Vec<NodeID> = Vec::new();
             let reserve_id = pool.reserve_id();
-            while let Ok(element_id) =
-                parse_element(pool, &byte_arr[..loc], curr_ind, Some(reserve_id), parse_opts)
-            {
+            while let Ok(element_id) = parse_element(
+                pool,
+                &byte_arr[..loc],
+                curr_ind,
+                Some(reserve_id),
+                parse_opts,
+            ) {
                 content_vec.push(element_id);
                 curr_ind = pool[element_id].end;
             }
@@ -114,7 +118,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                 index,
                 curr_ind + needle.len(),
                 parent,
-                reserve_id
+                reserve_id,
             ))
         }
     }

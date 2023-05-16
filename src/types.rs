@@ -1,7 +1,7 @@
 use derive_more::From;
 use std::fmt::Debug;
 
-use crate::constants::{STAR, SLASH, UNDERSCORE, PLUS, RBRACK, TILDE, EQUAL};
+use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, STAR, TILDE, UNDERSCORE};
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::*;
@@ -131,16 +131,15 @@ impl MarkupKind {
     ///
     pub(crate) fn byte_match(self, byte: u8) -> bool {
         match self {
-            MarkupKind::Bold          => {byte == STAR},
-            MarkupKind::Italic        => {byte == SLASH},
-            MarkupKind::Underline     => {byte == UNDERSCORE},
-            MarkupKind::StrikeThrough => {byte == PLUS},
-            MarkupKind::LinkEnd       => {byte == RBRACK},
-            MarkupKind::Code          => {byte == TILDE},
-            MarkupKind::Verbatim      => {byte == EQUAL}
-            _ => false
+            MarkupKind::Bold => byte == STAR,
+            MarkupKind::Italic => byte == SLASH,
+            MarkupKind::Underline => byte == UNDERSCORE,
+            MarkupKind::StrikeThrough => byte == PLUS,
+            MarkupKind::LinkEnd => byte == RBRACK,
+            MarkupKind::Code => byte == TILDE,
+            MarkupKind::Verbatim => byte == EQUAL,
+            _ => false,
         }
-
     }
 }
 
@@ -262,7 +261,7 @@ impl<'a> Expr<'a> {
             Expr::Comment(inner) => print!("{:#?}", inner),
             Expr::InlineSrc(inner) => print!("{:#?}", inner),
             Expr::Keyword(inner) => print!("{:#?}", inner),
-            Expr::LatexEnv(inner) =>  print!("{:#?}", inner),
+            Expr::LatexEnv(inner) => print!("{:#?}", inner),
         }
     }
 }

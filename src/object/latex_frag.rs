@@ -10,7 +10,7 @@ macro_rules! double_ending {
     ($pool: ident,
      $byte_arr: ident,
      $index: ident,
-     $curr_ind: ident,
+     $curr_ind: tt,
      $parse_opts: ident,
      $parent: ident,
      $byte_1: tt, $byte_2: tt) => {
@@ -42,7 +42,7 @@ macro_rules! double_ending {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum LatexFragment<'a> {
     Command {
         name: &'a str,
@@ -120,12 +120,18 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         } else if byte_arr[curr_ind] == BACKSLASH {
             curr_ind += 1;
             match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
-                LPAREN => double_ending!(
-                    pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RPAREN
-                ),
-                LBRACK => double_ending!(
-                    pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RBRACK
-                ),
+                LPAREN => {
+                    curr_ind += 1;
+                    double_ending!(
+                        pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RPAREN
+                    )
+                }
+                LBRACK => {
+                    curr_ind += 1;
+                    double_ending!(
+                        pool, byte_arr, index, curr_ind, parse_opts, parent, SLASH, RBRACK
+                    )
+                }
                 chr if !chr.is_ascii_whitespace() => {
                     let name_match = fn_until(byte_arr, curr_ind, |chr| {
                         !chr.is_ascii_alphabetic()

@@ -46,8 +46,8 @@ pub(crate) mod constants {
     pub const QUESTION    : u8 = b'?';
     pub const DOUBLEQUOTE : u8 = b'"';
     pub const NEWLINE     : u8 = b'\n';
-    pub const LPAREN : u8  = b'(';
-    pub const RPAREN : u8  = b')';
+    pub const LPAREN      : u8 = b'(';
+    pub const RPAREN      : u8 = b')';
 }
 
 pub fn parse_org(input_text: &str) -> NodePool<'_> {
@@ -57,23 +57,15 @@ pub fn parse_org(input_text: &str) -> NodePool<'_> {
 
     let mut content_vec: Vec<NodeID> = Vec::new();
     let mut idx = index;
-
     let mut pool = NodePool::new();
-    let parent = pool.alloc(Expr::Root(Vec::new()), index, idx, None);
+    let parent = pool.reserve_id();
 
-    // NOTE: while let loop does not run! TODO: find out why
-    loop {
-        match parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
-            Ok(id) => {
-                idx = pool[id].end;
-                content_vec.push(id);
-            }
-            Err(_) => break,
-        }
+    while let Ok(id) = parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
+        idx = pool[id].end;
+        content_vec.push(id);
     }
 
-    pool[parent].obj = Expr::Root(content_vec);
-    pool[parent].end = idx;
+    pool.alloc_with_id(Expr::Root(content_vec), index, idx, None, parent);
     pool
 }
 
