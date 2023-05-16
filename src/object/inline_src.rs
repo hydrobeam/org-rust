@@ -1,4 +1,4 @@
-use crate::constants::*;
+use crate::constants::{LBRACE, LBRACK, NEWLINE, RBRACE, RBRACK};
 use crate::node_pool::{NodeID, NodePool};
 use crate::types::{MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{bytes_to_str, fn_until, word, Match};

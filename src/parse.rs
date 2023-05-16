@@ -1,4 +1,6 @@
-use crate::constants::*;
+use crate::constants::{
+    BACKSLASH, DOLLAR, EQUAL, LBRACK, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
+};
 use crate::node_pool::{NodeID, NodePool};
 
 use crate::element::{Block, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList};

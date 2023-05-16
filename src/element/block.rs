@@ -29,9 +29,8 @@ impl<'a> Parseable<'a> for Block<'a> {
     ) -> Result<NodeID> {
         let begin_cookie = word(byte_arr, index, "#+begin_")?;
 
-        let block_name_match = fn_until(byte_arr, begin_cookie, |chr: u8| {
-            chr.is_ascii_whitespace()
-        })?;
+        let block_name_match =
+            fn_until(byte_arr, begin_cookie, |chr: u8| chr.is_ascii_whitespace())?;
 
         let block_kind: BlockKind;
         let parameters: Option<&str>;

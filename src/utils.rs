@@ -38,7 +38,7 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
 
 /// ## SAFETY:
 /// We are given a valid utf8 string to parse with, no need for re-validation
-/// with str::from_utf8()
+/// with `str::from_utf8`()
 ///
 /// Not measured to see if this is a significant performance hit, but
 /// it's a safe assumption to make that we're indexing into valid utf8,
@@ -80,7 +80,7 @@ impl<'a, T> Match<T> {
 ///
 /// # Example
 ///
-/// use orgparse::utils::fn_until;
+/// use `orgparse::utils::fn_until`;
 ///
 /// ```ignore
 /// let ret = fn_until("qqqnnn".as_bytes(), 1, |chr: u8| chr != b'q');
@@ -124,7 +124,6 @@ pub fn skip_ws(byte_arr: &[u8], index: usize) -> usize {
     idx
 }
 
-#[inline(always)]
 // pub fn variant_eq(a: Rc<RefCell<Match<Node>>>, b: &Node) -> bool {
 pub fn variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
@@ -140,24 +139,22 @@ pub(crate) fn verify_markup(byte_arr: &[u8], index: usize, post: bool) -> bool {
     if post {
         // if we're in post, then a character before the markup Must Exist
         !before.unwrap().is_ascii_whitespace()
-            && if let Some(ref val) = after_maybe {
+            && if let Some(val) = after_maybe {
                 MARKUP_POST.contains(val)
             } else {
                 true
             }
+    } else if let Some(after) = after_maybe {
+        !after.is_ascii_whitespace()
+            && if let Some(val) = before {
+                MARKUP_PRE.contains(val)
+            } else {
+                // bof is always valid
+                true
+            }
     } else {
-        if let Some(after) = after_maybe {
-            !after.is_ascii_whitespace()
-                && if let Some(ref val) = before {
-                    MARKUP_PRE.contains(val)
-                } else {
-                    // bof is always valid
-                    true
-                }
-        } else {
-            // if there's no after, cannot be valid markup
-            false
-        }
+        // if there's no after, cannot be valid markup
+        false
     }
 }
 
@@ -176,20 +173,18 @@ pub(crate) fn verify_latex_frag(byte_arr: &[u8], index: usize, post: bool) -> bo
                 // no after => valid
                 true
             }
+    } else if let Some(after) = after_maybe {
+        !after.is_ascii_whitespace()
+            && !matches!(after, b'.' | b',' | b';' | b'$')
+            && if let Some(val) = before {
+                *val != DOLLAR
+            } else {
+                // bof is valid
+                true
+            }
     } else {
-        if let Some(after) = after_maybe {
-            !after.is_ascii_whitespace()
-                && !matches!(after, b'.' | b',' | b';' | b'$')
-                && if let Some(val) = before {
-                    *val != DOLLAR
-                } else {
-                    // bof is valid
-                    true
-                }
-        } else {
-            // if there's no after, cannot be valid markup
-            false
-        }
+        // if there's no after, cannot be valid markup
+        false
     }
 }
 

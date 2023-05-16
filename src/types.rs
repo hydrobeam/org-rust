@@ -2,9 +2,13 @@ use derive_more::From;
 use std::fmt::Debug;
 
 use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, STAR, TILDE, UNDERSCORE};
-use crate::element::*;
+use crate::element::{
+    Block, BlockContents, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList,
+};
 use crate::node_pool::{NodeID, NodePool};
-use crate::object::*;
+use crate::object::{
+    Bold, Code, InlineSrc, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim,
+};
 use bitflags::bitflags;
 
 #[derive(Clone, Debug)]
@@ -24,7 +28,7 @@ impl<'a> Default for Node<'a> {
             obj: Expr::BlankLine,
             start: Default::default(),
             end: Default::default(),
-            parent: Default::default(),
+            parent: Option::default(),
         }
     }
 }
@@ -171,12 +175,12 @@ impl<'a> Expr<'a> {
                 for id in inner {
                     // print!("{:#?}: ", id);
                     pool[*id].obj.print_tree(pool);
-                    print!("\n");
+                    println!();
                 }
                 print!(")");
             }
             Expr::Heading(inner) => {
-                print!("Heading {{\n");
+                println!("Heading {{");
                 println!("heading_level: {:#?}", inner.heading_level);
                 println!("keyword: {:#?}", inner.keyword);
                 println!("priority: {:#?}", inner.priority);
@@ -187,7 +191,7 @@ impl<'a> Expr<'a> {
                         pool[*id].obj.print_tree(pool);
                     }
                 }
-                print!("\n");
+                println!();
                 print!("children: [");
                 if let Some(children) = &inner.children {
                     for id in children {
@@ -197,11 +201,11 @@ impl<'a> Expr<'a> {
                     }
                 }
                 print!("]");
-                print!("}}")
+                print!("}}");
             }
             Expr::Block(inner) => match &inner.contents {
                 BlockContents::Greater(children) => {
-                    print!("Block{{\n");
+                    println!("Block{{");
                     for id in children {
                         pool[*id].obj.print_tree(pool);
                         print!(",\n ");
@@ -209,7 +213,7 @@ impl<'a> Expr<'a> {
                     print!("\nEndBlock}}");
                 }
                 BlockContents::Lesser(cont) => {
-                    println!("{:#?}", inner);
+                    println!("{inner:#?}");
                 }
             },
             Expr::Link(inner) => {}
@@ -254,14 +258,14 @@ impl<'a> Expr<'a> {
             Expr::PlainList(inner) => todo!(),
             Expr::BlankLine => print!("BlankLine"),
             Expr::SoftBreak => print!("SoftBreak"),
-            Expr::Plain(inner) => print!("{:#?}", inner),
-            Expr::MarkupEnd(inner) => print!("{:#?}", inner),
-            Expr::Verbatim(inner) => print!("{:#?}", inner),
-            Expr::Code(inner) => print!("{:#?}", inner),
-            Expr::Comment(inner) => print!("{:#?}", inner),
-            Expr::InlineSrc(inner) => print!("{:#?}", inner),
-            Expr::Keyword(inner) => print!("{:#?}", inner),
-            Expr::LatexEnv(inner) => print!("{:#?}", inner),
+            Expr::Plain(inner) => print!("{inner:#?}"),
+            Expr::MarkupEnd(inner) => print!("{inner:#?}"),
+            Expr::Verbatim(inner) => print!("{inner:#?}"),
+            Expr::Code(inner) => print!("{inner:#?}"),
+            Expr::Comment(inner) => print!("{inner:#?}"),
+            Expr::InlineSrc(inner) => print!("{inner:#?}"),
+            Expr::Keyword(inner) => print!("{inner:#?}"),
+            Expr::LatexEnv(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -277,53 +281,53 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
-                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Root(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Heading(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Block(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Link(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Paragraph(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Italic(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Bold(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::StrikeThrough(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Underline(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::PlainList(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Root(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Heading(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Block(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Link(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Paragraph(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Italic(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Bold(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::StrikeThrough(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Underline(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::PlainList(inner) => f.write_fmt(format_args!("{inner:#?}")),
 
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
-                Expr::Plain(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Verbatim(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Code(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Comment(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::InlineSrc(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::Keyword(inner) => f.write_fmt(format_args!("{:#?}", inner)),
-                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{:#?}", inner)),
+                Expr::Plain(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Code(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Comment(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::InlineSrc(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Keyword(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
-                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Root(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Heading(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Block(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Link(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Paragraph(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Italic(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Bold(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::StrikeThrough(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Underline(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::PlainList(inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::LatexEnv(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Root(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Heading(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Block(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Link(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Paragraph(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Italic(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Bold(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::StrikeThrough(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Underline(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::PlainList(inner) => f.write_fmt(format_args!("{inner:?}")),
 
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
-                Expr::Plain(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Verbatim(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Code(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Comment(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::InlineSrc(inner) => f.write_fmt(format_args!("{:?}", inner)),
-                Expr::Keyword(inner) => f.write_fmt(format_args!("{:?}", inner)),
+                Expr::Plain(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Code(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Comment(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::InlineSrc(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Keyword(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

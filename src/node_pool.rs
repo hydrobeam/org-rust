@@ -78,7 +78,7 @@ impl<'a> NodePool<'a> {
     /// Allocates a defualt Node at in index and returns its index.
     ///
     /// To be used when intending to replace the Node at the index
-    /// in conjunction with alloc_from_id.
+    /// in conjunction with `alloc_from_id`.
     ///
     pub fn reserve_id(&mut self) -> NodeID {
         self.inner_vec.push(Node::default());

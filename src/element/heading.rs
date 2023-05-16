@@ -276,7 +276,7 @@ impl<'a> Heading<'a> {
         let nl_loc = byte_arr[curr_ind..]
             .iter()
             .position(|&x| x == NEWLINE)
-            .unwrap_or((&byte_arr[curr_ind..]).len()) // EOF case, just go to the end
+            .unwrap_or(byte_arr[curr_ind..].len()) // EOF case, just go to the end
             + curr_ind;
 
         let mut temp_ind = nl_loc - 1;

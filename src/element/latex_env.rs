@@ -3,7 +3,7 @@ use memchr::memmem;
 use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, skip_ws, word};
+use crate::utils::{bytes_to_str, fn_until, word};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LatexEnv<'a> {
