@@ -3,13 +3,15 @@ use std::fmt::Debug;
 
 use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, STAR, TILDE, UNDERSCORE};
 use crate::element::{
-    Block, BlockContents, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList,
+    Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
     Bold, Code, InlineSrc, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim,
 };
 use bitflags::bitflags;
+
+pub type Result<T> = std::result::Result<T, MatchError>;
 
 #[derive(Clone, Debug)]
 pub struct Node<'a> {
@@ -64,6 +66,7 @@ pub enum Expr<'a> {
     StrikeThrough(StrikeThrough),
     Underline(Underline),
     PlainList(PlainList),
+    Item(Item<'a>),
 
     // Leaf
     BlankLine,
@@ -80,16 +83,12 @@ pub enum Expr<'a> {
     LatexFragment(LatexFragment<'a>),
 }
 
-pub type Result<T> = std::result::Result<T, MatchError>;
-
 // TODO: maybe make all fields bitflags for space optimization
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ParseOpts {
-    pub allow_newline: bool,
     pub from_paragraph: bool,
-    pub prev_newline: bool,
     pub from_object: bool,
-    pub in_link: bool,
+    pub from_list: bool,
     pub markup: MarkupKind,
     pub indentation_level: u8,
 }
@@ -98,6 +97,7 @@ pub(crate) struct ParseOpts {
 pub enum MatchError {
     InvalidLogic,
     EofError,
+    InvalidIndentation,
 }
 
 impl std::fmt::Display for MatchError {
@@ -255,7 +255,13 @@ impl<'a> Expr<'a> {
                 }
                 print!("}}");
             }
-            Expr::PlainList(inner) => todo!(),
+            Expr::PlainList(inner) => {
+                print!("PlainList{{");
+                for id in &inner.children {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
             Expr::BlankLine => print!("BlankLine"),
             Expr::SoftBreak => print!("SoftBreak"),
             Expr::Plain(inner) => print!("{inner:#?}"),
@@ -266,6 +272,7 @@ impl<'a> Expr<'a> {
             Expr::InlineSrc(inner) => print!("{inner:#?}"),
             Expr::Keyword(inner) => print!("{inner:#?}"),
             Expr::LatexEnv(inner) => print!("{inner:#?}"),
+            Expr::Item(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -281,6 +288,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
+                Expr::Item(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Root(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{inner:#?}")),
@@ -306,6 +314,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
             }
         } else {
             match self {
+                Expr::Item(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::LatexEnv(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Root(inner) => f.write_fmt(format_args!("{inner:?}")),

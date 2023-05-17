@@ -235,6 +235,7 @@ impl<'a> Heading<'a> {
     // TODO: we don't respect the 65 thing for numbers
     fn parse_priority(byte_arr: &[u8], index: usize) -> Result<Match<Priority>> {
         let idx = skip_ws(byte_arr, index);
+        // FIXME breaks in * [#A]EOF
         // one digit: then idx + 4 points to a newline, this must exist
         // two digit: idx + 4 points to RBRACK, also must exist.
         if byte_arr.len() <= idx + 4 && !(byte_arr[idx] == LBRACK && byte_arr[idx + 1] == POUND) {

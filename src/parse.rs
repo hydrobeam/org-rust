@@ -1,17 +1,17 @@
 use crate::constants::{
-    BACKSLASH, DOLLAR, EQUAL, LBRACK, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
+    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LBRACK, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
 };
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Block, Comment, Heading, Keyword, LatexEnv, Paragraph, PlainList};
+use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList};
 use crate::object::{Bold, Code, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, is_list_start, verify_markup};
+use crate::utils::{bytes_to_str, is_list_start, skip_ws, verify_markup};
 
 pub(crate) fn parse_element<'a>(
     pool: &mut NodePool<'a>,
     byte_arr: &'a [u8],
-    index: usize,
+    mut index: usize,
     parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
 ) -> Result<NodeID> {
@@ -20,17 +20,69 @@ pub(crate) fn parse_element<'a>(
     }
     assert!(index < byte_arr.len());
 
+    // indentation check
+    let mut indented_loc = index;
+    let mut new_opts = parse_opts;
+    loop {
+        let byte = byte_arr[indented_loc];
+        if byte.is_ascii_whitespace() {
+            if byte == NEWLINE {
+                return Ok(pool.alloc(Expr::BlankLine, index, indented_loc + 1, parent));
+            } else {
+                new_opts.indentation_level += 1;
+                indented_loc += 1;
+            }
+        }
+        // every element will explode if there's an indentation level
+        // except for lsits
+        else {
+            break;
+        }
+    }
+
+    let indentation_level = indented_loc - index;
+
+    // the min indentation level is 0, if it manages to be less than parse_opts' indentation
+    // level then we're in a list
+    if indentation_level < parse_opts.indentation_level.into() {
+        Err(MatchError::InvalidLogic)?
+    } else if indentation_level == parse_opts.indentation_level.into() && parse_opts.from_list {
+        if let ret @ Ok(_) = Item::parse(pool, byte_arr, indented_loc, parent, new_opts) {
+            return ret;
+        } else {
+            Err(MatchError::InvalidIndentation)?
+        }
+    }
+
+    index = indented_loc;
+
     match byte_arr[index] {
         STAR => {
-            if let ret @ Ok(_) = Heading::parse(
-                pool,
-                byte_arr,
-                index,
-                parent,
-                // parse_opts, (doesn't totally matter to use the default vs preloaded,
-                // since we account for it, but default makes more sense maybe>?)
-                ParseOpts::default(),
-            ) {
+            // parse_opts, (doesn't totally matter to use the default vs preloaded,
+            // since we account for it, but default makes more sense maybe>?)
+            if indentation_level > 0 {
+                if let ret @ Ok(_) =
+                    Heading::parse(pool, byte_arr, index, parent, ParseOpts::default())
+                {
+                    return ret;
+                }
+            } else if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, parse_opts)
+            {
+                return ret;
+            }
+        }
+        PLUS => {
+            if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, new_opts) {
+                return ret;
+            }
+        }
+        HYPHEN => {
+            if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, new_opts) {
+                return ret;
+            }
+        }
+        chr if chr.is_ascii_digit() => {
+            if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, new_opts) {
                 return ret;
             }
         }
@@ -53,37 +105,6 @@ pub(crate) fn parse_element<'a>(
         //     } else {
         //     }
         // }
-        chr if chr.is_ascii_whitespace() => {
-            {
-                let mut idx = index;
-                loop {
-                    let byte = byte_arr[idx];
-                    if byte.is_ascii_whitespace() {
-                        if byte == NEWLINE {
-                            return Ok(pool.alloc(Expr::BlankLine, index, idx + 1, parent));
-                        } else {
-                            parse_opts.indentation_level += 1;
-                            idx += 1;
-                        }
-                    } else {
-                        // every element will explode if there's an indentation level
-                        // except for lsits
-                        if is_list_start(byte) {
-                            return PlainList::parse(pool, byte_arr, index, parent, parse_opts);
-                        } else {
-                            return Err(MatchError::InvalidLogic);
-                        }
-                    }
-                }
-            }
-        }
-
-        // // HYPHEN => {
-        //     if let Ok(list) = List::parse(byte_arr, index) {
-        //     } else {
-        //     }
-        // }
-        // _ => parse_paragraph(byte_arr, index, parse_opts),
         _ => {}
     }
 
@@ -92,7 +113,6 @@ pub(crate) fn parse_element<'a>(
     } else {
         Err(MatchError::InvalidLogic)
     }
-    // todo!()
 }
 
 fn parse_text<'a>(
@@ -104,11 +124,11 @@ fn parse_text<'a>(
 ) -> NodeID {
     let mut idx = index;
     loop {
-        match parse_object(pool, byte_arr, idx, parent, parse_opts) {
-            Ok(_) | Err(MatchError::EofError) => break,
-            Err(MatchError::InvalidLogic) => {
-                idx += 1;
-            }
+        if let Err(MatchError::InvalidLogic) = parse_object(pool, byte_arr, idx, parent, parse_opts)
+        {
+            idx += 1;
+        } else {
+            break;
         }
     }
 
@@ -202,6 +222,7 @@ pub(crate) fn parse_object<'a>(
                 // but we do it to send a signal to `parse_text` to stop collecting:
                 // it catches on EofError
                 Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
+                Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
             }
         }
         _ => {}

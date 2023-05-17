@@ -122,6 +122,7 @@ macro_rules! plain_markup {
                                     idx += 1;
                                 }
                                 Err(MatchError::EofError) => return Err(MatchError::EofError),
+                                Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
                             }
                         }
                         _ => {
