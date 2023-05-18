@@ -6,17 +6,17 @@ use crate::node_pool::{NodeID, NodePool};
 use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList};
 use crate::object::{Bold, Code, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim};
 use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, is_list_start, skip_ws, verify_markup};
+use crate::utils::{bytes_to_str, verify_markup};
 
 pub(crate) fn parse_element<'a>(
     pool: &mut NodePool<'a>,
     byte_arr: &'a [u8],
     mut index: usize,
     parent: Option<NodeID>,
-    mut parse_opts: ParseOpts,
+    parse_opts: ParseOpts,
 ) -> Result<NodeID> {
     if byte_arr.get(index).is_none() {
-        return Err(MatchError::EofError);
+        Err(MatchError::EofError)?;
     }
     assert!(index < byte_arr.len());
 
@@ -44,12 +44,15 @@ pub(crate) fn parse_element<'a>(
 
     // the min indentation level is 0, if it manages to be less than parse_opts' indentation
     // level then we're in a list
-    if indentation_level < parse_opts.indentation_level.into() {
-        Err(MatchError::InvalidLogic)?
-    } else if indentation_level == parse_opts.indentation_level.into() && parse_opts.from_list {
-        if let ret @ Ok(_) = Item::parse(pool, byte_arr, indented_loc, parent, new_opts) {
-            return ret;
-        } else {
+
+    if !parse_opts.list_line {
+        if indentation_level + 1 == parse_opts.indentation_level.into() && parse_opts.from_list {
+            if let ret @ Ok(_) = Item::parse(pool, byte_arr, indented_loc, parent, new_opts) {
+                return ret;
+            } else {
+                Err(MatchError::InvalidIndentation)?
+            }
+        } else if indentation_level < parse_opts.indentation_level.into() {
             Err(MatchError::InvalidIndentation)?
         }
     }
@@ -60,13 +63,12 @@ pub(crate) fn parse_element<'a>(
         STAR => {
             // parse_opts, (doesn't totally matter to use the default vs preloaded,
             // since we account for it, but default makes more sense maybe>?)
-            if indentation_level > 0 {
-                if let ret @ Ok(_) =
-                    Heading::parse(pool, byte_arr, index, parent, ParseOpts::default())
-                {
+            if (indentation_level) > 0 {
+                if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, parse_opts) {
                     return ret;
                 }
-            } else if let ret @ Ok(_) = PlainList::parse(pool, byte_arr, index, parent, parse_opts)
+            } else if let ret @ Ok(_) =
+                Heading::parse(pool, byte_arr, index, parent, ParseOpts::default())
             {
                 return ret;
             }
@@ -123,6 +125,7 @@ fn parse_text<'a>(
     parse_opts: ParseOpts,
 ) -> NodeID {
     let mut idx = index;
+
     loop {
         if let Err(MatchError::InvalidLogic) = parse_object(pool, byte_arr, idx, parent, parse_opts)
         {
@@ -186,11 +189,11 @@ pub(crate) fn parse_object<'a>(
                 return ret;
             }
         }
-        LBRACK => {
-            if let ret @ Ok(_) = Link::parse(pool, byte_arr, index, parent, parse_opts) {
-                return ret;
-            }
-        }
+        // LBRACK => {
+        //     if let ret @ Ok(_) = Link::parse(pool, byte_arr, index, parent, parse_opts) {
+        //         return ret;
+        //     }
+        // }
         BACKSLASH => {
             if let ret @ Ok(_) = LatexFragment::parse(pool, byte_arr, index, parent, parse_opts) {
                 return ret;
@@ -213,10 +216,11 @@ pub(crate) fn parse_object<'a>(
         // }
         NEWLINE => {
             parse_opts.from_paragraph = true;
+            parse_opts.list_line = false;
 
             match parse_element(pool, byte_arr, index + 1, parent, parse_opts) {
                 Err(MatchError::InvalidLogic) => {
-                    return Ok(pool.alloc(Expr::SoftBreak, index, index + 1, parent))
+                    return Ok(pool.alloc(Expr::SoftBreak, index, index + 1, parent));
                 }
                 // EofError isn't exactly the right error for the Ok(_) case
                 // but we do it to send a signal to `parse_text` to stop collecting:

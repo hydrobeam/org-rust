@@ -3,6 +3,7 @@ use crate::parse::parse_element;
 use crate::types::{Expr, Node, ParseOpts, Parseable, Result};
 
 use crate::element::Item;
+use crate::utils::variant_eq;
 
 use super::{BulletKind, CounterKind};
 
@@ -13,7 +14,7 @@ pub struct PlainList {
     // identation_level: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ListKind {
     Unordered,
     Ordered(CounterKind),
@@ -31,6 +32,7 @@ impl<'a> Parseable<'a> for PlainList {
         // parse opts will provide us the appropriate indentation level
 
         parse_opts.from_list = true;
+        parse_opts.indentation_level += 1;
         let original_item_id = Item::parse(pool, byte_arr, index, parent, parse_opts)?;
         let reserve_id = pool.reserve_id();
 
@@ -45,12 +47,14 @@ impl<'a> Parseable<'a> for PlainList {
         let mut children: Vec<NodeID> = Vec::new();
         children.push(original_item_id);
         let mut idx = item_node.end;
-        while let Ok(element_id) = Item::parse(pool, byte_arr, idx, Some(reserve_id), parse_opts) {
+        while let Ok(element_id) = parse_element(pool, byte_arr, idx, Some(reserve_id), parse_opts)
+        {
             let got_obj = &pool[element_id];
             match &got_obj.obj {
                 Expr::Item(item) => {
                     let item_kind = find_kind(item);
-                    if item_kind != kind {
+
+                    if !variant_eq(&item_kind, &kind) {
                         break;
                     } else {
                         children.push(element_id);
@@ -58,7 +62,9 @@ impl<'a> Parseable<'a> for PlainList {
                     }
                 }
                 Expr::PlainList(_) => break,
-                _ => unreachable!(),
+                _ => {
+                    break;
+                }
             }
         }
         Ok(pool.alloc_with_id(Self { children, kind }, index, idx, parent, reserve_id))
@@ -83,6 +89,110 @@ mod tests {
     fn basic_list() {
         let input = r"
 - one
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_two_items() {
+        let input = r"
+- one
+- two
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_continued_item() {
+        let input = r"
+- one
+ abcdef
+- two
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_space_ending() {
+        let input = r"
+- one
+ abcdef
+- two
+- three
+- four
+
+
+- five
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_inconsistent_types() {
+        let input = r"
+- one
+ abcdef
+1. two
+2. three
+3. four
+- five
+- six
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_elements_breaking_flow() {
+        let input = r"
+- one
+ abcdef
+- four
+this aint a list baby
+#+begin_src python
+not a list too
+#+end_src
+
+
+- five
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_contained_elements() {
+        let input = r"
+- one
+      abcd
+      eif
+  #+begin_example
+  we are eating so good?
+  #+end_example
+
+- two
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn nested_lists() {
+        let input = r"
+- one
+  - two
+- three
 ";
 
         let pool = parse_org(input);

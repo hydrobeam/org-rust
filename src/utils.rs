@@ -125,7 +125,7 @@ pub fn skip_ws(byte_arr: &[u8], index: usize) -> usize {
 }
 
 // pub fn variant_eq(a: Rc<RefCell<Match<Node>>>, b: &Node) -> bool {
-pub fn variant_eq<T>(a: &T, b: &T) -> bool {
+pub(crate) fn variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
@@ -216,10 +216,6 @@ pub(crate) fn verify_single_char_latex_frag(byte_arr: &[u8], index: usize) -> bo
         } else {
             true
         }
-}
-
-pub(crate) fn is_list_start(byte: u8) -> bool {
-    byte == HYPHEN || byte == STAR || byte == PLUS || byte.is_ascii_digit()
 }
 
 #[cfg(test)]

@@ -79,6 +79,7 @@ impl<'a> Parseable<'a> for Block<'a> {
             needle = &alloc_str;
         }
 
+        curr_ind += 1;
         it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
         // returns result at the start of the needle
 
@@ -106,6 +107,10 @@ impl<'a> Parseable<'a> for Block<'a> {
             }
         }
         // let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
+        // handle empty contents
+        if curr_ind > loc {
+            curr_ind = loc;
+        }
 
         if block_kind.is_lesser() {
             Ok(pool.alloc(
@@ -113,7 +118,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                     kind: block_kind,
                     parameters,
                     // + 1 to skip newline
-                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind + 1..loc])),
+                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind..loc])),
                 },
                 index,
                 end,

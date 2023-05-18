@@ -89,6 +89,7 @@ pub(crate) struct ParseOpts {
     pub from_paragraph: bool,
     pub from_object: bool,
     pub from_list: bool,
+    pub list_line: bool,
     pub markup: MarkupKind,
     pub indentation_level: u8,
 }
@@ -208,7 +209,7 @@ impl<'a> Expr<'a> {
                     println!("Block{{");
                     for id in children {
                         pool[*id].obj.print_tree(pool);
-                        print!(",\n ");
+                        print!(",");
                     }
                     print!("\nEndBlock}}");
                 }
@@ -272,7 +273,13 @@ impl<'a> Expr<'a> {
             Expr::InlineSrc(inner) => print!("{inner:#?}"),
             Expr::Keyword(inner) => print!("{inner:#?}"),
             Expr::LatexEnv(inner) => print!("{inner:#?}"),
-            Expr::Item(inner) => print!("{inner:#?}"),
+            Expr::Item(inner) => {
+                print!("Item{{");
+                for id in &inner.children {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("}}");
+            }
         }
     }
 }

@@ -11,7 +11,7 @@ pub struct Item<'a> {
     pub counter_set: Option<CounterKind>,
     pub check_box: Option<CheckBox>,
     pub tag: Option<&'a str>,
-    pub contents: Vec<NodeID>,
+    pub children: Vec<NodeID>,
 }
 
 impl<'a> Parseable<'a> for Item<'a> {
@@ -54,10 +54,10 @@ impl<'a> Parseable<'a> for Item<'a> {
         };
 
         let reserve_id = pool.reserve_id();
-        let mut contents: Vec<NodeID> = Vec::new();
+        let mut children: Vec<NodeID> = Vec::new();
         let mut blank_obj: Option<NodeID> = None;
 
-        dbg!(bytes_to_str(&byte_arr[curr_ind..]));
+        parse_opts.list_line = true;
         while let Ok(element_id) =
             parse_element(pool, byte_arr, curr_ind, Some(reserve_id), parse_opts)
         {
@@ -73,13 +73,18 @@ impl<'a> Parseable<'a> for Item<'a> {
                 Expr::Item(_) => {
                     break;
                 }
+                // Expr::PlainList(plain_list) => {
+                //     dbg!(plain_list);
+                // }
+
                 _ => {
                     if let Some(blank_id) = blank_obj {
-                        contents.push(blank_id);
+                        children.push(blank_id);
                     }
-                    contents.push(element_id);
+                    children.push(element_id);
                 }
             }
+            parse_opts.list_line = false;
             curr_ind = pool_loc.end;
         }
 
@@ -89,7 +94,7 @@ impl<'a> Parseable<'a> for Item<'a> {
                 counter_set,
                 check_box,
                 tag,
-                contents,
+                children,
             },
             index,
             curr_ind,

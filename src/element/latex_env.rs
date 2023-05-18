@@ -41,6 +41,8 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         let alloc_str = format!("\\end{{{name}}}\n");
         let needle = &alloc_str;
 
+        // skip newline
+        curr_ind += 1;
         let mut it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
         // returns result at the start of the needle
         let loc;
@@ -63,11 +65,16 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         }
         // let loc = it.next().ok_or(MatchError::InvalidLogic)? + (name_match.end + 1);
 
+        // handle empty contents
+        if curr_ind > loc {
+            curr_ind = loc;
+        }
+
         Ok(pool.alloc(
             Self {
                 name,
                 // + 1 to skip newline
-                contents: bytes_to_str(&byte_arr[(curr_ind + 1)..loc]),
+                contents: bytes_to_str(&byte_arr[curr_ind..loc]),
             },
             index,
             end,

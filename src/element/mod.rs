@@ -1,20 +1,20 @@
 mod block;
 mod comment;
 mod heading;
+mod item;
 mod keyword;
 mod latex_env;
 mod paragraph;
 mod plain_list;
-mod item;
 
 pub use block::Block;
 pub use block::BlockContents;
 pub use comment::Comment;
 pub use heading::Heading;
+pub use item::BulletKind;
+pub use item::CounterKind;
+pub use item::Item;
 pub use keyword::Keyword;
 pub use latex_env::LatexEnv;
 pub use paragraph::Paragraph;
 pub use plain_list::PlainList;
-pub use item::BulletKind;
-pub use item::Item;
-pub use item::CounterKind;
