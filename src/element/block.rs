@@ -75,23 +75,48 @@ impl<'a> Parseable<'a> for Block<'a> {
         if let Some(block_end) = block_kind.to_end() {
             needle = block_end;
         } else {
-            alloc_str = format!("\n#+end_{}\n", block_name_match.obj);
+            alloc_str = format!("#+end_{}\n", block_name_match.obj);
             needle = &alloc_str;
         }
 
         it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
         // returns result at the start of the needle
-        let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
+
+        // done this way to handle indented blocks,
+        // such as in the case of lists
+        //
+        let loc;
+        let end;
+        'l: loop {
+            if let Some(potential_loc) = it.next() {
+                // - 1 since the match is at the start of the word,
+                // which is going to be #
+                let mut moving_loc = potential_loc + curr_ind - 1;
+                while byte_arr[moving_loc] != NEWLINE {
+                    if !byte_arr[moving_loc].is_ascii_whitespace() {
+                        continue 'l;
+                    }
+                    moving_loc -= 1;
+                }
+                loc = moving_loc;
+                end = potential_loc + curr_ind + needle.len();
+                break;
+            } else {
+                Err(MatchError::InvalidLogic)?
+            }
+        }
+        // let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
 
         if block_kind.is_lesser() {
             Ok(pool.alloc(
                 Self {
                     kind: block_kind,
                     parameters,
-                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind..loc])),
+                    // + 1 to skip newline
+                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind + 1..loc])),
                 },
                 index,
-                loc + needle.len(),
+                end,
                 parent,
             ))
         } else {
@@ -115,7 +140,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                     contents: BlockContents::Greater(content_vec),
                 },
                 index,
-                loc + needle.len(),
+                end,
                 parent,
                 reserve_id,
             ))
@@ -152,13 +177,13 @@ impl<'a> BlockKind<'_> {
 
     fn to_end(&self) -> Option<&str> {
         match self {
-            BlockKind::Center => Some("\n#+end_center\n"),
-            BlockKind::Quote => Some("\n#+end_quote\n"),
-            BlockKind::Comment => Some("\n#+end_comment\n"),
-            BlockKind::Example => Some("\n#+end_example\n"),
-            BlockKind::Export => Some("\n#+end_export\n"),
-            BlockKind::Src(_) => Some("\n#+end_src\n"),
-            BlockKind::Verse => Some("\n#+end_verse\n"),
+            BlockKind::Center => Some("#+end_center\n"),
+            BlockKind::Quote => Some("#+end_quote\n"),
+            BlockKind::Comment => Some("#+end_comment\n"),
+            BlockKind::Example => Some("#+end_example\n"),
+            BlockKind::Export => Some("#+end_export\n"),
+            BlockKind::Src(_) => Some("#+end_src\n"),
+            BlockKind::Verse => Some("#+end_verse\n"),
             BlockKind::Special(_) => None,
         }
     }
@@ -274,7 +299,6 @@ if let Some(nested) = nest {
         ret.root().print_tree(&ret);
     }
 
-
     #[test]
     fn block_ending_proper() {
         let input = r"
@@ -287,6 +311,30 @@ here is some text
 
 here is after
 
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn lesser_block_indented() {
+        let input = r"
+             #+begin_example
+             we are eating so good?
+             #+end_example
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn greater_block_indented() {
+        let input = r"
+             #+begin_swag
+             we are eating so good?
+             #+end_swag
 ";
 
         let pool = parse_org(input);

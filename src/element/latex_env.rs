@@ -33,24 +33,44 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
             return Err(MatchError::InvalidLogic);
         };
 
-        if byte_arr[name_match.end + 1] != NEWLINE {
+        let mut curr_ind = name_match.end + 1;
+        if byte_arr[curr_ind] != NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
         // \end{name}
-        let alloc_str = format!("\n\\end{{{name}}}\n");
+        let alloc_str = format!("\\end{{{name}}}\n");
         let needle = &alloc_str;
 
-        let mut it = memmem::find_iter(&byte_arr[name_match.end + 1..], needle.as_bytes());
+        let mut it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
         // returns result at the start of the needle
-        let loc = it.next().ok_or(MatchError::InvalidLogic)? + (name_match.end + 1);
+        let loc;
+        let end;
+        loop {
+            if let Some(potential_loc) = it.next() {
+                let mut moving_loc = potential_loc + curr_ind - 1;
+                while byte_arr[moving_loc] != NEWLINE {
+                    if !byte_arr[moving_loc].is_ascii_whitespace() {
+                        continue;
+                    }
+                    moving_loc -= 1;
+                }
+                loc = moving_loc;
+                end = potential_loc + curr_ind + needle.len();
+                break;
+            } else {
+                Err(MatchError::InvalidLogic)?
+            }
+        }
+        // let loc = it.next().ok_or(MatchError::InvalidLogic)? + (name_match.end + 1);
 
         Ok(pool.alloc(
             Self {
                 name,
-                contents: bytes_to_str(&byte_arr[(name_match.end + 1)..loc]),
+                // + 1 to skip newline
+                contents: bytes_to_str(&byte_arr[(curr_ind + 1)..loc]),
             },
             index,
-            loc + needle.len(),
+            end,
             parent,
         ))
     }
@@ -126,5 +146,17 @@ mod tests {
 \end{notstart}
 ";
         dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn latex_env_indented() {
+        let input = r"
+             \begin{align}
+             we are eating so good?
+             \end{align}
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
     }
 }
