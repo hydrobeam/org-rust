@@ -91,7 +91,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                     contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind..loc])),
                 },
                 index,
-                curr_ind + needle.len(),
+                loc + needle.len(),
                 parent,
             ))
         } else {
@@ -115,7 +115,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                     contents: BlockContents::Greater(content_vec),
                 },
                 index,
-                curr_ind + needle.len(),
+                loc + needle.len(),
                 parent,
                 reserve_id,
             ))
@@ -272,5 +272,24 @@ if let Some(nested) = nest {
 ";
         let ret = parse_org(inp);
         ret.root().print_tree(&ret);
+    }
+
+
+    #[test]
+    fn block_ending_proper() {
+        let input = r"
+
+text before
+#+begin_src python
+
+here is some text
+#+end_src
+
+here is after
+
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
     }
 }
