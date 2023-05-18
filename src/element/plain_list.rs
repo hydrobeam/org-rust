@@ -31,8 +31,11 @@ impl<'a> Parseable<'a> for PlainList {
     ) -> Result<NodeID> {
         // parse opts will provide us the appropriate indentation level
 
+        // prevents nested lists from adding unecessary levels of indentation
+        if !parse_opts.from_list {
+            parse_opts.indentation_level += 1;
+        }
         parse_opts.from_list = true;
-        parse_opts.indentation_level += 1;
         let original_item_id = Item::parse(pool, byte_arr, index, parent, parse_opts)?;
         let reserve_id = pool.reserve_id();
 
@@ -188,11 +191,77 @@ not a list too
     }
 
     #[test]
-    fn nested_lists() {
+    fn nested_lists_basic() {
+        let input = r"
+- one
+ - two
+- three
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_empty() {
+        let input = r"
+-
+-
+-
+-
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn list_numbered_empty() {
+        let input = r"
+1.
+2.
+3.
+4.
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn nested_list_2() {
         let input = r"
 - one
   - two
-- three
+    - three
+   - four
+- five
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn nested_list_3() {
+        let input = r"
+- one
+  - two
+    - three
+  - four
+- five
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn nested_list_4() {
+        let input = r"
+1. item 1
+2. [X] item 2
+   - some tag :: item 2.1
 ";
 
         let pool = parse_org(input);

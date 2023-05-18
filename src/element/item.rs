@@ -57,7 +57,10 @@ impl<'a> Parseable<'a> for Item<'a> {
         let mut children: Vec<NodeID> = Vec::new();
         let mut blank_obj: Option<NodeID> = None;
 
-        parse_opts.list_line = true;
+        // if the last element was a \n, that means we're starting on a new line
+        // so we are Not on a list line.
+        parse_opts.list_line = byte_arr[curr_ind - 1] != NEWLINE;
+
         while let Ok(element_id) =
             parse_element(pool, byte_arr, curr_ind, Some(reserve_id), parse_opts)
         {
@@ -73,10 +76,6 @@ impl<'a> Parseable<'a> for Item<'a> {
                 Expr::Item(_) => {
                     break;
                 }
-                // Expr::PlainList(plain_list) => {
-                //     dbg!(plain_list);
-                // }
-
                 _ => {
                     if let Some(blank_id) = blank_obj {
                         children.push(blank_id);
@@ -183,18 +182,23 @@ impl BulletKind {
 }
 
 fn parse_counter_set(byte_arr: &[u8], index: usize) -> Result<Match<CounterKind>> {
+    if index == byte_arr.len() {
+        Err(MatchError::EofError)?
+    }
     let idx = skip_ws(byte_arr, index);
 
-    if byte_arr[idx] != LBRACK {
+    if byte_arr[idx] != LBRACK && *byte_arr.get(idx + 1).ok_or(MatchError::EofError)? != b'@' {
         Err(MatchError::InvalidLogic)?
     }
 
-    let num_match = fn_until(byte_arr, idx + 1, |chr| {
+
+    let num_match = fn_until(byte_arr, idx + 2, |chr| {
         !chr.is_ascii_alphanumeric()
         // effectively these ↓
         // || chr == PERIOD || chr == RPAREN
     })?;
 
+    // TODO: errors on eof
     if byte_arr[num_match.end] != RBRACK {
         Err(MatchError::InvalidLogic)?
     }
@@ -222,6 +226,9 @@ fn parse_counter_set(byte_arr: &[u8], index: usize) -> Result<Match<CounterKind>
 
 fn parse_tag(byte_arr: &[u8], index: usize) -> Result<Match<&str>> {
     // - [@A] [X] | our tag is here :: remainder
+    if index == byte_arr.len() {
+        Err(MatchError::EofError)?
+    }
     let mut idx = skip_ws(byte_arr, index);
     let end = loop {
         match *byte_arr.get(idx).ok_or(MatchError::EofError)? {
@@ -260,11 +267,18 @@ pub enum CheckBox {
 
 impl CheckBox {
     fn parse(byte_arr: &[u8], index: usize) -> Result<Match<CheckBox>> {
+        if index == byte_arr.len() {
+            Err(MatchError::EofError)?
+        }
         let idx = skip_ws(byte_arr, index);
         // we're at a LBRACK in theory here
         // 012
         // [ ]
-        if byte_arr.len() <= idx + 2 && byte_arr[idx] != LBRACK && byte_arr[idx + 2] != RBRACK {
+        if idx + 2 < byte_arr.len() {
+            if byte_arr[idx] != LBRACK && byte_arr[idx + 2] != RBRACK {
+                return Err(MatchError::EofError);
+            }
+        } else {
             return Err(MatchError::EofError);
         }
 
