@@ -25,10 +25,10 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | PlainLink           | X     | _      |
 | AngleLink           | X     | _      |
 | RegularLink         | X     | _      |
+| Entity              | X     | _      |
 | RadioLink           | _     | _      |
 | RadioTarget         | _     | _      |
-| Tables              | _     | _      |
-| Entity              | _     | _      |
+| Table               | _     | _      |
 | Drawer              | _     | _      |
 | FootnoteDefinition  | _     | _      |
 | BabelCall           | _     | _      |

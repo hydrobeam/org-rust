@@ -198,6 +198,8 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
     let start = cursor.index;
 
     for (i, &protocol) in ORG_LINK_PARAMETERS.iter().enumerate() {
+        // DO NOT read up to the colon and use phf_set to determine if it's a protocol
+        // cause the colon might be in the middle-a-nowhere if we're parsing regular text here
         if cursor.word(protocol).is_ok() {
             if cursor.peek(1)? == COLON {
                 cursor.next();

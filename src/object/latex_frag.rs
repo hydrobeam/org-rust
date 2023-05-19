@@ -6,6 +6,8 @@ use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
 
+use super::parse_entity;
+
 macro_rules! double_ending {
     ($pool: ident,
      $cursor: ident,
@@ -135,7 +137,12 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         cursor.len()
                     };
                     let end_name_ind = cursor.index;
-                    // TODO check if the name is an entity first.
+                    let name = cursor.clamp(prev_name_ind, end_name_ind);
+
+                    // TODO stop doing everything in LatexFrag
+                    if let Ok(entity) = parse_entity(name) {
+                        return Ok(pool.alloc(entity, start, end_name_ind, parent));
+                    }
 
                     // dbg!(bytes_to_str(&byte_arr[prev_name_ind..end_name_ind],));
                     match cursor.curr() {
@@ -149,7 +156,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                     RBRACE => {
                                         return Ok(pool.alloc(
                                             Self::Command {
-                                                name: cursor.clamp(prev_name_ind, end_name_ind),
+                                                name,
                                                 contents: Some(
                                                     cursor.clamp_backwards(end_name_ind + 1),
                                                 ),
@@ -174,7 +181,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                     RBRACK => {
                                         return Ok(pool.alloc(
                                             Self::Command {
-                                                name: cursor.clamp(prev_name_ind, end_name_ind),
+                                                name,
                                                 contents: Some(
                                                     cursor.clamp_backwards(end_name_ind + 1),
                                                 ),
@@ -192,7 +199,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         _ => {
                             return Ok(pool.alloc(
                                 Self::Command {
-                                    name: cursor.clamp(prev_name_ind, end_name_ind),
+                                    name,
                                     contents: None,
                                 },
                                 start,

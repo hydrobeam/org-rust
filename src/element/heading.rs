@@ -204,6 +204,8 @@ impl<'a> Heading<'a> {
         cursor.skip_ws();
 
         for (i, val) in ORG_TODO_KEYWORDS.iter().enumerate() {
+            // TODO: read up to a whitespace and determine if it's in phf set for keywords
+            // this is currently O(n), we can make it O(1)
             if cursor.word(val).is_ok() {
                 // keep going in if not whitespace
                 // because a keyword might be a subset of another,,,

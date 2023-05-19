@@ -4,6 +4,8 @@ mod latex_frag;
 mod link;
 mod markup;
 
+pub(crate) use entity::parse_entity;
+pub use entity::Entity;
 pub use inline_src::InlineSrc;
 pub use latex_frag::LatexFragment;
 pub(crate) use link::parse_angle_link;
