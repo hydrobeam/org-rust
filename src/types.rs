@@ -8,7 +8,7 @@ use crate::element::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
-    Bold, Code, InlineSrc, Italic, LatexFragment, Link, PlainLink, StrikeThrough, Underline,
+    Bold, Code, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink, StrikeThrough, Underline,
     Verbatim,
 };
 use crate::utils::{bytes_to_str, Match};
@@ -170,6 +170,12 @@ impl<'a> Cursor<'a> {
         self.byte_arr = &self.byte_arr[..loc];
         self
     }
+
+    pub fn clamp_off(mut self, begin: usize, end: usize) -> Self {
+        self.byte_arr = &self.byte_arr[begin..end];
+        self.index = 0;
+        self
+    }
 }
 
 impl<'a> Index<usize> for Cursor<'a> {
@@ -226,7 +232,7 @@ pub enum Expr<'a> {
     Root(Vec<NodeID>),
     Heading(Heading<'a>),
     Block(Block<'a>),
-    Link(Link<'a>),
+    RegularLink(RegularLink<'a>),
     Paragraph(Paragraph),
     Italic(Italic),
     Bold(Bold),
@@ -384,7 +390,7 @@ impl<'a> Expr<'a> {
                     println!("{inner:#?}");
                 }
             },
-            Expr::Link(inner) => {}
+            Expr::RegularLink(inner) => {}
             Expr::Paragraph(inner) => {
                 print!("Paragraph {{");
                 for id in &inner.0 {
@@ -469,7 +475,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Root(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Block(inner) => f.write_fmt(format_args!("{inner:#?}")),
-                Expr::Link(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::RegularLink(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Paragraph(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Italic(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Bold(inner) => f.write_fmt(format_args!("{inner:#?}")),
@@ -497,7 +503,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Root(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Heading(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Block(inner) => f.write_fmt(format_args!("{inner:?}")),
-                Expr::Link(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::RegularLink(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Paragraph(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Italic(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Bold(inner) => f.write_fmt(format_args!("{inner:?}")),

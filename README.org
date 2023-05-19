@@ -24,7 +24,7 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | LaTeXEnvironment    | X     | _      |
 | PlainLink           | X     | _      |
 | AngleLink           | X     | _      |
-| RegularLink         | _     | _      |
+| RegularLink         | X     | _      |
 | RadioLink           | _     | _      |
 | RadioTarget         | _     | _      |
 | Tables              | _     | _      |

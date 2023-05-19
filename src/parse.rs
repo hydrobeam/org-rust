@@ -1,12 +1,13 @@
 use crate::constants::{
-    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
+    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH, STAR,
+    TILDE, UNDERSCORE,
 };
 use crate::node_pool::{NodeID, NodePool};
 
 use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList};
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, StrikeThrough,
-    Underline, Verbatim,
+    parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, RegularLink,
+    StrikeThrough, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::verify_markup;
@@ -161,21 +162,29 @@ pub(crate) fn parse_object<'a>(
                 return ret;
             }
         }
-        // LBRACK => {
-        //     if let ret @ Ok(_) = Link::parse(pool, cursor, parent, parse_opts) {
-        //         return ret;
-        //     }
-        // }
-        // RBRACK => {
-        //     // [[one][]]
-        //     if parse_opts.in_link {
-        //         return Ok(Node::make_le(Match {
-        //             obj: Node::MarkupEnd(MarkupKind::Link),
-        //             start: index,
-        //             end: index + 1,
-        //         }));
-        //     }
-        // }
+        LBRACK => {
+            if let ret @ Ok(_) = RegularLink::parse(pool, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+        RBRACK => {
+            // ripped off handle_markup
+            // TODO: abstract this
+            // if we're in a link description, and we hit ]] , return the ending
+            if parse_opts.markup.contains(MarkupKind::Link) {
+                // FIXME: we allocate in the pool for "marker" return types,,
+                if let Ok(byte) = cursor.peek(1) {
+                    if byte == RBRACK {
+                        return Ok(pool.alloc(
+                            MarkupKind::Link,
+                            cursor.index,
+                            cursor.index + 2,
+                            None,
+                        ));
+                    }
+                }
+            }
+        }
         BACKSLASH => {
             if let ret @ Ok(_) = LatexFragment::parse(pool, cursor, parent, parse_opts) {
                 return ret;
@@ -209,8 +218,13 @@ pub(crate) fn parse_object<'a>(
         _ => {}
     }
 
-    if let ret @ Ok(_) = parse_plain_link(pool, cursor, parent, parse_opts) {
-        return ret;
+    if let Ok(plain_link_match) = parse_plain_link(cursor) {
+        return Ok(pool.alloc(
+            plain_link_match.obj,
+            cursor.index,
+            plain_link_match.end,
+            parent,
+        ));
     }
 
     if parse_opts.from_object {
