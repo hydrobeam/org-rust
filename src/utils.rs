@@ -74,7 +74,7 @@ pub(crate) fn variant_eq<T>(a: &T, b: &T) -> bool {
 
 pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
     // handle access this way in case of underflow
-    let before = cursor.index.checked_sub(1).and_then(|num| cursor.get(num));
+    let before = cursor.peek_rev(1);
 
     // pretty much never going to overflow
     let after_maybe = cursor.get(cursor.index + 1);
@@ -89,8 +89,8 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
             }
     } else if let Some(after) = after_maybe {
         !after.is_ascii_whitespace()
-            && if let Some(val) = before {
-                MARKUP_PRE.contains(val)
+            && if let Ok(val) = before {
+                MARKUP_PRE.contains(&val)
             } else {
                 // bof is always valid
                 true
@@ -102,25 +102,24 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
 }
 
 pub(crate) fn verify_latex_frag(cursor: Cursor, post: bool) -> bool {
-    // handle access this way in case of underflow
-    let before = cursor.index.checked_sub(1).and_then(|num| cursor.get(num));
-    // pretty much never going to overflow
-    let after_maybe = cursor.get(cursor.index + 1);
+    let before = cursor.peek_rev(1);
+    let after_maybe = cursor.peek(1);
 
     if post {
+        let before_val = before.unwrap();
         // if we're in post, then a character before the markup Must Exist
-        (!before.unwrap().is_ascii_whitespace() && !matches!(before.unwrap(), b'.' | b',' | b'$'))
-            && if let Some(after) = after_maybe {
+        (!before_val.is_ascii_whitespace() && !matches!(before_val, b'.' | b',' | b'$'))
+            && if let Ok(after) = after_maybe {
                 after.is_ascii_punctuation() || after.is_ascii_whitespace()
             } else {
                 // no after => valid
                 true
             }
-    } else if let Some(after) = after_maybe {
+    } else if let Ok(after) = after_maybe {
         !after.is_ascii_whitespace()
             && !matches!(after, b'.' | b',' | b';' | b'$')
-            && if let Some(val) = before {
-                *val != DOLLAR
+            && if let Ok(val) = before {
+                val != DOLLAR
             } else {
                 // bof is valid
                 true
@@ -139,23 +138,23 @@ pub(crate) fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
     // we are at the dollar
 
     // handle access this way in case of underflow
-    let pre = cursor.index.checked_sub(1).and_then(|num| cursor.get(num));
+    let pre = cursor.peek_rev(1);
     // pretty much never going to overflow
-    let post = cursor.get(cursor.index + 3);
+    let post = cursor.peek(3);
 
-    let Some(inner) = cursor.get(cursor.index + 1) else {
+    let Ok(inner) = cursor.peek( 1) else {
         return false;
     };
 
     !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b',' | b'?' | b';' | b'"'))
         // both could be dne
-        && if let Some(after) = post {
+        && if let Ok(after) = post {
             after.is_ascii_punctuation() || after.is_ascii_whitespace()
         } else {
             true
         }
-        && if let Some(before) = pre {
-            *before != DOLLAR
+        && if let Ok(before) = pre {
+            before != DOLLAR
         } else {
             true
         }

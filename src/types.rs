@@ -44,8 +44,11 @@ impl<'a> Cursor<'a> {
 
     pub fn peek_rev(&self, diff: usize) -> Result<u8> {
         assert!(diff > 0);
-        self.byte_arr
-            .get(self.index - diff)
+
+        // handle access this way in case of underflow
+        self.index
+            .checked_sub(diff)
+            .and_then(|num| self.byte_arr.get(num))
             .copied()
             .ok_or(MatchError::EofError)
     }
