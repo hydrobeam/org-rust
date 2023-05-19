@@ -22,6 +22,11 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Comment             | X     | _      |
 | LaTeXFragment       | X     | _      |
 | LaTeXEnvironment    | X     | _      |
+| PlainLink           | X     | _      |
+| AngleLink           | X     | _      |
+| RegularLink         | _     | _      |
+| RadioLink           | _     | _      |
+| RadioTarget         | _     | _      |
 | Tables              | _     | _      |
 | Entity              | _     | _      |
 | Drawer              | _     | _      |
@@ -35,11 +40,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | NodeProperty        | _     | _      |
 | ExportSnippet       | _     | _      |
 | FootnoteReference   | _     | _      |
-| RadioTarget         | _     | _      |
-| RadioLink           | _     | _      |
-| PlainLink           | _     | _      |
-| AngleLink           | _     | _      |
-| RegularLink         | _     | _      |
 | LineBreak           | _     | _      |
 | Macro               | _     | _      |
 | Citation            | _     | _      |

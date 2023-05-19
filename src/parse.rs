@@ -1,10 +1,13 @@
 use crate::constants::{
-    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LBRACK, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
+    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, NEWLINE, PLUS, POUND, SLASH, STAR, TILDE, UNDERSCORE,
 };
 use crate::node_pool::{NodeID, NodePool};
 
 use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList};
-use crate::object::{Bold, Code, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim};
+use crate::object::{
+    parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, StrikeThrough,
+    Underline, Verbatim,
+};
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 use crate::utils::verify_markup;
 
@@ -113,21 +116,6 @@ pub(crate) fn parse_element<'a>(
     }
 }
 
-fn parse_text<'a>(
-    pool: &mut NodePool<'a>,
-    mut cursor: Cursor<'a>,
-    parent: Option<NodeID>,
-    parse_opts: ParseOpts,
-) -> NodeID {
-    let start = cursor.index;
-
-    while let Err(MatchError::InvalidLogic) = parse_object(pool, cursor, parent, parse_opts) {
-        cursor.next();
-    }
-
-    pool.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)
-}
-
 macro_rules! handle_markup {
     ($name: tt, $pool: ident, $cursor: ident, $parent: ident, $parse_opts: ident) => {
         if $parse_opts.markup.contains(MarkupKind::$name) {
@@ -213,7 +201,16 @@ pub(crate) fn parse_object<'a>(
                 Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
             }
         }
+        LANGLE => {
+            if let ret @ Ok(_) = parse_angle_link(pool, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
         _ => {}
+    }
+
+    if let ret @ Ok(_) = parse_plain_link(pool, cursor, parent, parse_opts) {
+        return ret;
     }
 
     if parse_opts.from_object {
@@ -222,4 +219,19 @@ pub(crate) fn parse_object<'a>(
         parse_opts.from_object = true;
         Ok(parse_text(pool, cursor, parent, parse_opts))
     }
+}
+
+fn parse_text<'a>(
+    pool: &mut NodePool<'a>,
+    mut cursor: Cursor<'a>,
+    parent: Option<NodeID>,
+    parse_opts: ParseOpts,
+) -> NodeID {
+    let start = cursor.index;
+
+    while let Err(MatchError::InvalidLogic) = parse_object(pool, cursor, parent, parse_opts) {
+        cursor.next();
+    }
+
+    pool.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)
 }

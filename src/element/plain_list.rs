@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, Expr, Node, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, ParseOpts, Parseable, Result};
 
 use crate::element::Item;
 use crate::utils::variant_eq;

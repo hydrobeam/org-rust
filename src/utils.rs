@@ -1,5 +1,5 @@
-use crate::constants::{DOLLAR, HYPHEN, PLUS, SPACE, STAR};
-use crate::types::{Cursor, MatchError, Result};
+use crate::constants::DOLLAR;
+use crate::types::Cursor;
 use phf::phf_set;
 
 // Either a whitespace character, -, ., ,, ;, :, !, ?, ', ), }, [, ", or the end of a line.

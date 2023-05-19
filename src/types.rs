@@ -8,7 +8,8 @@ use crate::element::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
-    Bold, Code, InlineSrc, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim,
+    Bold, Code, InlineSrc, Italic, LatexFragment, Link, PlainLink, StrikeThrough, Underline,
+    Verbatim,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -247,6 +248,7 @@ pub enum Expr<'a> {
     Keyword(Keyword<'a>),
     LatexEnv(LatexEnv<'a>),
     LatexFragment(LatexFragment<'a>),
+    PlainLink(PlainLink<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -445,6 +447,7 @@ impl<'a> Expr<'a> {
                 }
                 print!("}}");
             }
+            Expr::PlainLink(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -460,6 +463,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
         // Skip over the Match struct since the start/end values really clutter the output
         if f.alternate() {
             match self {
+                Expr::PlainLink(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Item(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Root(inner) => f.write_fmt(format_args!("{inner:#?}")),
@@ -486,6 +490,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
             }
         } else {
             match self {
+                Expr::PlainLink(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Item(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::LatexFragment(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::LatexEnv(inner) => f.write_fmt(format_args!("{inner:?}")),
