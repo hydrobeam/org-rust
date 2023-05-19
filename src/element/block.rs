@@ -1,8 +1,7 @@
 use crate::constants::NEWLINE;
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, skip_ws, word};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
@@ -22,49 +21,48 @@ pub enum BlockContents<'a> {
 impl<'a> Parseable<'a> for Block<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<crate::node_pool::NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        let begin_cookie = word(byte_arr, index, "#+begin_")?;
+        let start = cursor.index;
+        cursor.word("#+begin_")?;
 
-        let block_name_match =
-            fn_until(byte_arr, begin_cookie, |chr: u8| chr.is_ascii_whitespace())?;
+        let block_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
 
         let block_kind: BlockKind;
         let parameters: Option<&str>;
         // if no progress was made looking for the block_type:
         // i.e.: #+begin_\n
-        if begin_cookie == block_name_match.end {
+        if cursor.index == block_name_match.end {
             return Err(MatchError::InvalidLogic);
         }
+        cursor.index = block_name_match.end;
         // parse paramters
-        let mut curr_ind = skip_ws(byte_arr, block_name_match.end);
+        cursor.skip_ws();
 
         if block_name_match.obj == "src" {
             // skip_ws skipped to the end of the line:
             // i.e. there is no language
-            if curr_ind == block_name_match.end {
+            if cursor.index == block_name_match.end {
                 return Err(MatchError::InvalidLogic);
             }
-            let lang = fn_until(byte_arr, curr_ind, |chr| chr.is_ascii_whitespace())?;
+            let lang = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
 
             block_kind = BlockKind::Src(lang.obj);
-            curr_ind = skip_ws(byte_arr, lang.end);
+            cursor.skip_ws();
         } else {
             block_kind = block_name_match.obj.into();
         }
 
-        if byte_arr[curr_ind] == NEWLINE {
+        if cursor.curr() == NEWLINE {
             parameters = None;
         } else {
-            let params_match = fn_until(byte_arr, curr_ind, |chr| chr == NEWLINE)?;
+            let params_match = cursor.fn_until(|chr| chr == NEWLINE)?;
             parameters = Some(params_match.obj);
-            curr_ind = params_match.end;
+            cursor.index = params_match.end;
         }
 
-        let mut it;
         // have to predeclare these so that the allocated string
         // doesn't go out of scope and we can still pull a reference
         // to it.
@@ -79,8 +77,8 @@ impl<'a> Parseable<'a> for Block<'a> {
             needle = &alloc_str;
         }
 
-        curr_ind += 1;
-        it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
+        cursor.next();
+        let mut it = memmem::find_iter(cursor.rest(), needle.as_bytes());
         // returns result at the start of the needle
 
         // done this way to handle indented blocks,
@@ -92,15 +90,15 @@ impl<'a> Parseable<'a> for Block<'a> {
             if let Some(potential_loc) = it.next() {
                 // - 1 since the match is at the start of the word,
                 // which is going to be #
-                let mut moving_loc = potential_loc + curr_ind - 1;
-                while byte_arr[moving_loc] != NEWLINE {
-                    if !byte_arr[moving_loc].is_ascii_whitespace() {
+                let mut moving_loc = potential_loc + cursor.index - 1;
+                while cursor[moving_loc] != NEWLINE {
+                    if !cursor[moving_loc].is_ascii_whitespace() {
                         continue 'l;
                     }
                     moving_loc -= 1;
                 }
                 loc = moving_loc;
-                end = potential_loc + curr_ind + needle.len();
+                end = potential_loc + cursor.index + needle.len();
                 break;
             } else {
                 Err(MatchError::InvalidLogic)?
@@ -108,8 +106,8 @@ impl<'a> Parseable<'a> for Block<'a> {
         }
         // let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
         // handle empty contents
-        if curr_ind > loc {
-            curr_ind = loc;
+        if cursor.index > loc {
+            cursor.index = loc;
         }
 
         if block_kind.is_lesser() {
@@ -118,24 +116,22 @@ impl<'a> Parseable<'a> for Block<'a> {
                     kind: block_kind,
                     parameters,
                     // + 1 to skip newline
-                    contents: BlockContents::Lesser(bytes_to_str(&byte_arr[curr_ind..loc])),
+                    contents: BlockContents::Lesser(cursor.clamp_forwards(loc)),
                 },
-                index,
+                start,
                 end,
                 parent,
             ))
         } else {
             let mut content_vec: Vec<NodeID> = Vec::new();
             let reserve_id = pool.reserve_id();
-            while let Ok(element_id) = parse_element(
-                pool,
-                &byte_arr[..loc],
-                curr_ind,
-                Some(reserve_id),
-                parse_opts,
-            ) {
+            // janky
+            let mut temp_cursor = cursor.cut_off(loc);
+            while let Ok(element_id) =
+                parse_element(pool, temp_cursor, Some(reserve_id), parse_opts)
+            {
                 content_vec.push(element_id);
-                curr_ind = pool[element_id].end;
+                temp_cursor.index = pool[element_id].end;
             }
 
             Ok(pool.alloc_with_id(
@@ -144,7 +140,7 @@ impl<'a> Parseable<'a> for Block<'a> {
                     parameters,
                     contents: BlockContents::Greater(content_vec),
                 },
-                index,
+                start,
                 end,
                 parent,
                 reserve_id,

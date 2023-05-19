@@ -2,8 +2,7 @@ use memchr::memmem;
 
 use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, word};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LatexEnv<'a> {
@@ -14,50 +13,53 @@ pub struct LatexEnv<'a> {
 impl<'a> Parseable<'a> for LatexEnv<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        let begin_cookie_end = word(byte_arr, index, r"\begin{")?;
-        let name_match = fn_until(byte_arr, begin_cookie_end, |chr| {
+        let start = cursor.index;
+        cursor.word(r"\begin{")?;
+        let name_match = cursor.fn_until(|chr| {
             !chr.is_ascii_alphanumeric() && chr != STAR || (chr == NEWLINE || chr == RBRACE)
         })?;
 
         #[rustfmt::skip]
-        let name = if byte_arr[name_match.end] == RBRACE
-            && name_match.end != begin_cookie_end // \begin{} case
+        let name = if cursor[name_match.end] == RBRACE
+            && name_match.end != cursor.index // \begin{} case
         {
             name_match.obj
         } else {
             return Err(MatchError::InvalidLogic);
         };
 
-        let mut curr_ind = name_match.end + 1;
-        if byte_arr[curr_ind] != NEWLINE {
+        cursor.move_to(name_match.end + 1);
+
+        if cursor.curr() != NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
+
         // \end{name}
         let alloc_str = format!("\\end{{{name}}}\n");
         let needle = &alloc_str;
 
         // skip newline
-        curr_ind += 1;
-        let mut it = memmem::find_iter(&byte_arr[curr_ind..], needle.as_bytes());
+        cursor.next();
+
+        let mut it = memmem::find_iter(cursor.rest(), needle.as_bytes());
         // returns result at the start of the needle
         let loc;
         let end;
-        loop {
+        'l: loop {
             if let Some(potential_loc) = it.next() {
-                let mut moving_loc = potential_loc + curr_ind - 1;
-                while byte_arr[moving_loc] != NEWLINE {
-                    if !byte_arr[moving_loc].is_ascii_whitespace() {
-                        continue;
+                let mut moving_loc = potential_loc + cursor.index - 1;
+                while cursor[moving_loc] != NEWLINE {
+                    if !cursor[moving_loc].is_ascii_whitespace() {
+                        continue 'l;
                     }
                     moving_loc -= 1;
                 }
                 loc = moving_loc;
-                end = potential_loc + curr_ind + needle.len();
+                end = potential_loc + cursor.index + needle.len();
                 break;
             } else {
                 Err(MatchError::InvalidLogic)?
@@ -66,17 +68,17 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         // let loc = it.next().ok_or(MatchError::InvalidLogic)? + (name_match.end + 1);
 
         // handle empty contents
-        if curr_ind > loc {
-            curr_ind = loc;
+        if cursor.index > loc {
+            cursor.index = loc;
         }
 
         Ok(pool.alloc(
             Self {
                 name,
                 // + 1 to skip newline
-                contents: bytes_to_str(&byte_arr[curr_ind..loc]),
+                contents: cursor.clamp_forwards(loc),
             },
-            index,
+            start,
             end,
             parent,
         ))

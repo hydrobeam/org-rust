@@ -1,7 +1,8 @@
 use derive_more::From;
 use std::fmt::Debug;
+use std::ops::Index;
 
-use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, STAR, TILDE, UNDERSCORE};
+use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE};
 use crate::element::{
     Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList,
 };
@@ -9,9 +10,171 @@ use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
     Bold, Code, InlineSrc, Italic, LatexFragment, Link, StrikeThrough, Underline, Verbatim,
 };
+use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
 
 pub type Result<T> = std::result::Result<T, MatchError>;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Cursor<'a> {
+    pub byte_arr: &'a [u8],
+    pub index: usize,
+}
+
+impl<'a> std::ops::Deref for Cursor<'a> {
+    type Target = &'a [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.byte_arr
+    }
+}
+
+impl<'a> Cursor<'a> {
+    pub fn new(byte_arr: &'a [u8]) -> Self {
+        Self { byte_arr, index: 0 }
+    }
+
+    pub fn peek(&self, diff: usize) -> Result<u8> {
+        assert!(diff > 0);
+        self.byte_arr
+            .get(self.index + diff)
+            .copied()
+            .ok_or(MatchError::EofError)
+    }
+
+    pub fn peek_rev(&self, diff: usize) -> Result<u8> {
+        assert!(diff > 0);
+        self.byte_arr
+            .get(self.index - diff)
+            .copied()
+            .ok_or(MatchError::EofError)
+    }
+
+    pub fn advance(&mut self, diff: usize) {
+        self.index += diff;
+    }
+
+    pub fn move_to(&mut self, loc: usize) {
+        self.index = loc;
+    }
+
+    pub fn adv_copy(mut self, diff: usize) -> Self {
+        self.index += diff;
+        self
+    }
+
+    pub fn move_to_copy(mut self, loc: usize) -> Self {
+        self.index = loc;
+        self
+    }
+
+    pub fn next(&mut self) {
+        self.index += 1;
+    }
+
+    pub fn prev(&mut self) {
+        self.index -= 1;
+    }
+
+    pub fn curr(&self) -> u8 {
+        self.byte_arr[self.index]
+    }
+
+    pub fn try_curr(&self) -> Result<u8> {
+        self.byte_arr
+            .get(self.index)
+            .copied()
+            .ok_or(MatchError::EofError)
+    }
+
+    pub fn is_index_valid(&self) -> Result<()> {
+        if self.index < self.byte_arr.len() {
+            Ok(())
+        } else {
+            Err(MatchError::EofError)
+        }
+    }
+
+    pub fn word(&mut self, word: &str) -> Result<()> {
+        if self.byte_arr[self.index..].starts_with(word.as_bytes()) {
+            self.index += word.len();
+            Ok(())
+        } else {
+            Err(MatchError::InvalidLogic)
+        }
+    }
+
+    pub fn skip_ws(&mut self) {
+        while self.curr() == SPACE {
+            self.next();
+        }
+    }
+
+    pub fn clamp_backwards(self, start: usize) -> &'a str {
+        bytes_to_str(&self.byte_arr[start..self.index])
+    }
+
+    pub fn clamp_forwards(self, end: usize) -> &'a str {
+        bytes_to_str(&self.byte_arr[self.index..end])
+    }
+
+    pub fn clamp(self, start: usize, end: usize) -> &'a str {
+        bytes_to_str(&self.byte_arr[start..end])
+    }
+
+    pub fn adv_till_byte(&mut self, byte: u8) {
+        self.index = self.byte_arr[self.index..]
+            .iter()
+            .position(|&x| x == byte)
+            .unwrap_or(self.byte_arr[self.index..].len()) // EOF case, just go to the end
+            + self.index;
+    }
+
+    pub fn fn_until(self, func: impl Fn(u8) -> bool) -> Result<Match<&'a str>> {
+        let ret = self.byte_arr[self.index..]
+            .iter()
+            .position(|x| func(*x))
+            .ok_or(MatchError::EofError)?
+            + self.index;
+
+        Ok(Match {
+            start: self.index,
+            end: ret,
+            obj: self.clamp_forwards(ret),
+        })
+    }
+
+    pub fn fn_while(self, func: impl Fn(u8) -> bool) -> Result<Match<&'a str>> {
+        let ret = self.byte_arr[self.index..]
+            .iter()
+            .position(|x| !func(*x))
+            .ok_or(MatchError::EofError)?
+            + self.index;
+
+        Ok(Match {
+            start: self.index,
+            end: ret,
+            obj: self.clamp_forwards(ret),
+        })
+    }
+
+    pub fn rest(&self) -> &[u8] {
+        &self.byte_arr[self.index..]
+    }
+
+    pub fn cut_off(mut self, loc: usize) -> Self {
+        self.byte_arr = &self.byte_arr[..loc];
+        self
+    }
+}
+
+impl<'a> Index<usize> for Cursor<'a> {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.byte_arr[index]
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Node<'a> {
@@ -151,8 +314,7 @@ impl MarkupKind {
 pub(crate) trait Parseable<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID>;

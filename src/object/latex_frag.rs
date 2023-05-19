@@ -3,43 +3,42 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, fn_until, verify_latex_frag, verify_single_char_latex_frag};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
 
 macro_rules! double_ending {
     ($pool: ident,
-     $byte_arr: ident,
-     $index: ident,
-     $curr_ind: tt,
+     $cursor: ident,
+     $start: tt,
      $parse_opts: ident,
      $parent: ident,
      $byte_1: tt, $byte_2: tt,
      $type: ident
     ) => {
         loop {
-            match *$byte_arr.get($curr_ind).ok_or(MatchError::EofError)? {
+            match $cursor.try_curr()? {
                 NEWLINE => {
                     $parse_opts.from_paragraph = true;
 
                     if let Ok(_) | Err(MatchError::EofError) =
-                        parse_element($pool, $byte_arr, $curr_ind + 1, $parent, $parse_opts)
+                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)
                     {
                         return Err(MatchError::EofError);
                     }
                 }
                 $byte_1 => {
-                    if *$byte_arr.get($curr_ind + 1).ok_or(MatchError::EofError)? == $byte_2 {
+                    if $cursor.peek(1)? == $byte_2 {
                         return Ok($pool.alloc(
-                            Self::$type(bytes_to_str(&$byte_arr[$index + 2..$curr_ind])),
-                            $index,
-                            $curr_ind + 2,
+                            Self::$type($cursor.clamp_backwards($start + 2)),
+                            $start,
+                            $cursor.index + 2,
                             $parent,
                         ));
                     }
                 }
                 _ => {}
             }
-            $curr_ind += 1;
+            $cursor.next();
         }
     };
 }
@@ -57,38 +56,32 @@ pub enum LatexFragment<'a> {
 impl<'a> Parseable<'a> for LatexFragment<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
+        let start = cursor.index;
         parse_opts.from_paragraph = true;
-        let mut curr_ind = index;
         // figure out which fragment we have
-        if byte_arr[curr_ind] == DOLLAR {
-            if *byte_arr.get(curr_ind + 1).ok_or(MatchError::EofError)? == DOLLAR {
-                curr_ind += 2;
-                double_ending!(
-                    pool, byte_arr, index, curr_ind, parse_opts, parent, DOLLAR, DOLLAR, Display
-                )
-            } else if *byte_arr.get(curr_ind + 2).ok_or(MatchError::EofError)? == DOLLAR
-                && verify_single_char_latex_frag(byte_arr, curr_ind)
-            {
+        if cursor.curr() == DOLLAR {
+            if cursor.peek(1)? == DOLLAR {
+                cursor.index += 2;
+                double_ending!(pool, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display)
+            } else if cursor.peek(2)? == DOLLAR && verify_single_char_latex_frag(cursor) {
                 return Ok(pool.alloc(
-                    Self::Inline(bytes_to_str(&byte_arr[(curr_ind + 1)..(curr_ind + 2)])),
-                    index,
-                    curr_ind + 3,
+                    Self::Inline(cursor.clamp(cursor.index + 1, cursor.index + 2)),
+                    start,
+                    cursor.index + 3,
                     parent,
                 ));
-            } else if verify_latex_frag(byte_arr, curr_ind, false) {
-                curr_ind += 1;
+            } else if verify_latex_frag(cursor, false) {
+                cursor.next();
                 loop {
-                    match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                    match cursor.try_curr()? {
                         NEWLINE => {
                             if let Ok(_) | Err(MatchError::EofError) = parse_element(
                                 pool,
-                                byte_arr,
-                                curr_ind + 1, // skip the newline
+                                cursor.adv_copy(1), // skip the newline
                                 parent,
                                 parse_opts,
                             ) {
@@ -96,121 +89,114 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                             }
                         }
                         DOLLAR => {
-                            if verify_latex_frag(byte_arr, curr_ind, true) {
+                            if verify_latex_frag(cursor, true) {
                                 return Ok(pool.alloc(
-                                    Self::Inline(bytes_to_str(&byte_arr[index + 1..curr_ind])),
-                                    index,
-                                    curr_ind + 1,
+                                    Self::Inline(cursor.clamp_backwards(start + 1)),
+                                    start,
+                                    cursor.index + 1,
                                     parent,
                                 ));
                             }
                         }
                         _ => {}
                     }
-                    curr_ind += 1;
+                    cursor.next();
                 }
             } else {
                 return Err(MatchError::InvalidLogic);
             }
-        } else if byte_arr[curr_ind] == BACKSLASH {
-            curr_ind += 1;
-            match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+        } else if cursor.curr() == BACKSLASH {
+            cursor.next();
+            match cursor.try_curr()? {
                 LPAREN => {
-                    curr_ind += 1;
+                    cursor.next();
                     double_ending!(
-                        pool, byte_arr, index, curr_ind, parse_opts, parent, BACKSLASH, RPAREN,
-                        Inline
+                        pool, cursor, start, parse_opts, parent, BACKSLASH, RPAREN, Inline
                     )
                 }
-
                 LBRACK => {
-                    curr_ind += 1;
+                    cursor.next();
                     double_ending!(
-                        pool, byte_arr, index, curr_ind, parse_opts, parent, BACKSLASH, RBRACK,
-                        Display
+                        pool, cursor, start, parse_opts, parent, BACKSLASH, RBRACK, Display
                     )
                 }
                 chr if chr.is_ascii_alphabetic() => {
-                    let name_match = fn_until(byte_arr, curr_ind, |chr| {
+                    let name_match = cursor.fn_until(|chr| {
                         !chr.is_ascii_alphabetic()
                             || chr.is_ascii_whitespace()
                             || chr == LBRACE
                             || chr == LBRACK
                     });
 
-                    let prev_name_ind = curr_ind;
-                    curr_ind = if let Ok(name) = name_match {
+                    let prev_name_ind = cursor.index;
+                    cursor.index = if let Ok(name) = name_match {
                         name.end
                     } else {
-                        byte_arr.len()
+                        cursor.len()
                     };
-                    let end_name_ind = curr_ind;
+                    let end_name_ind = cursor.index;
                     // TODO check if the name is an entity first.
 
                     // dbg!(bytes_to_str(&byte_arr[prev_name_ind..end_name_ind],));
-                    match byte_arr[curr_ind] {
+                    match cursor.curr() {
                         LBRACE => {
-                            curr_ind += 1;
+                            cursor.next();
                             loop {
-                                match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                                match cursor.try_curr()? {
                                     NEWLINE | LBRACE => {
                                         return Err(MatchError::InvalidLogic);
                                     }
                                     RBRACE => {
                                         return Ok(pool.alloc(
                                             Self::Command {
-                                                name: bytes_to_str(
-                                                    &byte_arr[prev_name_ind..end_name_ind],
+                                                name: cursor.clamp(prev_name_ind, end_name_ind),
+                                                contents: Some(
+                                                    cursor.clamp_backwards(end_name_ind + 1),
                                                 ),
-                                                contents: Some(bytes_to_str(
-                                                    &byte_arr[(end_name_ind + 1)..curr_ind],
-                                                )),
                                             },
-                                            index,
-                                            curr_ind + 1,
+                                            start,
+                                            cursor.index + 1,
                                             parent,
-                                        ))
+                                        ));
                                     }
                                     _ => {}
                                 }
-                                curr_ind += 1;
+                                cursor.next();
                             }
                         }
                         LBRACK => {
-                            curr_ind += 1;
+                            cursor.next();
                             loop {
-                                match *byte_arr.get(curr_ind).ok_or(MatchError::EofError)? {
+                                match cursor.try_curr()? {
                                     NEWLINE | LBRACE | LBRACK | RBRACE => {
                                         return Err(MatchError::InvalidLogic);
                                     }
                                     RBRACK => {
                                         return Ok(pool.alloc(
                                             Self::Command {
-                                                name: bytes_to_str(
-                                                    &byte_arr[prev_name_ind..end_name_ind],
+                                                name: cursor.clamp(prev_name_ind, end_name_ind),
+                                                contents: Some(
+                                                    cursor.clamp_backwards(end_name_ind + 1),
                                                 ),
-                                                contents: Some(bytes_to_str(
-                                                    &byte_arr[(end_name_ind + 1)..curr_ind],
-                                                )),
                                             },
-                                            index,
-                                            curr_ind + 1,
+                                            start,
+                                            cursor.index + 1,
                                             parent,
                                         ))
                                     }
                                     _ => {}
                                 }
-                                curr_ind += 1;
+                                cursor.next();
                             }
                         }
                         _ => {
                             return Ok(pool.alloc(
                                 Self::Command {
-                                    name: bytes_to_str(&byte_arr[prev_name_ind..end_name_ind]),
+                                    name: cursor.clamp(prev_name_ind, end_name_ind),
                                     contents: None,
                                 },
-                                index,
-                                curr_ind,
+                                start,
+                                cursor.index,
                                 parent,
                             ))
                         }

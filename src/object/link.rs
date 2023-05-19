@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Expr, MarkupKind, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
 pub struct Link<'a> {
@@ -17,32 +17,31 @@ pub struct Link<'a> {
 impl<'a> Parseable<'a> for Link<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         parse_opts.markup.insert(MarkupKind::Link);
+        let start = cursor.index;
 
         let mut content_vec: Vec<NodeID> = Vec::new();
-        let mut idx = index;
         // if we're being called, that means the first split is the thing
-        idx += 1;
-        loop {
-            if let Ok(id) = parse_object(pool, byte_arr, idx, parent, parse_opts) {
-                idx = pool[id].end;
-                if let Expr::MarkupEnd(leaf) = pool[id].obj {
-                    if leaf.contains(MarkupKind::Link) {
-                        // close object
-                        todo!()
-                    } else {
-                        // TODO: cache and explode
-                        todo!()
-                    }
+        cursor.next();
+        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts) {
+            cursor.index = pool[id].end;
+            if let Expr::MarkupEnd(leaf) = pool[id].obj {
+                if leaf.contains(MarkupKind::Link) {
+                    // close object
+                    todo!()
                 } else {
-                    content_vec.push(id);
+                    // TODO: cache and explode
+                    todo!()
                 }
+            } else {
+                content_vec.push(id);
             }
         }
+
+        todo!()
     }
 }

@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use node_pool::{NodeID, NodePool};
-use types::{Expr, ParseOpts};
+use types::{Cursor, Expr, ParseOpts};
 
 use crate::parse::parse_element;
 
@@ -51,21 +51,18 @@ pub(crate) mod constants {
 }
 
 pub fn parse_org(input_text: &str) -> NodePool<'_> {
-    let byte_arr = input_text.as_bytes();
-    let index = 0;
+    let mut cursor = Cursor::new(input_text.as_bytes());
     let parse_opts = ParseOpts::default();
-
-    let mut content_vec: Vec<NodeID> = Vec::new();
-    let mut idx = index;
     let mut pool = NodePool::new();
     let parent = pool.reserve_id();
 
-    while let Ok(id) = parse_element(&mut pool, byte_arr, idx, Some(parent), parse_opts) {
-        idx = pool[id].end;
+    let mut content_vec: Vec<NodeID> = Vec::new();
+    while let Ok(id) = parse_element(&mut pool, cursor, Some(parent), parse_opts) {
         content_vec.push(id);
+        cursor.move_to(pool[id].end);
     }
 
-    pool.alloc_with_id(Expr::Root(content_vec), index, idx, None, parent);
+    pool.alloc_with_id(Expr::Root(content_vec), 0, cursor.index, None, parent);
     pool
 }
 

@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Expr, Node, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, Node, ParseOpts, Parseable, Result};
 
 use crate::element::Item;
 use crate::utils::variant_eq;
@@ -24,19 +24,21 @@ pub enum ListKind {
 impl<'a> Parseable<'a> for PlainList {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         // parse opts will provide us the appropriate indentation level
 
         // prevents nested lists from adding unecessary levels of indentation
+        let start = cursor.index;
+
         if !parse_opts.from_list {
             parse_opts.indentation_level += 1;
         }
+
         parse_opts.from_list = true;
-        let original_item_id = Item::parse(pool, byte_arr, index, parent, parse_opts)?;
+        let original_item_id = Item::parse(pool, cursor, parent, parse_opts)?;
         let reserve_id = pool.reserve_id();
 
         let item_node = &mut pool[original_item_id];
@@ -49,28 +51,33 @@ impl<'a> Parseable<'a> for PlainList {
 
         let mut children: Vec<NodeID> = Vec::new();
         children.push(original_item_id);
-        let mut idx = item_node.end;
-        while let Ok(element_id) = parse_element(pool, byte_arr, idx, Some(reserve_id), parse_opts)
-        {
+
+        cursor.index = item_node.end;
+
+        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
             let got_obj = &pool[element_id];
             match &got_obj.obj {
                 Expr::Item(item) => {
                     let item_kind = find_kind(item);
-
                     if !variant_eq(&item_kind, &kind) {
                         break;
                     } else {
                         children.push(element_id);
-                        idx = got_obj.end;
+                        cursor.index = got_obj.end;
                     }
                 }
-                Expr::PlainList(_) => break,
                 _ => {
                     break;
                 }
             }
         }
-        Ok(pool.alloc_with_id(Self { children, kind }, index, idx, parent, reserve_id))
+        Ok(pool.alloc_with_id(
+            Self { children, kind },
+            start,
+            cursor.index,
+            parent,
+            reserve_id,
+        ))
     }
 }
 

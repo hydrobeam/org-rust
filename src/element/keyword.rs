@@ -1,7 +1,6 @@
 use crate::constants::COLON;
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{fn_until, word};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {
@@ -12,20 +11,19 @@ pub struct Keyword<'a> {
 impl<'a> Parseable<'a> for Keyword<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        byte_arr: &'a [u8],
-        index: usize,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        let cookie = word(byte_arr, index, "#+")?;
+        let start = cursor.index;
+        cursor.word("#+")?;
 
-        let key_word = fn_until(byte_arr, cookie, |chr: u8| {
-            chr == b':' || chr.is_ascii_whitespace()
-        })?;
+        let key_word = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
 
-        match byte_arr[key_word.end] {
+        match cursor[key_word.end] {
             COLON => {
-                let val = fn_until(byte_arr, key_word.end + 1, |chr: u8| chr == b'\n')?;
+                cursor.next();
+                let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
                 // TODO: use an fn_until_inclusive to not have to add 1 to the end
                 // (we want to eat the ending nl too)
                 Ok(pool.alloc(
@@ -34,7 +32,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                         // not mentioned in the spec, but org-element trims
                         val: val.obj.trim(),
                     },
-                    index,
+                    start,
                     val.end + 1,
                     parent,
                 ))

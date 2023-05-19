@@ -1,8 +1,8 @@
 use crate::constants::{EQUAL, NEWLINE, TILDE};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{bytes_to_str, verify_markup};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::utils::verify_markup;
 
 #[derive(Debug, Clone)]
 pub struct Italic(pub Vec<NodeID>);
@@ -27,28 +27,28 @@ macro_rules! recursive_markup {
         impl<'a> Parseable<'a> for $name {
             fn parse(
                 pool: &mut NodePool<'a>,
-                byte_arr: &'a [u8],
-                index: usize,
+                mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
             ) -> Result<NodeID> {
-                let mut idx = index;
-                if !verify_markup(byte_arr, index, false) {
+                if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
                 }
-                idx += 1;
+                let start = cursor.index;
+                cursor.next();
+
                 parse_opts.from_object = false;
                 parse_opts.markup.insert(MarkupKind::$name);
 
                 let mut content_vec: Vec<NodeID> = Vec::new();
                 // if we're being called, that means the first split is the thing
                 loop {
-                    match parse_object(pool, byte_arr, idx, parent, parse_opts) {
+                    match parse_object(pool, cursor, parent, parse_opts) {
                         Ok(id) => {
                             let node = &pool[id];
-                            idx = node.end;
+                            cursor.move_to(node.end);
                             if let Expr::MarkupEnd(leaf) = node.obj {
-                                if leaf.contains(MarkupKind::$name) && idx > index + 2
+                                if leaf.contains(MarkupKind::$name) && cursor.index > start + 2
                                 // prevent ** from being Bold{}
                                 {
                                     // TODO: abstract this?
@@ -60,8 +60,8 @@ macro_rules! recursive_markup {
                                     // and we can't access an index beyond the len of the list.
                                     return Ok(pool.alloc_with_id(
                                         Self(content_vec),
-                                        index,
-                                        idx,
+                                        start,
+                                        cursor.index,
                                         parent,
                                         new_id,
                                     ));
@@ -88,53 +88,52 @@ macro_rules! plain_markup {
         impl<'a> Parseable<'a> for $name<'a> {
             fn parse(
                 pool: &mut NodePool<'a>,
-                byte_arr: &'a [u8],
-                index: usize,
+                mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
             ) -> Result<NodeID> {
-                if !verify_markup(byte_arr, index, false) {
+                if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
                 }
 
                 // skip the opening character, we checked it's valid markup
-
                 parse_opts.markup.insert(MarkupKind::$name);
 
-                let mut idx = index + 1;
+                let start = cursor.index;
+                cursor.next();
 
                 loop {
-                    match *byte_arr.get(idx).ok_or(MatchError::EofError)? {
-                        //
+                    match cursor.try_curr()? {
                         chr if parse_opts.markup.byte_match($byte) => {
-                            if idx > index + 1 // prevent ~~ from being Bold{}
-                                && verify_markup(byte_arr, idx, true) {
+                            if cursor.index > start + 2 // prevent ~~ from being Bold{}
+                                && verify_markup(cursor, true) {
                                 break;
                             } else {
-                                idx += 1;
+                                    cursor.next();
                             }
                         }
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
-                            match parse_element(pool, byte_arr, idx + 1, parent, parse_opts) {
+                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {
-                                    idx += 1;
+                                    cursor.next();
                                 }
                                 Err(MatchError::EofError) => return Err(MatchError::EofError),
-                                Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
+                                Err(MatchError::InvalidIndentation) =>
+                                    return Err(MatchError::InvalidIndentation),
                             }
                         }
                         _ => {
-                            idx += 1;
+                            cursor.next();
                         }
                     }
                 }
 
                 Ok(pool.alloc(
-                    Self(bytes_to_str(&byte_arr[index + 1..idx])),
-                    index + 1,
-                    idx + 1,
+                    Self(cursor.clamp_backwards(start)),
+                    start,
+                    cursor.index + 1,
                     parent,
                 ))
             }
