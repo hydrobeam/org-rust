@@ -136,7 +136,7 @@ impl BulletKind {
 
                 let idx = num_match.end;
                 if !(cursor.curr() == PERIOD || cursor.curr() == RPAREN) {
-                    Err(MatchError::InvalidLogic)?
+                    return Err(MatchError::InvalidLogic);
                 }
 
                 let bullet_kind = if num_match.len() == 1 {
@@ -156,7 +156,7 @@ impl BulletKind {
                 };
 
                 if cursor.peek(1)?.is_ascii_whitespace() {
-                    Err(MatchError::InvalidLogic)?
+                    return Err(MatchError::InvalidLogic);
                 }
 
                 Ok(Match {

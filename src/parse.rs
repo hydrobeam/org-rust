@@ -121,12 +121,8 @@ fn parse_text<'a>(
 ) -> NodeID {
     let start = cursor.index;
 
-    loop {
-        if let Err(MatchError::InvalidLogic) = parse_object(pool, cursor, parent, parse_opts) {
-            cursor.next()
-        } else {
-            break;
-        }
+    while let Err(MatchError::InvalidLogic) = parse_object(pool, cursor, parent, parse_opts) {
+        cursor.next();
     }
 
     pool.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)

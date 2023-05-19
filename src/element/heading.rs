@@ -204,14 +204,17 @@ impl<'a> Heading<'a> {
         cursor.skip_ws();
 
         for (i, val) in ORG_TODO_KEYWORDS.iter().enumerate() {
-            if let Ok(_) = cursor.word(val) {
-                // can probably break out if this isn't true
+            if cursor.word(val).is_ok() {
+                // keep going in if not whitespace
+                // because a keyword might be a subset of another,,,
                 if cursor.peek(1)?.is_ascii_whitespace() {
                     return Ok(Match {
                         start,
-                        end: cursor.index,
+                        end: cursor.index, // don't move 1 ahead, in case it's a newline
                         obj: val,
                     });
+                } else {
+                    cursor.index -= val.len();
                 }
             }
         }
@@ -307,7 +310,7 @@ impl<'a> Heading<'a> {
                         };
                     } else {
                         // otherwise, keep going
-                        cursor.prev()
+                        cursor.prev();
                     }
                 } else {
                     // invalid input: reset temp_ind back to end
