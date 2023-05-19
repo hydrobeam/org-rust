@@ -1,0 +1,117 @@
+#+title: org-rust
+
+This crate aims to provide parsing support for [[https://orgmode.org/][org-mode]] based on [[https://orgmode.org/worg/dev/org-syntax-edited.html][the official spec]].
+The goal is to be mostly spec compliant, and allow for exporting the generated AST to other formats and applying modifications to it.
+
+
+** Syntax Progress
+
+| Component           | Parse | Export |
+|---------------------+-------+--------|
+| Heading             | X     | _      |
+| Section             | X     | _      |
+| Plain               | X     | _      |
+| Markup              | X     | _      |
+| GreaterBlock        | X     | _      |
+| LesserBlock         | X     | _      |
+| Keyword             | X     | _      |
+| Item                | X     | _      |
+| List                | X     | _      |
+| Paragraph           | X     | _      |
+| InlineSrcBlock      | X     | _      |
+| Comment             | X     | _      |
+| LaTeXFragment       | X     | _      |
+| LaTeXEnvironment    | X     | _      |
+| Tables              | _     | _      |
+| Entity              | _     | _      |
+| Drawer              | _     | _      |
+| FootnoteDefinition  | _     | _      |
+| BabelCall           | _     | _      |
+| InlineBabelCall     | _     | _      |
+| Affiliated Keywords | _     | _      |
+| Planning            | _     | _      |
+| FixedWidth          | _     | _      |
+| HorizontalRule      | _     | _      |
+| NodeProperty        | _     | _      |
+| ExportSnippet       | _     | _      |
+| FootnoteReference   | _     | _      |
+| RadioTarget         | _     | _      |
+| RadioLink           | _     | _      |
+| PlainLink           | _     | _      |
+| AngleLink           | _     | _      |
+| RegularLink         | _     | _      |
+| LineBreak           | _     | _      |
+| Macro               | _     | _      |
+| Citation            | _     | _      |
+| Target              | _     | _      |
+| StatisticsCookie    | _     | _      |
+| Subscript           | _     | _      |
+| Superscript         | _     | _      |
+| Timestamp           | _     | _      |
+
+* Parsing Approach
+
+The parser was implemented manually without the use of parser combinator libraries to keep dependencies low and to have more flexibility with the implementation and performance.
+
+The parsing strategy is to try to (almost) consecutively apply each potential item's ~parse~ method, and determine if it returns a successful result. If the result is is not successful,
+either move on to the next available item, or the default parser.
+
+For elements, the default parser is ~Paragraph::parse~ and for objects, the default parser is ~parse_text()~.
+
+We match based on the first character to decide which item's parser to try. For example, if we match on ~#~, we'd first try ~Block::parse()~, then ~Keyword::parse()~ and so on. If we match on ~|~, we'd first try ~Table::parse()~, then move on to the default parser (~Paragraph::parse()~). This approach allows us to skip trying most of the parsing functions for a given input.
+
+The typical transition is:
+1. ~parse_org()~: entry point to the parser, runs ~parse_element~ in a loop
+2. ~parse_element()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Elements][elements]]
+3. ~Paragraph::parse()~: handles the default [[https://orgmode.org/worg/dev/org-syntax-edited.html#Paragraphs][paragraph]] element,
+4. ~parse_object()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Objects][objects]]
+5. ~parse_text()~: if no objects are recognized, interpret them as text
+
+
+** Overall
+
+~Parseable~ is the trait that provides the ~parse()~ method for each element/object. It returns a ~NodeID~. Corresponding to the element having been placed inside the ~NodePool~.
+
+~NodePool~ is the index arena that ~Node~'s are stored in. Using an arena helps simplify lifetimes and provides easy iteration over all elements in the AST. We pass a mutable reference to the arena to each within each ~parse()~ to fill it up when needed.
+
+
+Each ~Node~ contains an ~Expr~ (which maps to an actual AST item) and additional metadata, which is useful during parsing / exporting.
+
+We take in a ~&str~ and turn it into a byte array (~&[u8]~) with a ~Cursor~. ~Cursor~ has some helpful utility functions implemented to make the parsing functions easier to write and more legible. We also avoid re-allocating the input this way.
+
+
+** TODO Caching
+
+The parsing function we attempt to use can make significant progress into parsing, even accumulating child nodes of its own before failing (such as in the case of improperly closed markup).
+So in theory, we'd be heavily backtracking and re-parsing elements we've already seen!
+
+To avoid this, we try to cache the progress we've made within each parsing function.
+Not all progress can be cached, especially in the case of "state changes", like in a ~#+begin_src~ block where the contents aren't org.
+This isn't a big deal for non cache-able elements since they're quicker to parse.
+
+
+** Dependencies
+
+- [[https://github.com/bitflags/bitflags][bitflags]]: provides a macro to generate bitflags from a struct.
+
+  Extremely useful for handling markup delimiters and creating object groups (standard set, minimal set, etc...).
+
+- [[https://docs.rs/derive_more/latest/derive_more/][derive_more{from}]]: allows... deriving ~From~.
+
+  Mostly a convenience crate to make it easy to create a ~Node~ from an ~Expr~.
+
+- [[https://github.com/BurntSushi/memchr][memchr]]: provides fast string search functions.
+
+   Used in parsing block / LaTeX environments to find the ending token (~#+end_NAME~). I expect these elements to be fairly large on average, so being able to do this quickly is very good!
+
+- [[https://github.com/rust-phf/rust-phf][phf]]: allows initializing compile time look up tables.
+
+   Not absolutely necessary, but makes it faster/easier to group together characters, such as those that are allowed to enclose markup delimiters, entities, etc...
+
+* Resources
+
+ - Helpful for understanding how a packrat parser works:
+   https://blog.bruce-hill.com/packrat-parsing-from-scratch
+
+ - Motivation behind going for a flattened arena-based AST:
+   https://www.cs.cornell.edu/~asampson/blog/flattening.html
