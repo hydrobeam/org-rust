@@ -26,9 +26,9 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | AngleLink           | X     | _      |
 | RegularLink         | X     | _      |
 | Entity              | X     | _      |
+| Table               | X     | _      |
 | RadioLink           | _     | _      |
 | RadioTarget         | _     | _      |
-| Table               | _     | _      |
 | Drawer              | _     | _      |
 | FootnoteDefinition  | _     | _      |
 | BabelCall           | _     | _      |

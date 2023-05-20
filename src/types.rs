@@ -2,9 +2,10 @@ use derive_more::From;
 use std::fmt::Debug;
 use std::ops::Index;
 
-use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE};
+use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
-    Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList,
+    Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
+    TableCell, TableRow,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
@@ -240,6 +241,9 @@ pub enum Expr<'a> {
     Underline(Underline),
     PlainList(PlainList),
     Item(Item<'a>),
+    Table(Table),
+    TableRow(TableRow),
+    TableCell(TableCell),
 
     // Leaf
     BlankLine,
@@ -274,6 +278,7 @@ pub enum MatchError {
     InvalidLogic,
     EofError,
     InvalidIndentation,
+    TableEnd,
 }
 
 impl std::fmt::Display for MatchError {
@@ -292,8 +297,7 @@ bitflags! {
         const Verbatim      = 1 << 4;
         const Code          = 1 << 5;
         const Link          = 1 << 6;
-        const LinkDescBegin = 1 << 7;
-        const LinkEnd       = 1 << 8;
+        const Table         = 1 << 7;
     }
 }
 
@@ -309,15 +313,18 @@ impl MarkupKind {
     /// not:
     ///    /abc Code{one tw/ o}
     ///
+    #[rustfmt::skip]
     pub(crate) fn byte_match(self, byte: u8) -> bool {
         match self {
-            MarkupKind::Bold => byte == STAR,
-            MarkupKind::Italic => byte == SLASH,
-            MarkupKind::Underline => byte == UNDERSCORE,
+            MarkupKind::Bold          => byte == STAR,
+            MarkupKind::Italic        => byte == SLASH,
+            MarkupKind::Underline     => byte == UNDERSCORE,
             MarkupKind::StrikeThrough => byte == PLUS,
-            MarkupKind::LinkEnd => byte == RBRACK,
-            MarkupKind::Code => byte == TILDE,
-            MarkupKind::Verbatim => byte == EQUAL,
+            MarkupKind::Link          => byte == RBRACK,
+            MarkupKind::Code          => byte == TILDE,
+            MarkupKind::Verbatim      => byte == EQUAL,
+            MarkupKind::Table         => byte == VBAR,
+            // won't recognize the exhaustive match pattern
             _ => false,
         }
     }
@@ -456,6 +463,32 @@ impl<'a> Expr<'a> {
             }
             Expr::PlainLink(inner) => print!("{inner:#?}"),
             Expr::Entity(inner) => print!("{inner:#?}"),
+            Expr::Table(inner) => {
+                print!("Table{{\n");
+                for id in &inner.children {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("\n}}");
+            }
+
+            Expr::TableRow(inner) => {
+                if let TableRow::Standard(stans) = inner {
+                    for id in stans {
+                        pool[*id].obj.print_tree(pool);
+                    }
+                } else {
+                    print!("h-rule");
+                }
+
+                println!();
+            }
+            Expr::TableCell(inner) => {
+                print!("|");
+                for id in &inner.0 {
+                    pool[*id].obj.print_tree(pool);
+                }
+                print!("|");
+            }
         }
     }
 }
@@ -495,7 +528,10 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::InlineSrc(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Keyword(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::LatexEnv(inner) => f.write_fmt(format_args!("{inner:#?}")),
-                Expr::Entity(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Entity(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Table(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -524,6 +560,9 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::InlineSrc(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Keyword(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Entity(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Table(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

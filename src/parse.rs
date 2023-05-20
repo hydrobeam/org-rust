@@ -1,6 +1,6 @@
 use crate::constants::{
     BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH, STAR,
-    TILDE, UNDERSCORE,
+    TILDE, UNDERSCORE, VBAR,
 };
 use crate::node_pool::{NodeID, NodePool};
 
@@ -19,6 +19,12 @@ pub(crate) fn parse_element<'a>(
     parse_opts: ParseOpts,
 ) -> Result<NodeID> {
     cursor.is_index_valid()?;
+
+    // means a newline checking thing called this, and newline breaks all
+    // table rows
+    if parse_opts.markup.contains(MarkupKind::Table) {
+        return Err(MatchError::TableEnd);
+    }
 
     // indentation check
     let mut indented_loc = cursor.index;
@@ -208,11 +214,17 @@ pub(crate) fn parse_object<'a>(
                 // it catches on EofError
                 Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
                 Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
+                Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
             }
         }
         LANGLE => {
             if let ret @ Ok(_) = parse_angle_link(pool, cursor, parent, parse_opts) {
                 return ret;
+            }
+        }
+        VBAR => {
+            if parse_opts.markup.contains(MarkupKind::Table) {
+                return Err(MatchError::InvalidLogic);
             }
         }
         _ => {}

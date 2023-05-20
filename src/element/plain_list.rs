@@ -35,9 +35,9 @@ impl<'a> Parseable<'a> for PlainList {
 
         if !parse_opts.from_list {
             parse_opts.indentation_level += 1;
+            parse_opts.from_list = true;
         }
 
-        parse_opts.from_list = true;
         let original_item_id = Item::parse(pool, cursor, parent, parse_opts)?;
         let reserve_id = pool.reserve_id();
 

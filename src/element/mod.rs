@@ -6,6 +6,7 @@ mod keyword;
 mod latex_env;
 mod paragraph;
 mod plain_list;
+mod table;
 
 pub use block::Block;
 pub use block::BlockContents;
@@ -18,3 +19,6 @@ pub use keyword::Keyword;
 pub use latex_env::LatexEnv;
 pub use paragraph::Paragraph;
 pub use plain_list::PlainList;
+pub use table::Table;
+pub use table::TableCell;
+pub use table::TableRow;

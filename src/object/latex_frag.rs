@@ -22,10 +22,16 @@ macro_rules! double_ending {
                 NEWLINE => {
                     $parse_opts.from_paragraph = true;
 
-                    if let Ok(_) | Err(MatchError::EofError) =
-                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)
-                    {
-                        return Err(MatchError::EofError);
+                    match parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts) {
+                        // EofError isn't exactly the right error for the Ok(_) case
+                        // but we do it to send a signal to `parse_text` to stop collecting:
+                        // it catches on EofError
+                        Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
+                        Err(MatchError::InvalidIndentation) => {
+                            return Err(MatchError::InvalidIndentation)
+                        }
+                        Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
+                        Err(MatchError::InvalidLogic) => {}
                     }
                 }
                 $byte_1 => {
@@ -81,13 +87,15 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 loop {
                     match cursor.try_curr()? {
                         NEWLINE => {
-                            if let Ok(_) | Err(MatchError::EofError) = parse_element(
-                                pool,
-                                cursor.adv_copy(1), // skip the newline
-                                parent,
-                                parse_opts,
-                            ) {
-                                return Err(MatchError::EofError);
+                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
+                                Ok(_) | Err(MatchError::EofError) => {
+                                    return Err(MatchError::EofError)
+                                }
+                                Err(MatchError::InvalidIndentation) => {
+                                    return Err(MatchError::InvalidIndentation)
+                                }
+                                Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
+                                Err(MatchError::InvalidLogic) => {}
                             }
                         }
                         DOLLAR => {
@@ -144,7 +152,6 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         return Ok(pool.alloc(entity, start, end_name_ind, parent));
                     }
 
-                    // dbg!(bytes_to_str(&byte_arr[prev_name_ind..end_name_ind],));
                     match cursor.curr() {
                         LBRACE => {
                             cursor.next();
