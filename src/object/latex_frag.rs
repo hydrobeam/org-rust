@@ -20,18 +20,15 @@ macro_rules! double_ending {
         loop {
             match $cursor.try_curr()? {
                 NEWLINE => {
-                    $parse_opts.from_paragraph = true;
 
-                    match parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts) {
-                        // EofError isn't exactly the right error for the Ok(_) case
-                        // but we do it to send a signal to `parse_text` to stop collecting:
-                        // it catches on EofError
-                        Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
-                        Err(MatchError::InvalidIndentation) => {
-                            return Err(MatchError::InvalidIndentation)
-                        }
-                        Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
-                        Err(MatchError::InvalidLogic) => {}
+                    // the error we return doesn't matter, as long as we error
+                    if let Err(MatchError::InvalidLogic) =
+                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)
+                    {
+                        $cursor.next();
+                    } else {
+                        // just blow up REVIEW: find out if it's okay to return InvalidLogic here
+                        return Err(MatchError::EofError);
                     }
                 }
                 $byte_1 => {
@@ -44,9 +41,8 @@ macro_rules! double_ending {
                         ));
                     }
                 }
-                _ => {}
+                _ => $cursor.next(),
             }
-            $cursor.next();
         }
     };
 }
@@ -87,15 +83,14 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 loop {
                     match cursor.try_curr()? {
                         NEWLINE => {
-                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
-                                Ok(_) | Err(MatchError::EofError) => {
-                                    return Err(MatchError::EofError)
-                                }
-                                Err(MatchError::InvalidIndentation) => {
-                                    return Err(MatchError::InvalidIndentation)
-                                }
-                                Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
-                                Err(MatchError::InvalidLogic) => {}
+                            // the error we return doesn't matter, as long as we error
+                            if let Err(MatchError::InvalidLogic) =
+                                parse_element(pool, cursor.adv_copy(1), parent, parse_opts)
+                            {
+                                cursor.next();
+                            } else {
+                                // just blow up REVIEW: find out if it's okay to return InvalidLogic here
+                                return Err(MatchError::EofError);
                             }
                         }
                         DOLLAR => {
@@ -108,9 +103,8 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                 ));
                             }
                         }
-                        _ => {}
+                        _ => cursor.next(),
                     }
-                    cursor.next();
                 }
             } else {
                 return Err(MatchError::InvalidLogic);
@@ -364,6 +358,16 @@ c}
 ";
         let pool = parse_org(inp);
 
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn latex_frag_pretext() {
+        let input = "one two $three\nfourfive";
+
+        let pool = parse_org(input);
+
+        dbg!(&pool);
         pool.root().print_tree(&pool);
     }
 }

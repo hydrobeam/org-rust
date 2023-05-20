@@ -122,7 +122,6 @@ macro_rules! plain_markup {
                                 Err(MatchError::EofError) => return Err(MatchError::EofError),
                                 Err(MatchError::InvalidIndentation) =>
                                     return Err(MatchError::InvalidIndentation),
-                                Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
                             }
                         }
                         _ => {

@@ -278,7 +278,6 @@ pub enum MatchError {
     InvalidLogic,
     EofError,
     InvalidIndentation,
-    TableEnd,
 }
 
 impl std::fmt::Display for MatchError {

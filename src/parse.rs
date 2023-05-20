@@ -23,7 +23,7 @@ pub(crate) fn parse_element<'a>(
     // means a newline checking thing called this, and newline breaks all
     // table rows
     if parse_opts.markup.contains(MarkupKind::Table) {
-        return Err(MatchError::TableEnd);
+        return Ok(pool.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
     }
 
     // indentation check
@@ -214,7 +214,6 @@ pub(crate) fn parse_object<'a>(
                 // it catches on EofError
                 Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
                 Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
-                Err(MatchError::TableEnd) => return Err(MatchError::TableEnd),
             }
         }
         LANGLE => {
@@ -224,7 +223,7 @@ pub(crate) fn parse_object<'a>(
         }
         VBAR => {
             if parse_opts.markup.contains(MarkupKind::Table) {
-                return Err(MatchError::InvalidLogic);
+                return Ok(pool.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
             }
         }
         _ => {}

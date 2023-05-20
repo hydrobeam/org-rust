@@ -10,10 +10,12 @@ impl<'a> Parseable<'a> for Paragraph {
         pool: &mut NodePool<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
-        parse_opts: ParseOpts,
+        mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
         let mut content_vec: Vec<NodeID> = Vec::new();
+        parse_opts.from_paragraph = true;
+
 
         // allocte beforehand since we know paragrpah can never fail
         let new_id = pool.reserve_id();
