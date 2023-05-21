@@ -303,7 +303,9 @@ bitflags! {
 impl MarkupKind {
     /// For use in plain markup types (code & verbatim)
     /// to determine if they have hit an end marker in a nested
-    /// markup situation
+    /// markup situation. Checks if an incoming byte would close
+    /// the markup that is held.
+    ///
     ///
     /// /abc ~one tw/ o~
     /// should be:
@@ -312,18 +314,16 @@ impl MarkupKind {
     /// not:
     ///    /abc Code{one tw/ o}
     ///
-    #[rustfmt::skip]
     pub(crate) fn byte_match(self, byte: u8) -> bool {
-        match self {
-            MarkupKind::Bold          => byte == STAR,
-            MarkupKind::Italic        => byte == SLASH,
-            MarkupKind::Underline     => byte == UNDERSCORE,
-            MarkupKind::StrikeThrough => byte == PLUS,
-            MarkupKind::Link          => byte == RBRACK,
-            MarkupKind::Code          => byte == TILDE,
-            MarkupKind::Verbatim      => byte == EQUAL,
-            MarkupKind::Table         => byte == VBAR,
-            // won't recognize the exhaustive match pattern
+        match byte {
+            STAR => self.contains(MarkupKind::Bold),
+            SLASH => self.contains(MarkupKind::Italic),
+            UNDERSCORE => self.contains(MarkupKind::Underline),
+            PLUS => self.contains(MarkupKind::StrikeThrough),
+            RBRACK => self.contains(MarkupKind::Link),
+            TILDE => self.contains(MarkupKind::Code),
+            EQUAL => self.contains(MarkupKind::Verbatim),
+            VBAR => self.contains(MarkupKind::Table),
             _ => false,
         }
     }
@@ -397,7 +397,18 @@ impl<'a> Expr<'a> {
                     println!("{inner:#?}");
                 }
             },
-            Expr::RegularLink(inner) => {}
+            Expr::RegularLink(inner) => {
+                println!("RegularLink{{");
+                print!("{:#?}", inner.path);
+                if let Some(children) = &inner.description {
+                    for id in children {
+                        pool[*id].obj.print_tree(pool);
+                        print!(",");
+                    }
+                }
+                println!("}}");
+            }
+
             Expr::Paragraph(inner) => {
                 print!("Paragraph {{");
                 for id in &inner.0 {

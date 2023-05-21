@@ -83,6 +83,8 @@ macro_rules! recursive_markup {
     };
 }
 
+/// $name is the name of the Markup object e.g. Code
+/// $byte is the closing delimeter for the markup object, e.g. TILDE
 macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
         impl<'a> Parseable<'a> for $name<'a> {
@@ -103,13 +105,16 @@ macro_rules! plain_markup {
                 cursor.next();
 
                 loop {
+                dbg!(cursor.clamp_forwards(cursor.len() - 1));
+
                     match cursor.try_curr()? {
-                        chr if parse_opts.markup.byte_match($byte) => {
-                            if cursor.index > start + 2 // prevent ~~ from being Bold{}
+                        chr if parse_opts.markup.byte_match(chr) => {
+                            if chr == $byte // check if our closer  is active
+                                && cursor.index > start + 1 // prevent ~~ from being Bold{}
                                 && verify_markup(cursor, true) {
                                 break;
                             } else {
-                                    cursor.next();
+                                    return Err(MatchError::InvalidLogic);
                             }
                         }
                         NEWLINE => {
@@ -131,7 +136,7 @@ macro_rules! plain_markup {
                 }
 
                 Ok(pool.alloc(
-                    Self(cursor.clamp_backwards(start)),
+                    Self(cursor.clamp_backwards(start + 1)),
                     start,
                     cursor.index + 1,
                     parent,
@@ -235,6 +240,24 @@ mod tests {
     #[test]
     fn markup_not_fail_on_eof() {
         let inp = "/";
+        let a = parse_org(inp);
+
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn markup_plain_single_char() {
+        // should be valid
+        let inp = "~a~";
+        let a = parse_org(inp);
+
+        a.root().print_tree(&a);
+    }
+
+    #[test]
+    fn markup_recursive_single_char() {
+        // should be valid
+        let inp = "/a/";
         let a = parse_org(inp);
 
         a.root().print_tree(&a);

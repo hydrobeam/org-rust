@@ -4,7 +4,9 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table};
+use crate::element::{
+    Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
+};
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, RegularLink,
     StrikeThrough, Underline, Verbatim,
