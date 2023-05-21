@@ -259,7 +259,6 @@ word
 ";
 
         let pool = parse_org(input);
-
         pool.root().print_tree(&pool);
     }
 

@@ -180,9 +180,14 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
 
 /// Word-constituent characters are letters, digits, and the underscore.
 /// source: https://www.gnu.org/software/grep/manual/grep.html
-fn is_word_constituent(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == UNDERSCORE
-}
+///
+/// REVIEW:
+/// apparently a word constituent..isn't ujndescore??
+/// https://www.gnu.org/software/emacs/manual/html_node/elisp/Syntax-Class-Table.html
+///
+/// Parts of words in human languages.
+/// These are typically used in variable and command names in programs.
+/// All upper- and lower-case letters, and the digits, are typically word constituents.
 
 /// PROTOCOL
 /// A string which is one of the link type strings in org-link-parameters11. PATHPLAIN
@@ -191,9 +196,10 @@ fn is_word_constituent(byte: u8) -> bool {
 /// It must end with a word-constituent character,
 /// or any non-whitespace non-punctuation character followed by /.
 pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink<'_>>> {
-    let pre_byte = cursor.peek_rev(1)?;
-    if is_word_constituent(pre_byte) {
-        return Err(MatchError::InvalidLogic);
+    if let Ok(pre_byte) = cursor.peek_rev(1) {
+        if pre_byte.is_ascii_alphanumeric() {
+            return Err(MatchError::InvalidLogic);
+        }
     }
     let start = cursor.index;
 
@@ -201,17 +207,18 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
         // DO NOT read up to the colon and use phf_set to determine if it's a protocol
         // cause the colon might be in the middle-a-nowhere if we're parsing regular text here
         if cursor.word(protocol).is_ok() {
-            if cursor.peek(1)? == COLON {
+            if cursor.try_curr()? == COLON {
                 cursor.next();
                 let path_start = cursor.index;
                 // let pre
 
                 while let Ok(byte) = cursor.try_curr() {
                     match byte {
-                        LPAREN | RPAREN | LANGLE | b'\t' | b'\n' | b'\x0C' | b'\r' | b' ' => {
-                            return Err(MatchError::InvalidLogic)
+                        RANGLE | LPAREN | RPAREN | LANGLE | b'\t' | b'\n' | b'\x0C' | b'\r'
+                        | b' ' => {
+                            break;
                         }
-                        RANGLE => break,
+                        // RANGLE => break,
                         _ => {
                             cursor.next();
                         }
@@ -220,35 +227,44 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
 
                 let last_link_byte = cursor[cursor.index - 1];
                 // if no progress was made, i.e. just PROTOCOL:
-                if cursor.index == path_start {
-                    return Err(MatchError::InvalidLogic);
+
+                // rewind until we end with an alphanumeric char or SLASH
+                //
+                // so:
+                // https://abc.org...___
+                // would only get: https://abc.org
+                //
+                // if you do something like https://onea/a/aaaa/,,,,,/
+                // then i think that breaks the definition, cause the slash isn't after a non-punc char..
+                // but also if you do that then you're just being difficult.
+                //
+
+                while !cursor.peek_rev(1)?.is_ascii_alphanumeric()
+                    && !(cursor.peek_rev(1)? == SLASH)
+                {
+                    cursor.prev();
+                    if cursor.index <= path_start {
+                        return Err(MatchError::InvalidLogic);
+                    }
                 }
 
-                if
-                //  It must end with a word-constituent character ^
-                !(is_word_constituent(last_link_byte))
-                // or any non-whitespace non-punctuation character followed by /
-                || (!cursor.peek_rev(2)?.is_ascii_whitespace() &&
-                    !cursor.peek_rev(2)?.is_ascii_punctuation()
-                        && last_link_byte == SLASH)
-                // Post ⥿ allow ending on eof
-                    || if let Ok(future_byte) = cursor.peek(1) {
-                       is_word_constituent(future_byte)
-                    } else {
-                        true
-                    }
-                {
+                // Post: allow ending on eof
+                if if let Ok(future_byte) = cursor.peek(1) {
+                    !future_byte.is_ascii_alphanumeric()
+                } else {
+                    true
+                } {
+                    return Ok(Match {
+                        start,
+                        end: cursor.index,
+                        obj: PlainLink {
+                            protocol,
+                            path: cursor.clamp_backwards(path_start),
+                        },
+                    });
+                } else {
                     return Err(MatchError::EofError);
                 }
-
-                return Ok(Match {
-                    start,
-                    end: cursor.index,
-                    obj: PlainLink {
-                        protocol,
-                        path: cursor.clamp_backwards(path_start),
-                    },
-                });
             } else {
                 cursor.index -= protocol.len();
             }
@@ -270,7 +286,7 @@ pub(crate) fn parse_angle_link<'a>(
 
     for (i, &protocol) in ORG_LINK_PARAMETERS.iter().enumerate() {
         if cursor.word(protocol).is_ok() {
-            if cursor.peek(1)? == COLON {
+            if cursor.try_curr()? == COLON {
                 cursor.next();
                 let path_start = cursor.index;
                 while let Ok(byte) = cursor.try_curr() {
@@ -282,6 +298,7 @@ pub(crate) fn parse_angle_link<'a>(
                         }
                     }
                 }
+
                 // <PROTOCOL:> is valid, don't need to check indices
 
                 return Ok(pool.alloc(
@@ -300,4 +317,56 @@ pub(crate) fn parse_angle_link<'a>(
     }
 
     Err(MatchError::InvalidLogic)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_org;
+
+    #[test]
+    fn basic_plain_link() {
+        let input = "https://swag.org";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn plain_link_subprotocol() {
+        // http and https are protocols
+        let input = "http://swag.org";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn plain_link_ws_end() {
+        // http and https are protocols
+        let input = "  mailto:swag@cool.com   ";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn plain_link_word_constituent() {
+        // http and https are protocols
+        let input = "  https://one_two_three_https______..............~~~!   ";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn plain_link_word_constituent_slash() {
+        // http and https are protocols
+        let input = "  https://one_two_three_https______/..............~~~!   ";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn basic_angle_link() {
+        // http and https are protocols
+        let input = "  <https://one two  !!@#!OIO DJDFK Jk> ";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
 }
