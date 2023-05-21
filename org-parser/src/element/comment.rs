@@ -2,16 +2,18 @@ use crate::node_pool::{NodeID, NodePool};
 use crate::types::{Cursor, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Comment<'a>(&'a str);
+pub struct Comment<'a>(pub &'a str);
 
 impl<'a> Parseable<'a> for Comment<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
-        cursor: Cursor<'a>,
+        mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         if cursor.peek(1)?.is_ascii_whitespace() {
+            // skip past "# "
+            cursor.advance(2);
             let content = cursor.fn_until(|chr: u8| chr == b'\n')?;
             // TODO: use an fn_until_inclusive to not have to add 1 to the end
             // (we want to eat the ending nl too)
