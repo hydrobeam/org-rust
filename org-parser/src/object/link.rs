@@ -1,6 +1,5 @@
 use crate::constants::{
     BACKSLASH, COLON, HYPHEN, LANGLE, LBRACK, LPAREN, POUND, RANGLE, RBRACK, RPAREN, SLASH,
-    UNDERSCORE,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;

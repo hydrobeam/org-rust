@@ -22,7 +22,7 @@ pub struct NodePool<'a> {
 }
 
 impl<'a> NodePool<'a> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             inner_vec: Vec::new(),
             /// The next free index in the pool.
@@ -30,7 +30,7 @@ impl<'a> NodePool<'a> {
         }
     }
 
-    pub fn alloc<T>(&mut self, obj: T, start: usize, end: usize, parent: Option<NodeID>) -> NodeID
+    pub(crate) fn alloc<T>(&mut self, obj: T, start: usize, end: usize, parent: Option<NodeID>) -> NodeID
     where
         Expr<'a>: From<T>,
     {
@@ -51,7 +51,7 @@ impl<'a> NodePool<'a> {
     /// Must refer to an ID that already exists in the pool.
     /// Will panic at runtime otherwise.
     ///
-    pub fn alloc_with_id<T>(
+    pub(crate) fn alloc_with_id<T>(
         &mut self,
         obj: T,
         start: usize,
@@ -80,15 +80,11 @@ impl<'a> NodePool<'a> {
     /// To be used when intending to replace the Node at the index
     /// in conjunction with `alloc_from_id`.
     ///
-    pub fn reserve_id(&mut self) -> NodeID {
+    pub(crate) fn reserve_id(&mut self) -> NodeID {
         self.inner_vec.push(Node::default());
         let old_counter = self.counter;
         self.counter += 1;
         NodeID(old_counter)
-    }
-
-    pub fn get_next_id(&self) -> NodeID {
-        NodeID(self.counter)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> {

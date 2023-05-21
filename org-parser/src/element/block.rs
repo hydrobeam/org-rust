@@ -164,7 +164,7 @@ pub enum BlockKind<'a> {
     Verse,
 }
 
-impl<'a> BlockKind<'_> {
+impl BlockKind<'_> {
     pub fn is_lesser(&self) -> bool {
         matches!(
             self,

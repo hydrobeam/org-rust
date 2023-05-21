@@ -1,6 +1,6 @@
 use crate::constants::{HYPHEN, NEWLINE, VBAR};
 use crate::node_pool::{NodeID, NodePool};
-use crate::parse::{parse_element, parse_object};
+use crate::parse::parse_object;
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
@@ -102,7 +102,7 @@ impl<'a> Parseable<'a> for TableRow {
             }
         }
 
-        return Ok(pool.alloc(Self::Standard(children), start, cursor.index, parent));
+        Ok(pool.alloc(Self::Standard(children), start, cursor.index, parent))
     }
 }
 
@@ -145,7 +145,7 @@ impl<'a> Parseable<'a> for TableCell {
             }
         }
 
-        return Ok(pool.alloc_with_id(Self(content_vec), start, cursor.index, parent, new_id));
+        Ok(pool.alloc_with_id(Self(content_vec), start, cursor.index, parent, new_id))
     }
 }
 

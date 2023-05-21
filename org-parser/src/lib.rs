@@ -6,11 +6,11 @@ use types::{Cursor, Expr, ParseOpts};
 
 use crate::parse::parse_element;
 
-mod element;
-mod node_pool;
-mod object;
+pub mod element;
+pub mod node_pool;
+pub mod object;
+pub mod types;
 mod parse;
-mod types;
 pub(crate) mod utils;
 
 #[rustfmt::skip]

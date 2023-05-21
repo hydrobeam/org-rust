@@ -124,7 +124,7 @@ impl BulletKind {
                         obj: BulletKind::Unordered,
                     })
                 } else {
-                    return Err(MatchError::InvalidLogic);
+                    Err(MatchError::InvalidLogic)
                 }
             }
             chr if chr.is_ascii_alphanumeric() => {

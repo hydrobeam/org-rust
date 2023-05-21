@@ -15,7 +15,7 @@ use crate::object::{
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
 
-pub type Result<T> = std::result::Result<T, MatchError>;
+pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Cursor<'a> {
@@ -274,7 +274,7 @@ pub(crate) struct ParseOpts {
 }
 
 #[derive(Debug)]
-pub enum MatchError {
+pub(crate) enum MatchError {
     InvalidLogic,
     EofError,
     InvalidIndentation,
@@ -288,6 +288,7 @@ impl std::fmt::Display for MatchError {
 
 bitflags! {
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+    // TODO: make Expr::MarkupEnd an Error thing so that this can be private
     pub struct MarkupKind: u32 {
         const Italic        = 1 << 0;
         const Bold          = 1 << 1;

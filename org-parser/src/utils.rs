@@ -45,7 +45,7 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
 /// otherwise we have an internal bug and we'd be unwrapping immediately
 /// afterwards with the safe alternative either way.
 #[inline]
-pub fn bytes_to_str(byte_arr: &[u8]) -> &str {
+pub(crate) fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 

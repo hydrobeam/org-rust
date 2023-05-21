@@ -42,19 +42,17 @@ pub enum HeadingLevel {
     Six,
 }
 
-impl TryFrom<usize> for HeadingLevel {
-    type Error = MatchError;
-
-    fn try_from(value: usize) -> Result<Self> {
-        match value {
-            1 => Ok(HeadingLevel::One),
-            2 => Ok(HeadingLevel::Two),
-            3 => Ok(HeadingLevel::Three),
-            4 => Ok(HeadingLevel::Four),
-            5 => Ok(HeadingLevel::Five),
-            6 => Ok(HeadingLevel::Six),
-            _ => Err(MatchError::InvalidLogic),
-        }
+/// Implemented not via TryFrom that MatchError can be private
+/// while keeping the struct Public
+fn try_heading_levelfrom(value: usize) -> Result<HeadingLevel> {
+    match value {
+        1 => Ok(HeadingLevel::One),
+        2 => Ok(HeadingLevel::Two),
+        3 => Ok(HeadingLevel::Three),
+        4 => Ok(HeadingLevel::Four),
+        5 => Ok(HeadingLevel::Five),
+        6 => Ok(HeadingLevel::Six),
+        _ => Err(MatchError::InvalidLogic),
     }
 }
 
@@ -189,7 +187,7 @@ impl<'a> Heading<'a> {
         if cursor[ret.end] != SPACE {
             Err(MatchError::InvalidLogic)
         } else {
-            let heading_level: HeadingLevel = (ret.end - cursor.index).try_into()?;
+            let heading_level: HeadingLevel = try_heading_levelfrom(ret.end - cursor.index)?;
             Ok(Match {
                 start: cursor.index,
                 end: ret.end,
