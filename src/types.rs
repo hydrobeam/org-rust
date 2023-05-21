@@ -463,15 +463,17 @@ impl<'a> Expr<'a> {
             Expr::PlainLink(inner) => print!("{inner:#?}"),
             Expr::Entity(inner) => print!("{inner:#?}"),
             Expr::Table(inner) => {
-                print!("Table{{\n");
+                println!("Table{{");
                 for id in &inner.children {
                     pool[*id].obj.print_tree(pool);
                 }
                 print!("\n}}");
+                dbg!(inner);
             }
 
             Expr::TableRow(inner) => {
                 if let TableRow::Standard(stans) = inner {
+                    print!("|");
                     for id in stans {
                         pool[*id].obj.print_tree(pool);
                     }
@@ -482,7 +484,6 @@ impl<'a> Expr<'a> {
                 println!();
             }
             Expr::TableCell(inner) => {
-                print!("|");
                 for id in &inner.0 {
                     pool[*id].obj.print_tree(pool);
                 }

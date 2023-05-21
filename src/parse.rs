@@ -4,7 +4,7 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 
-use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList};
+use crate::element::{Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table};
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, RegularLink,
     StrikeThrough, Underline, Verbatim,
@@ -108,11 +108,11 @@ pub(crate) fn parse_element<'a>(
                 return ret;
             }
         }
-        // VBAR => {
-        //     if let Ok(table) = Table::parse(cursor) {
-        //     } else {
-        //     }
-        // }
+        VBAR => {
+            if let ret @ Ok(_) = Table::parse(pool, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
         _ => {}
     }
 
@@ -204,6 +204,10 @@ pub(crate) fn parse_object<'a>(
         NEWLINE => {
             parse_opts.from_paragraph = true;
             parse_opts.list_line = false;
+            // REVIEW: added to make parsing  a table from a NEWLINE
+            // work, not sure if needed elsewhere i.e. why didn't i catch
+            // this earlier? any other affected elements?
+            parse_opts.from_object = false;
 
             match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
                 Err(MatchError::InvalidLogic) => {
