@@ -113,7 +113,7 @@ pub enum CounterKind {
 }
 
 impl BulletKind {
-    pub(crate) fn parse(cursor: Cursor) -> Result<Match<BulletKind>> {
+    pub(crate) fn parse(mut cursor: Cursor) -> Result<Match<BulletKind>> {
         let start = cursor.index;
         match cursor.curr() {
             STAR | HYPHEN | PLUS => {
@@ -134,17 +134,20 @@ impl BulletKind {
                     // || chr == PERIOD || chr == RPAREN
                 })?;
 
-                let idx = num_match.end;
+
+                cursor.index = num_match.end;
+
                 if !(cursor.curr() == PERIOD || cursor.curr() == RPAREN) {
                     return Err(MatchError::InvalidLogic);
                 }
+                cursor.next();
 
                 let bullet_kind = if num_match.len() == 1 {
                     let temp = num_match.obj.as_bytes()[0];
                     if temp.is_ascii_alphabetic() {
                         BulletKind::Ordered(CounterKind::Letter(temp))
                     } else if temp.is_ascii_digit() {
-                        BulletKind::Ordered(CounterKind::Number(temp))
+                        BulletKind::Ordered(CounterKind::Number(temp - 48))
                     } else {
                         Err(MatchError::InvalidLogic)?
                     }
