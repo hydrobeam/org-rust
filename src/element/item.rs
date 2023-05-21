@@ -134,7 +134,6 @@ impl BulletKind {
                     // || chr == PERIOD || chr == RPAREN
                 })?;
 
-
                 cursor.index = num_match.end;
 
                 if !(cursor.curr() == PERIOD || cursor.curr() == RPAREN) {

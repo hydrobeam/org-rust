@@ -14,7 +14,7 @@ const ORG_LINK_PARAMETERS: [&'static str; 9] = [
 #[derive(Debug, Clone)]
 pub struct RegularLink<'a> {
     // actually a pathreg object
-    path: PathReg<'a>,
+    pub path: PathReg<'a>,
     // One or more objects enclosed by square brackets.
     // It can contain the minimal set of objects as well as export snippets,
     // inline babel calls, inline source blocks, macros, and statistics cookies.
@@ -170,10 +170,13 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                             cursor.index + 2,
                             parent,
                         ));
+                    } else {
+                        return Err(MatchError::InvalidLogic);
                     }
                 }
-                _ => cursor.next(),
+                _ => {}
             }
+            cursor.next();
         }
     }
 }
@@ -366,6 +369,44 @@ mod tests {
     fn basic_angle_link() {
         // http and https are protocols
         let input = "  <https://one two  !!@#!OIO DJDFK Jk> ";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn basic_regular_link() {
+        let input = "[[https://meow.org]]";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn regular_link_malformed() {
+        let input = "
+word
+[#A]
+";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn regular_link_description() {
+        let input = " [[https://meo][cool site]]";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn regular_link_unclosed_recursive_markup() {
+        let input = " [[https://meo][cool *site* ~one two~ three *four ]]";
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn regular_link_unclosed_plain_markup() {
+        let input = " [[https://meo][cool *site* ~one two~ three *four ~five six ]]";
         let pool = parse_org(input);
         pool.root().print_tree(&pool);
     }

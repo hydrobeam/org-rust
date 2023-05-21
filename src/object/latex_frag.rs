@@ -20,7 +20,6 @@ macro_rules! double_ending {
         loop {
             match $cursor.try_curr()? {
                 NEWLINE => {
-
                     // the error we return doesn't matter, as long as we error
                     if let Err(MatchError::InvalidLogic) =
                         parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)

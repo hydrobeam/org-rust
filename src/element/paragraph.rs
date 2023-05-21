@@ -16,7 +16,6 @@ impl<'a> Parseable<'a> for Paragraph {
         let mut content_vec: Vec<NodeID> = Vec::new();
         parse_opts.from_paragraph = true;
 
-
         // allocte beforehand since we know paragrpah can never fail
         let new_id = pool.reserve_id();
 

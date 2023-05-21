@@ -105,8 +105,6 @@ macro_rules! plain_markup {
                 cursor.next();
 
                 loop {
-                dbg!(cursor.clamp_forwards(cursor.len() - 1));
-
                     match cursor.try_curr()? {
                         chr if parse_opts.markup.byte_match(chr) => {
                             if chr == $byte // check if our closer  is active
