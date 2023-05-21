@@ -72,6 +72,7 @@ impl<'a> Parseable<'a> for TableRow {
         // TODO: doesn't play well with lists
         // should break if the indentation is not even for the next element in the list
         // but shouldn't break otherwise
+        cursor.is_index_valid()?;
         cursor.skip_ws();
         if cursor.try_curr()? != VBAR {
             return Err(MatchError::InvalidLogic)?;
@@ -165,11 +166,23 @@ mod tests {
     }
 
     #[test]
-    fn table_eof() {
+    fn table_eof_1() {
         let input = r"
 |one|two|
 |three|four|
 ";
+        let pool = parse_org(input);
+
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    #[should_panic]
+    // we don't handle the eof case for table cells /shrug/
+    fn table_eof_2() {
+        let input = r"
+|one|two|
+|three|four|";
         let pool = parse_org(input);
 
         pool.root().print_tree(&pool);
