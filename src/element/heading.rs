@@ -209,7 +209,7 @@ impl<'a> Heading<'a> {
             if cursor.word(val).is_ok() {
                 // keep going in if not whitespace
                 // because a keyword might be a subset of another,,,
-                if cursor.peek(1)?.is_ascii_whitespace() {
+                if cursor.try_curr()?.is_ascii_whitespace() {
                     return Ok(Match {
                         start,
                         end: cursor.index, // don't move 1 ahead, in case it's a newline
