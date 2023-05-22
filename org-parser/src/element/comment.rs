@@ -10,7 +10,7 @@ impl<'a> Parseable<'a> for Comment<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         if cursor.peek(1)?.is_ascii_whitespace() {
             // skip past "# "
             cursor.advance(2);

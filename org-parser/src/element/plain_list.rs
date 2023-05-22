@@ -27,7 +27,7 @@ impl<'a> Parseable<'a> for PlainList {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         // parse opts will provide us the appropriate indentation level
 
         // prevents nested lists from adding unecessary levels of indentation

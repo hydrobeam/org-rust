@@ -3,8 +3,8 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
-use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::utils::{verify_latex_frag, verify_single_char_latex_frag, Match};
 
 use super::parse_entity;
 
@@ -62,7 +62,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
         parse_opts.from_paragraph = true;
         // figure out which fragment we have

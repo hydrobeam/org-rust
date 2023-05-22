@@ -25,7 +25,7 @@ impl<'a> Parseable<'a> for Table {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
 
         // we are a table now
@@ -66,7 +66,7 @@ impl<'a> Parseable<'a> for TableRow {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
 
         // TODO: doesn't play well with lists
@@ -112,7 +112,7 @@ impl<'a> Parseable<'a> for TableCell {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
 
         let mut content_vec: Vec<NodeID> = Vec::new();

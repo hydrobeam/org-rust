@@ -336,7 +336,7 @@ pub(crate) trait Parseable<'a> {
         cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID>;
+    ) -> Result<Match<Expr<'a>>>;
 }
 
 // Custom Debug Impls

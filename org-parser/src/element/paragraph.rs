@@ -1,6 +1,7 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, ParseOpts, Parseable, Result};
+use crate::utils::Match;
 
 #[derive(Debug, Clone)]
 pub struct Paragraph(pub Vec<NodeID>);
@@ -11,7 +12,7 @@ impl<'a> Parseable<'a> for Paragraph {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
         let mut content_vec: Vec<NodeID> = Vec::new();
         parse_opts.from_paragraph = true;

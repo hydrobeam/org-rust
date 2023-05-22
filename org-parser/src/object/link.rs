@@ -30,18 +30,10 @@ impl Display for PathReg<'_> {
             PathReg::PlainLink(link) => {
                 f.write_fmt(format_args!("{}:{}", link.protocol, link.path))
             }
-            PathReg::Id(inner) => {
-                f.write_fmt(format_args!("id:{inner}"))
-            }
-            PathReg::CustomId(inner) => {
-                f.write_fmt(format_args!("#{inner}"))
-            }
-            PathReg::Coderef(inner) => {
-                f.write_fmt(format_args!("({inner})"))
-            }
-            PathReg::Unspecified(inner) => {
-                f.write_fmt(format_args!("{inner}"))
-            }
+            PathReg::Id(inner) => f.write_fmt(format_args!("id:{inner}")),
+            PathReg::CustomId(inner) => f.write_fmt(format_args!("#{inner}")),
+            PathReg::Coderef(inner) => f.write_fmt(format_args!("({inner})")),
+            PathReg::Unspecified(inner) => f.write_fmt(format_args!("{inner}")),
         }
     }
 }
@@ -122,7 +114,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
 
         if cursor.curr() != LBRACK && cursor.peek(1)? != LBRACK {
@@ -305,7 +297,7 @@ pub(crate) fn parse_angle_link<'a>(
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
-) -> Result<NodeID> {
+) -> Result<Match<Expr<'a>>> {
     let start = cursor.index;
 
     cursor.next();

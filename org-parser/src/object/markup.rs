@@ -30,7 +30,7 @@ macro_rules! recursive_markup {
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
-            ) -> Result<NodeID> {
+            ) -> Result<Match<Expr<'a>>> {
                 if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
                 }
@@ -93,7 +93,7 @@ macro_rules! plain_markup {
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
-            ) -> Result<NodeID> {
+            ) -> Result<Match<Expr<'a>>> {
                 if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
                 }

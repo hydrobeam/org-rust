@@ -16,7 +16,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         // TODO: cache this
         // REVIEW: maybe not :3
         let start = cursor.index;

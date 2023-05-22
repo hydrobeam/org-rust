@@ -75,7 +75,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
 
         let stars = Heading::parse_stars(cursor)?;
@@ -115,7 +115,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         let mut title_vec: Vec<NodeID> = Vec::new();
         let mut temp_cursor = Cursor::new(cursor.clamp_forwards(tag_match.start).trim().as_bytes());
-        while let Ok(title_id) = parse_object(
+        while let Ok(title_match) = parse_object(
             pool,
             temp_cursor,
             // run this song and dance to get the trim method
@@ -123,8 +123,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some(reserved_id),
             parse_opts,
         ) {
-            title_vec.push(title_id);
-            temp_cursor.move_to(pool[title_id].end);
+            temp_cursor.index = title_match.end;
+            title_vec.push(pool.alloc(title_match, Some(reserved_id)));
         }
 
         let title = if title_vec.is_empty() {
@@ -140,8 +140,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         let mut section_vec: Vec<NodeID> = Vec::new();
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserved_id), parse_opts) {
-            if let Expr::Heading(ref mut heading) = pool[element_id].obj {
+        while let Ok(element_match) = parse_element(pool, cursor, Some(reserved_id), parse_opts) {
+            if let Expr::Heading(ref mut heading) = element_match.obj {
                 if u8::from(heading_level) < u8::from(heading.heading_level) {
                     if let Some(tag_vec) = &mut heading.tags {
                         tag_vec.push(Tag::Loc(reserved_id));
@@ -153,8 +153,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
                 }
             }
 
-            section_vec.push(element_id);
-            cursor.move_to(pool[element_id].end);
+            cursor.index = element_match.end;
+            section_vec.push(pool.alloc(element_match, Some(reserved_id)));
         }
 
         let children = if section_vec.is_empty() {

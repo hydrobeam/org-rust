@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 use crate::types::{Expr, Node};
+use crate::utils::Match;
 
 #[derive(Clone, Copy)]
 pub struct NodeID(u32);
@@ -30,12 +31,17 @@ impl<'a> NodePool<'a> {
         }
     }
 
-    pub(crate) fn alloc<T>(&mut self, obj: T, start: usize, end: usize, parent: Option<NodeID>) -> NodeID
+    pub(crate) fn alloc<T>(&mut self, expr_match: Match<T>, parent: Option<NodeID>) -> NodeID
     where
         Expr<'a>: From<T>,
     {
         let prev_id = self.counter;
-        self.inner_vec.push(Node::new(obj, start, end, parent));
+        self.inner_vec.push(Node::new(
+            expr_match.obj,
+            expr_match.start,
+            expr_match.end,
+            parent,
+        ));
         self.counter += 1;
         NodeID(prev_id)
     }

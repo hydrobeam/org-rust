@@ -20,7 +20,7 @@ impl<'a> Parseable<'a> for Item<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         // Will only ever really get called via Plainlist.
 
         let start = cursor.index;
@@ -258,7 +258,7 @@ impl From<&CheckBox> for &str {
         match value {
             CheckBox::Intermediate => "-",
             CheckBox::Off => " ",
-            CheckBox::On => "X"
+            CheckBox::On => "X",
         }
     }
 }

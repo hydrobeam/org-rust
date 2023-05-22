@@ -9,8 +9,8 @@ use crate::parse::parse_element;
 pub mod element;
 pub mod node_pool;
 pub mod object;
-pub mod types;
 mod parse;
+pub mod types;
 pub(crate) mod utils;
 
 #[rustfmt::skip]

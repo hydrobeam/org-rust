@@ -2,7 +2,8 @@ use memchr::memmem;
 
 use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::utils::Match;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LatexEnv<'a> {
@@ -16,7 +17,7 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
         cursor.word(r"\begin{")?;
         let name_match = cursor.fn_until(|chr| {

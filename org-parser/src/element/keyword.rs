@@ -14,7 +14,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
-    ) -> Result<NodeID> {
+    ) -> Result<Match<Expr<'a>>> {
         let start = cursor.index;
         cursor.word("#+")?;
 

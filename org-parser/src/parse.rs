@@ -12,14 +12,14 @@ use crate::object::{
     StrikeThrough, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
-use crate::utils::verify_markup;
+use crate::utils::{verify_markup, Match};
 
 pub(crate) fn parse_element<'a>(
     pool: &mut NodePool<'a>,
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
-) -> Result<NodeID> {
+) -> Result<Match<Expr<'a>>> {
     cursor.is_index_valid()?;
 
     // means a newline checking thing called this, and newline breaks all
@@ -146,7 +146,7 @@ pub(crate) fn parse_object<'a>(
     cursor: Cursor<'a>,
     parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
-) -> Result<NodeID> {
+) -> Result<Match<Expr<'a>>> {
     match cursor.try_curr()? {
         SLASH => {
             handle_markup!(Italic, pool, cursor, parent, parse_opts);
