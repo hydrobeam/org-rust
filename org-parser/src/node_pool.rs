@@ -31,10 +31,7 @@ impl<'a> NodePool<'a> {
         }
     }
 
-    pub(crate) fn alloc<T>(&mut self, expr_match: Match<T>, parent: Option<NodeID>) -> NodeID
-    where
-        Expr<'a>: From<T>,
-    {
+    pub(crate) fn alloc(&mut self, expr_match: Match<Expr>, parent: Option<NodeID>) -> NodeID {
         let prev_id = self.counter;
         self.inner_vec.push(Node::new(
             expr_match.obj,

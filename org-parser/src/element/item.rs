@@ -53,20 +53,19 @@ impl<'a> Parseable<'a> for Item<'a> {
 
         let reserve_id = pool.reserve_id();
         let mut children: Vec<NodeID> = Vec::new();
-        let mut blank_obj: Option<NodeID> = None;
+        let mut blank_obj: Option<Match<Expr>> = None;
 
         // if the last element was a \n, that means we're starting on a new line
         // so we are Not on a list line.
         parse_opts.list_line = cursor[cursor.index - 1] != NEWLINE;
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
-            let pool_loc = &pool[element_id];
-            match &pool_loc.obj {
+        while let Ok(element_match) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
+            match &element_match.obj {
                 Expr::BlankLine => {
                     if blank_obj.is_some() {
                         break;
                     } else {
-                        blank_obj = Some(element_id);
+                        blank_obj = Some(element_match);
                     }
                 }
                 Expr::Item(_) => {
@@ -74,13 +73,13 @@ impl<'a> Parseable<'a> for Item<'a> {
                 }
                 _ => {
                     if let Some(blank_id) = blank_obj {
-                        children.push(blank_id);
+                        children.push(pool.alloc(blank_id, Some(reserve_id)));
                     }
-                    children.push(element_id);
+                    children.push(pool.alloc(element_match, Some(reserve_id)));
                 }
             }
             parse_opts.list_line = false;
-            cursor.move_to(pool_loc.end);
+            cursor.index = element_match.end;
         }
 
         Ok(pool.alloc_with_id(

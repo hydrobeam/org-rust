@@ -163,20 +163,19 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some(section_vec)
         };
 
-        Ok(pool.alloc_with_id(
-            Self {
+        Ok(Match {
+            start,
+            end: cursor.index,
+            obj: Self {
                 heading_level,
                 keyword,
                 priority,
                 title,
                 tags,
                 children,
-            },
-            start,
-            cursor.index,
-            parent,
-            reserved_id,
-        ))
+            }
+            .into(),
+        })
     }
 }
 
