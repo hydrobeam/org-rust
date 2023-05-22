@@ -17,10 +17,10 @@ pub struct StrikeThrough(pub Vec<NodeID>);
 pub struct Underline(pub Vec<NodeID>);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Verbatim<'a>(&'a str);
+pub struct Verbatim<'a>(pub &'a str);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Code<'a>(&'a str);
+pub struct Code<'a>(pub &'a str);
 
 macro_rules! recursive_markup {
     ($name: tt) => {

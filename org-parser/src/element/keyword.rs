@@ -4,8 +4,8 @@ use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {
-    key: &'a str,
-    val: &'a str,
+    pub key: &'a str,
+    pub val: &'a str,
 }
 
 impl<'a> Parseable<'a> for Keyword<'a> {

@@ -253,6 +253,16 @@ pub enum CheckBox {
     On,
 }
 
+impl From<&CheckBox> for &str {
+    fn from(value: &CheckBox) -> Self {
+        match value {
+            CheckBox::Intermediate => "-",
+            CheckBox::Off => " ",
+            CheckBox::On => "X"
+        }
+    }
+}
+
 impl CheckBox {
     fn parse(mut cursor: Cursor) -> Result<Match<CheckBox>> {
         let start = cursor.index;

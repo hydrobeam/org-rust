@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::constants::{
     BACKSLASH, COLON, HYPHEN, LANGLE, LBRACK, LPAREN, POUND, RANGLE, RBRACK, RPAREN, SLASH,
 };
@@ -20,6 +22,28 @@ pub struct RegularLink<'a> {
     // It can also contain another link, but only when it is a plain or angle link.
     // It can contain square brackets, so long as they are balanced.
     pub description: Option<Vec<NodeID>>,
+}
+
+impl Display for PathReg<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PathReg::PlainLink(link) => {
+                f.write_fmt(format_args!("{}:{}", link.protocol, link.path))
+            }
+            PathReg::Id(inner) => {
+                f.write_fmt(format_args!("id:{inner}"))
+            }
+            PathReg::CustomId(inner) => {
+                f.write_fmt(format_args!("#{inner}"))
+            }
+            PathReg::Coderef(inner) => {
+                f.write_fmt(format_args!("({inner})"))
+            }
+            PathReg::Unspecified(inner) => {
+                f.write_fmt(format_args!("{inner}"))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

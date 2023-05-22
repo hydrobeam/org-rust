@@ -396,8 +396,8 @@ static ENTITY_MAP: phf::Map<&'static str, &'static str> = phf_map! {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Entity<'a> {
-    name: &'a str,
-    mapped_item: &'a str,
+    pub name: &'a str,
+    pub mapped_item: &'a str,
 }
 
 pub(crate) fn parse_entity(name: &str) -> Result<Entity> {

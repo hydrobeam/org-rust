@@ -6,8 +6,8 @@ use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LatexEnv<'a> {
-    name: &'a str,
-    contents: &'a str,
+    pub name: &'a str,
+    pub contents: &'a str,
 }
 
 impl<'a> Parseable<'a> for LatexEnv<'a> {
