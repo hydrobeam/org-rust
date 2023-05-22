@@ -6,48 +6,48 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 
 ** Syntax Progress
 
-| Component           | Parse | Export |
-|---------------------+-------+--------|
-| Heading             | X     | _      |
-| Section             | X     | _      |
-| Plain               | X     | _      |
-| Markup              | X     | _      |
-| GreaterBlock        | X     | _      |
-| LesserBlock         | X     | _      |
-| Keyword             | X     | _      |
-| Item                | X     | _      |
-| List                | X     | _      |
-| Paragraph           | X     | _      |
-| InlineSrcBlock      | X     | _      |
-| Comment             | X     | _      |
-| LaTeXFragment       | X     | _      |
-| LaTeXEnvironment    | X     | _      |
-| PlainLink           | X     | _      |
-| AngleLink           | X     | _      |
-| RegularLink         | X     | _      |
-| Entity              | X     | _      |
-| Table               | X     | _      |
-| RadioLink           | _     | _      |
-| RadioTarget         | _     | _      |
-| Drawer              | _     | _      |
-| FootnoteDefinition  | _     | _      |
-| BabelCall           | _     | _      |
-| InlineBabelCall     | _     | _      |
-| Affiliated Keywords | _     | _      |
-| Planning            | _     | _      |
-| FixedWidth          | _     | _      |
-| HorizontalRule      | _     | _      |
-| NodeProperty        | _     | _      |
-| ExportSnippet       | _     | _      |
-| FootnoteReference   | _     | _      |
-| LineBreak           | _     | _      |
-| Macro               | _     | _      |
-| Citation            | _     | _      |
-| Target              | _     | _      |
-| StatisticsCookie    | _     | _      |
-| Subscript           | _     | _      |
-| Superscript         | _     | _      |
-| Timestamp           | _     | _      |
+| Component           | Parse | Export(org) | Export(html) |
+|---------------------+-------+-------------+--------------|
+| Heading             | X     | X           | _            |
+| Section             | X     | X           | _            |
+| Plain               | X     | X           | _            |
+| Markup              | X     | X           | _            |
+| GreaterBlock        | X     | X           | _            |
+| LesserBlock         | X     | X           | _            |
+| Keyword             | X     | X           | _            |
+| Item                | X     | _           | _            |
+| List                | X     | _           | _            |
+| Paragraph           | X     | X           | _            |
+| InlineSrcBlock      | X     | X           | _            |
+| Comment             | X     | X           | _            |
+| LaTeXFragment       | X     | X           | _            |
+| LaTeXEnvironment    | X     | X           | _            |
+| PlainLink           | X     | X           | _            |
+| AngleLink           | X     | X           | _            |
+| RegularLink         | X     | X           | _            |
+| Entity              | X     | X           | _            |
+| Table               | X     | _           | _            |
+| RadioLink           | _     | _           | _            |
+| RadioTarget         | _     | _           | _            |
+| Drawer              | _     | _           | _            |
+| FootnoteDefinition  | _     | _           | _            |
+| BabelCall           | _     | _           | _            |
+| InlineBabelCall     | _     | _           | _            |
+| Affiliated Keywords | _     | _           | _            |
+| Planning            | _     | _           | _            |
+| FixedWidth          | _     | _           | _            |
+| HorizontalRule      | _     | _           | _            |
+| NodeProperty        | _     | _           | _            |
+| ExportSnippet       | _     | _           | _            |
+| FootnoteReference   | _     | _           | _            |
+| LineBreak           | _     | _           | _            |
+| Macro               | _     | _           | _            |
+| Citation            | _     | _           | _            |
+| Target              | _     | _           | _            |
+| StatisticsCookie    | _     | _           | _            |
+| Subscript           | _     | _           | _            |
+| Superscript         | _     | _           | _            |
+| Timestamp           | _     | _           | _            |
 
 * Parsing Approach
 
@@ -80,7 +80,7 @@ Each ~Node~ contains an ~Expr~ (which maps to an actual AST item) and additional
 We take in a ~&str~ and turn it into a byte array (~&[u8]~) with a ~Cursor~. ~Cursor~ has some helpful utility functions implemented to make the parsing functions easier to write and more legible. We also avoid re-allocating the input this way.
 
 
-** TODO Caching
+** Caching: TODO
 
 The parsing function we attempt to use can make significant progress into parsing, even accumulating child nodes of its own before failing (such as in the case of improperly closed markup).
 So in theory, we'd be heavily backtracking and re-parsing elements we've already seen!
