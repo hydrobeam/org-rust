@@ -41,19 +41,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         // parse paramters
         cursor.skip_ws();
 
-        if block_name_match.obj == "src" {
-            // skip_ws skipped to the end of the line:
-            // i.e. there is no language
-            if cursor.index == block_name_match.end {
-                return Err(MatchError::InvalidLogic);
-            }
-            let lang = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
-
-            block_kind = BlockKind::Src(lang.obj);
-            cursor.skip_ws();
-        } else {
-            block_kind = block_name_match.obj.into();
-        }
+        block_kind = block_name_match.obj.into();
 
         if cursor.curr() == NEWLINE {
             parameters = None;
@@ -160,7 +148,7 @@ pub enum BlockKind<'a> {
     Comment,
     Example,
     Export,
-    Src(&'a str), // holds the language
+    Src,
     Verse,
 }
 
@@ -171,7 +159,7 @@ impl BlockKind<'_> {
             BlockKind::Comment
                 | BlockKind::Example
                 | BlockKind::Export
-                | BlockKind::Src(_)
+                | BlockKind::Src
                 | BlockKind::Verse
         )
     }
@@ -183,7 +171,7 @@ impl BlockKind<'_> {
             BlockKind::Comment => Some("#+end_comment\n"),
             BlockKind::Example => Some("#+end_example\n"),
             BlockKind::Export => Some("#+end_export\n"),
-            BlockKind::Src(_) => Some("#+end_src\n"),
+            BlockKind::Src => Some("#+end_src\n"),
             BlockKind::Verse => Some("#+end_verse\n"),
             BlockKind::Special(_) => None,
         }
@@ -202,8 +190,23 @@ impl<'a> From<&'a str> for BlockKind<'a> {
             "example" => Self::Example,
             "export" => Self::Export,
             "verse" => Self::Verse,
-            "src" => unreachable!(),
+            "src" => Self::Src,
             _ => Self::Special(value),
+        }
+    }
+}
+
+impl<'a> From<BlockKind<'a>> for &'a str {
+    fn from(value: BlockKind<'a>) -> Self {
+        match value {
+            BlockKind::Center => "center",
+            BlockKind::Quote => "quote",
+            BlockKind::Special(val) => val,
+            BlockKind::Comment => "comment",
+            BlockKind::Example => "example",
+            BlockKind::Export => "export",
+            BlockKind::Src => "src",
+            BlockKind::Verse => "verse",
         }
     }
 }
