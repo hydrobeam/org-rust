@@ -258,7 +258,7 @@ impl From<&CheckBox> for &str {
         match value {
             CheckBox::Intermediate => "-",
             CheckBox::Off => " ",
-            CheckBox::On => "X"
+            CheckBox::On => "X",
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::{Result, Write};
 
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
-use org_parser::node_pool::NodePool;
+use org_parser::node_pool::{NodeID, NodePool};
 use org_parser::object::LatexFragment;
 use org_parser::parse_org;
 use org_parser::types::Expr;
@@ -30,7 +30,7 @@ fn export_org_rec<T: Write>(node: &Expr, pool: &NodePool, buf: &mut T) -> Result
             }
 
             if let Some(priority) = &inner.priority {
-                write!(buf, "[")?;
+                write!(buf, "[#")?;
                 match priority {
                     Priority::A => write!(buf, "A")?,
                     Priority::B => write!(buf, "B")?,
@@ -46,16 +46,37 @@ fn export_org_rec<T: Write>(node: &Expr, pool: &NodePool, buf: &mut T) -> Result
                 }
             }
 
-            if let Some(tags) = &inner.tags {
-                for tag in tags {
-                    match tag {
-                        Tag::Raw(val) => write!(buf, ":{val}")?,
-                        Tag::Loc(_) => {
-                            // do nothing?
+            fn tag_search<T: Write>(loc: NodeID, pool: &NodePool, buf: &mut T) -> Result {
+                if let Expr::Heading(loc) = &pool[loc].obj {
+                    if let Some(sub_tags) = loc.tags.as_ref() {
+                        for thang in sub_tags.iter().rev() {
+                            match thang {
+                                Tag::Raw(val) => write!(buf, ":{val}")?,
+                                Tag::Loc(id) => {
+                                    tag_search(*id, pool, buf)?;
+                                }
+                            }
                         }
                     }
                 }
-                write!(buf, ":")?;
+                Ok(())
+            }
+
+            if let Some(tags) = &inner.tags {
+                let mut valid_out = String::new();
+                for tag in tags.iter().rev() {
+                    match tag {
+                        Tag::Raw(val) => write!(valid_out, ":{val}")?,
+                        Tag::Loc(id) => {
+
+                            // tag_search(*id, pool, &mut valid_out)?;
+                        }
+                    }
+                }
+                // handles the case where a parent heading has no tags
+                if !valid_out.is_empty() {
+                    write!(buf, " {valid_out}:")?;
+                }
             }
 
             writeln!(buf)?;
@@ -289,25 +310,25 @@ three *four*
         Ok(())
     }
 
-//     #[test]
-//     fn test_list_export() -> Result {
-//         let mut out = String::new();
-//         export_org(
-//             r"
-// + one two three
-// four five six
+    //     #[test]
+    //     fn test_list_export() -> Result {
+    //         let mut out = String::new();
+    //         export_org(
+    //             r"
+    // + one two three
+    // four five six
 
-//    + two
-// + three
-// + four
-// +five
-// ",
-//             &mut out,
-//         )?;
+    //    + two
+    // + three
+    // + four
+    // +five
+    // ",
+    //             &mut out,
+    //         )?;
 
-//         println!("{out}");
-//         Ok(())
-//     }
+    //         println!("{out}");
+    //         Ok(())
+    //     }
 
     #[test]
     fn test_link_export() -> Result {
@@ -315,6 +336,172 @@ three *four*
         export_org("[[https://swag.org][meowww]]", &mut out)?;
 
         println!("{out}");
+        Ok(())
+    }
+
+    #[test]
+    fn test_beeg() -> Result {
+        let mut out = String::new();
+
+        export_org(
+            r"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** a
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+* a
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+",
+            &mut out,
+        )?;
+
+        println!("{out}");
+        Ok(())
+    }
+
+    #[test]
+    fn less() -> Result {
+        let mut out = String::new();
+        export_org(
+            r"* [#1] abc :c:
+** [#1] descendant headline :a:b:
+*** [#2] inherit the tags
+** [#3] different level
+",
+            &mut out,
+        )?;
+
+        assert_eq!(
+            out,
+            r"* [#1] abc :c:
+** [#1] descendant headline :a:b:
+*** [#2] inherit the tags
+** [#3] different level
+"
+        );
         Ok(())
     }
 }

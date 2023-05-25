@@ -298,7 +298,7 @@ impl<'a> Heading<'a> {
                 {
                     cursor.prev();
                 } else if cursor.curr() == COLON && clamp_ind.abs_diff(cursor.index) > 1 {
-                    let new_str = cursor.clamp(cursor.index, clamp_ind);
+                    let new_str = cursor.clamp(cursor.index + 1, clamp_ind);
                     tag_vec.push(Tag::Raw(new_str));
                     clamp_ind = cursor.index;
                     if cursor[cursor.index - 1] == SPACE {

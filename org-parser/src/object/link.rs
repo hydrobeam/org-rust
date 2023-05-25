@@ -30,18 +30,10 @@ impl Display for PathReg<'_> {
             PathReg::PlainLink(link) => {
                 f.write_fmt(format_args!("{}:{}", link.protocol, link.path))
             }
-            PathReg::Id(inner) => {
-                f.write_fmt(format_args!("id:{inner}"))
-            }
-            PathReg::CustomId(inner) => {
-                f.write_fmt(format_args!("#{inner}"))
-            }
-            PathReg::Coderef(inner) => {
-                f.write_fmt(format_args!("({inner})"))
-            }
-            PathReg::Unspecified(inner) => {
-                f.write_fmt(format_args!("{inner}"))
-            }
+            PathReg::Id(inner) => f.write_fmt(format_args!("id:{inner}")),
+            PathReg::CustomId(inner) => f.write_fmt(format_args!("#{inner}")),
+            PathReg::Coderef(inner) => f.write_fmt(format_args!("({inner})")),
+            PathReg::Unspecified(inner) => f.write_fmt(format_args!("{inner}")),
         }
     }
 }
