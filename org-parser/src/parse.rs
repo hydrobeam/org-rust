@@ -21,6 +21,10 @@ pub(crate) fn parse_element<'a>(
     parse_opts: ParseOpts,
     cache: &mut NodeCache,
 ) -> Result<NodeID> {
+    if let Some(id) = cache.get(&cursor.index) {
+        return Ok(*id);
+    }
+
     cursor.is_index_valid()?;
 
     // means a newline checking thing called this, and newline breaks all
@@ -155,6 +159,9 @@ pub(crate) fn parse_object<'a>(
     mut parse_opts: ParseOpts,
     cache: &mut NodeCache,
 ) -> Result<NodeID> {
+    if let Some(id) = cache.get(&cursor.index) {
+        return Ok(*id);
+    }
     match cursor.try_curr()? {
         SLASH => {
             handle_markup!(Italic, pool, cursor, parent, parse_opts, cache);

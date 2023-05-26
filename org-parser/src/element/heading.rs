@@ -166,6 +166,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some(section_vec)
         };
 
+        cache.insert(start, reserved_id);
+
         Ok(pool.alloc_with_id(
             Self {
                 heading_level,
