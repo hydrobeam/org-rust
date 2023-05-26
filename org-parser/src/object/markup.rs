@@ -1,7 +1,7 @@
 use crate::constants::{EQUAL, NEWLINE, TILDE};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result, NodeCache};
 use crate::utils::verify_markup;
 
 #[derive(Debug, Clone)]
@@ -30,6 +30,7 @@ macro_rules! recursive_markup {
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
+                cache: &mut NodeCache,
             ) -> Result<NodeID> {
                 if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
@@ -43,7 +44,7 @@ macro_rules! recursive_markup {
                 let mut content_vec: Vec<NodeID> = Vec::new();
                 // if we're being called, that means the first split is the thing
                 loop {
-                    match parse_object(pool, cursor, parent, parse_opts) {
+                    match parse_object(pool, cursor, parent, parse_opts, cache) {
                         Ok(id) => {
                             let node = &pool[id];
                             cursor.move_to(node.end);
@@ -93,6 +94,7 @@ macro_rules! plain_markup {
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
+                cache: &mut NodeCache,
             ) -> Result<NodeID> {
                 if !verify_markup(cursor, false) {
                     return Err(MatchError::InvalidLogic);
@@ -117,7 +119,7 @@ macro_rules! plain_markup {
                         }
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
-                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
+                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts, cache) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {
                                     cursor.next();

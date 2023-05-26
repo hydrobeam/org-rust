@@ -5,7 +5,7 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, NodeCache, ParseOpts, Parseable, Result};
 use crate::utils::Match;
 
 const ORG_LINK_PARAMETERS: [&'static str; 9] = [
@@ -114,6 +114,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
 
@@ -142,7 +143,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         parse_opts.markup.insert(MarkupKind::Link);
 
                         let mut content_vec: Vec<NodeID> = Vec::new();
-                        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts) {
+                        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts, cache) {
                             cursor.index = pool[id].end;
                             if let Expr::MarkupEnd(leaf) = pool[id].obj {
                                 if !leaf.contains(MarkupKind::Link) {
@@ -297,6 +298,7 @@ pub(crate) fn parse_angle_link<'a>(
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
+    cache: &mut NodeCache,
 ) -> Result<NodeID> {
     let start = cursor.index;
 

@@ -2,15 +2,15 @@
 #![allow(unused_variables)]
 
 use node_pool::{NodeID, NodePool};
-use types::{Cursor, Expr, ParseOpts};
+use types::{Cursor, Expr, ParseOpts, NodeCache};
 
 use crate::parse::parse_element;
 
 pub mod element;
 pub mod node_pool;
 pub mod object;
-pub mod types;
 mod parse;
+pub mod types;
 pub(crate) mod utils;
 
 #[rustfmt::skip]
@@ -56,8 +56,10 @@ pub fn parse_org(input_text: &str) -> NodePool<'_> {
     let mut pool = NodePool::new();
     let parent = pool.reserve_id();
 
+    let mut cache = NodeCache::new();
+
     let mut content_vec: Vec<NodeID> = Vec::new();
-    while let Ok(id) = parse_element(&mut pool, cursor, Some(parent), parse_opts) {
+    while let Ok(id) = parse_element(&mut pool, cursor, Some(parent), parse_opts, &mut cache) {
         content_vec.push(id);
         cursor.move_to(pool[id].end);
     }
@@ -114,5 +116,146 @@ mod tests {
 
         // dbg!(parse_org(inp));
         println!("{:?}", parse_org(inp));
+    }
+
+
+    // took 2.4 seconds pre cache
+    #[test]
+    fn beeg() {
+        let inp = r"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** [#1] descendant headline :five:
+*** [#2] inherit the tags
+** [#3] different level
+subcontent
+this
+
+is a different paragraph
+id) =
+more subcontent
+
+* [#4] separate andy
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+** a
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+* a
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+more content here this is a pargraph
+";
+
+        let a: NodePool = parse_org(inp);
+        a.root().print_tree(&a);
+        // dbg!(parse_org(inp));
     }
 }

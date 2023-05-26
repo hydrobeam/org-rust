@@ -1,6 +1,6 @@
 use crate::constants::COLON;
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result, NodeCache};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {
@@ -14,6 +14,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
         cursor.word("#+")?;

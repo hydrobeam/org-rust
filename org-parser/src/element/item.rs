@@ -1,7 +1,7 @@
 use crate::constants::{COLON, HYPHEN, LBRACK, NEWLINE, PERIOD, PLUS, RBRACK, RPAREN, SPACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result, NodeCache};
 use crate::utils::Match;
 
 #[derive(Debug, Clone)]
@@ -20,6 +20,7 @@ impl<'a> Parseable<'a> for Item<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         // Will only ever really get called via Plainlist.
 
@@ -59,7 +60,7 @@ impl<'a> Parseable<'a> for Item<'a> {
         // so we are Not on a list line.
         parse_opts.list_line = cursor[cursor.index - 1] != NEWLINE;
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
+        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts, cache) {
             let pool_loc = &pool[element_id];
             match &pool_loc.obj {
                 Expr::BlankLine => {

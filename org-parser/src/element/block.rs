@@ -1,7 +1,7 @@
 use crate::constants::NEWLINE;
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result, NodeCache};
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
@@ -24,6 +24,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<crate::node_pool::NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
         cursor.word("#+begin_")?;
@@ -116,7 +117,7 @@ impl<'a> Parseable<'a> for Block<'a> {
             // janky
             let mut temp_cursor = cursor.cut_off(loc);
             while let Ok(element_id) =
-                parse_element(pool, temp_cursor, Some(reserve_id), parse_opts)
+                parse_element(pool, temp_cursor, Some(reserve_id), parse_opts, cache)
             {
                 content_vec.push(element_id);
                 temp_cursor.index = pool[element_id].end;

@@ -1,6 +1,6 @@
 use crate::constants::{LBRACE, LBRACK, NEWLINE, RBRACE, RBRACK};
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result, NodeCache};
 use crate::utils::Match;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,6 +16,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         // TODO: cache this
         // REVIEW: maybe not :3

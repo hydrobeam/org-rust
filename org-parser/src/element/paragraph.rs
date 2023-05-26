@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, ParseOpts, Parseable, Result, NodeCache};
 
 #[derive(Debug, Clone)]
 pub struct Paragraph(pub Vec<NodeID>);
@@ -11,6 +11,7 @@ impl<'a> Parseable<'a> for Paragraph {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
         let mut content_vec: Vec<NodeID> = Vec::new();
@@ -19,7 +20,7 @@ impl<'a> Parseable<'a> for Paragraph {
         // allocte beforehand since we know paragrpah can never fail
         let new_id = pool.reserve_id();
 
-        while let Ok(id) = parse_object(pool, cursor, Some(new_id), parse_opts) {
+        while let Ok(id) = parse_object(pool, cursor, Some(new_id), parse_opts, cache) {
             cursor.index = pool[id].end;
             content_vec.push(id);
         }

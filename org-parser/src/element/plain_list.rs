@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, Expr, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, ParseOpts, Parseable, Result, NodeCache};
 
 use crate::element::Item;
 use crate::utils::variant_eq;
@@ -27,6 +27,7 @@ impl<'a> Parseable<'a> for PlainList {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         // parse opts will provide us the appropriate indentation level
 
@@ -38,7 +39,7 @@ impl<'a> Parseable<'a> for PlainList {
             parse_opts.from_list = true;
         }
 
-        let original_item_id = Item::parse(pool, cursor, parent, parse_opts)?;
+        let original_item_id = Item::parse(pool, cursor, parent, parse_opts, cache)?;
         let reserve_id = pool.reserve_id();
 
         let item_node = &mut pool[original_item_id];
@@ -54,7 +55,7 @@ impl<'a> Parseable<'a> for PlainList {
 
         cursor.index = item_node.end;
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
+        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts, cache) {
             let got_obj = &pool[element_id];
             match &got_obj.obj {
                 Expr::Item(item) => {

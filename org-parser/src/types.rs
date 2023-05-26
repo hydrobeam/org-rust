@@ -1,4 +1,5 @@
 use derive_more::From;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Index;
 
@@ -330,12 +331,15 @@ impl MarkupKind {
     }
 }
 
+pub type NodeCache = HashMap<usize, NodeID>;
+
 pub(crate) trait Parseable<'a> {
     fn parse(
         pool: &mut NodePool<'a>,
         cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID>;
 }
 

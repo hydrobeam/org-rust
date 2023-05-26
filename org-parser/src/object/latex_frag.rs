@@ -3,7 +3,7 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, NodeCache, ParseOpts, Parseable, Result};
 use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
 
 use super::parse_entity;
@@ -15,14 +15,15 @@ macro_rules! double_ending {
      $parse_opts: ident,
      $parent: ident,
      $byte_1: tt, $byte_2: tt,
-     $type: ident
+     $type: ident,
+     $cache: ident,
     ) => {
         loop {
             match $cursor.try_curr()? {
                 NEWLINE => {
                     // the error we return doesn't matter, as long as we error
                     if let Err(MatchError::InvalidLogic) =
-                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)
+                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts, $cache)
                     {
                         $cursor.next();
                     } else {
@@ -62,6 +63,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
         parse_opts.from_paragraph = true;
@@ -69,7 +71,9 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         if cursor.curr() == DOLLAR {
             if cursor.peek(1)? == DOLLAR {
                 cursor.index += 2;
-                double_ending!(pool, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display)
+                double_ending!(
+                    pool, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display, cache,
+                )
             } else if cursor.peek(2)? == DOLLAR && verify_single_char_latex_frag(cursor) {
                 return Ok(pool.alloc(
                     Self::Inline(cursor.clamp(cursor.index + 1, cursor.index + 2)),
@@ -84,7 +88,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         NEWLINE => {
                             // the error we return doesn't matter, as long as we error
                             if let Err(MatchError::InvalidLogic) =
-                                parse_element(pool, cursor.adv_copy(1), parent, parse_opts)
+                                parse_element(pool, cursor.adv_copy(1), parent, parse_opts, cache)
                             {
                                 cursor.next();
                             } else {
@@ -114,13 +118,13 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 LPAREN => {
                     cursor.next();
                     double_ending!(
-                        pool, cursor, start, parse_opts, parent, BACKSLASH, RPAREN, Inline
+                        pool, cursor, start, parse_opts, parent, BACKSLASH, RPAREN, Inline, cache,
                     )
                 }
                 LBRACK => {
                     cursor.next();
                     double_ending!(
-                        pool, cursor, start, parse_opts, parent, BACKSLASH, RBRACK, Display
+                        pool, cursor, start, parse_opts, parent, BACKSLASH, RBRACK, Display, cache,
                     )
                 }
                 chr if chr.is_ascii_alphabetic() => {

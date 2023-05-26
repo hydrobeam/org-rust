@@ -1,7 +1,7 @@
 use crate::constants::{HYPHEN, NEWLINE, VBAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, NodeCache, ParseOpts, Parseable, Result};
 
 #[derive(Debug, Clone)]
 pub struct Table {
@@ -25,6 +25,7 @@ impl<'a> Parseable<'a> for Table {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
 
@@ -34,7 +35,7 @@ impl<'a> Parseable<'a> for Table {
         let mut children: Vec<NodeID> = Vec::new();
         let mut rows = 0;
         let mut cols = 0;
-        while let Ok(row_id) = TableRow::parse(pool, cursor, Some(reserve_id), parse_opts) {
+        while let Ok(row_id) = TableRow::parse(pool, cursor, Some(reserve_id), parse_opts, cache) {
             let obj = &pool[row_id];
 
             children.push(row_id);
@@ -66,6 +67,7 @@ impl<'a> Parseable<'a> for TableRow {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
 
@@ -90,7 +92,7 @@ impl<'a> Parseable<'a> for TableRow {
         cursor.next();
 
         let mut children: Vec<NodeID> = Vec::new();
-        while let Ok(table_cell_id) = TableCell::parse(pool, cursor, parent, parse_opts) {
+        while let Ok(table_cell_id) = TableCell::parse(pool, cursor, parent, parse_opts, cache) {
             let node_item = &pool[table_cell_id];
             children.push(table_cell_id);
 
@@ -112,11 +114,12 @@ impl<'a> Parseable<'a> for TableCell {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
 
         let mut content_vec: Vec<NodeID> = Vec::new();
-        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts) {
+        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts, cache) {
             cursor.index = pool[id].end;
             if let Expr::MarkupEnd(MarkupKind::Table) = &pool[id].obj {
                 break;

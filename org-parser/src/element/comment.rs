@@ -1,5 +1,5 @@
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, ParseOpts, Parseable, Result, NodeCache};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Comment<'a>(pub &'a str);
@@ -10,6 +10,7 @@ impl<'a> Parseable<'a> for Comment<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+                cache: &mut NodeCache,
     ) -> Result<NodeID> {
         if cursor.peek(1)?.is_ascii_whitespace() {
             // skip past "# "

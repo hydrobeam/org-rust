@@ -1,7 +1,7 @@
 use crate::constants::{COLON, LBRACK, NEWLINE, POUND, RBRACK, SPACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MatchError, NodeCache, ParseOpts, Parseable, Result};
 use crate::utils::Match;
 
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
@@ -75,6 +75,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
+        cache: &mut NodeCache,
     ) -> Result<NodeID> {
         let start = cursor.index;
 
@@ -122,6 +123,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             // TODO: when trim_ascii is stablized on byte_slices, use that
             Some(reserved_id),
             parse_opts,
+            cache,
         ) {
             title_vec.push(title_id);
             temp_cursor.move_to(pool[title_id].end);
@@ -140,7 +142,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         let mut section_vec: Vec<NodeID> = Vec::new();
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserved_id), parse_opts) {
+        while let Ok(element_id) = parse_element(pool, cursor, Some(reserved_id), parse_opts, cache)
+        {
             if let Expr::Heading(ref mut heading) = pool[element_id].obj {
                 if u8::from(heading_level) < u8::from(heading.heading_level) {
                     if let Some(tag_vec) = &mut heading.tags {
