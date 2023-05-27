@@ -80,7 +80,7 @@ Each ~Node~ contains an ~Expr~ (which maps to an actual AST item) and additional
 We take in a ~&str~ and turn it into a byte array (~&[u8]~) with a ~Cursor~. ~Cursor~ has some helpful utility functions implemented to make the parsing functions easier to write and more legible. We also avoid re-allocating the input this way.
 
 
-** Caching: TODO
+** Caching
 
 The parsing function we attempt to use can make significant progress into parsing, even accumulating child nodes of its own before failing (such as in the case of improperly closed markup).
 So in theory, we'd be heavily backtracking and re-parsing elements we've already seen!
