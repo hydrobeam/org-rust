@@ -1,7 +1,7 @@
 use crate::constants::NEWLINE;
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub enum BlockContents<'a> {
 
 impl<'a> Parseable<'a> for Block<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<crate::node_pool::NodeID>,
         parse_opts: ParseOpts,
@@ -99,7 +99,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         }
 
         if block_kind.is_lesser() {
-            Ok(pool.alloc(
+            Ok(parser.alloc(
                 Self {
                     kind: block_kind,
                     parameters,
@@ -112,17 +112,17 @@ impl<'a> Parseable<'a> for Block<'a> {
             ))
         } else {
             let mut content_vec: Vec<NodeID> = Vec::new();
-            let reserve_id = pool.reserve_id();
+            let reserve_id = parser.pool.reserve_id();
             // janky
             let mut temp_cursor = cursor.cut_off(loc);
             while let Ok(element_id) =
-                parse_element(pool, temp_cursor, Some(reserve_id), parse_opts)
+                parse_element(parser, temp_cursor, Some(reserve_id), parse_opts)
             {
                 content_vec.push(element_id);
-                temp_cursor.index = pool[element_id].end;
+                temp_cursor.index = parser.pool[element_id].end;
             }
 
-            Ok(pool.alloc_with_id(
+            Ok(parser.alloc_with_id(
                 Self {
                     kind: block_kind,
                     parameters,

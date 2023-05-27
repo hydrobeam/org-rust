@@ -1,7 +1,7 @@
 use crate::constants::{COLON, LBRACK, NEWLINE, POUND, RBRACK, SPACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
@@ -71,7 +71,7 @@ impl From<HeadingLevel> for u8 {
 
 impl<'a> Parseable<'a> for Heading<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -83,7 +83,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
         cursor.move_to(stars.end);
 
         // guaranteed to allocate since this is a valid headline. Setup the id
-        let reserved_id = pool.reserve_id();
+        let reserved_id = parser.pool.reserve_id();
 
         let keyword: Option<&str> = if let Ok(keyword_match) = Heading::parse_keyword(cursor) {
             cursor.move_to(keyword_match.end);
@@ -116,7 +116,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
         let mut title_vec: Vec<NodeID> = Vec::new();
         let mut temp_cursor = Cursor::new(cursor.clamp_forwards(tag_match.start).trim().as_bytes());
         while let Ok(title_id) = parse_object(
-            pool,
+            parser,
             temp_cursor,
             // run this song and dance to get the trim method
             // TODO: when trim_ascii is stablized on byte_slices, use that
@@ -124,7 +124,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             parse_opts,
         ) {
             title_vec.push(title_id);
-            temp_cursor.move_to(pool[title_id].end);
+            temp_cursor.move_to(parser.pool[title_id].end);
         }
 
         let title = if title_vec.is_empty() {
@@ -140,8 +140,8 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         let mut section_vec: Vec<NodeID> = Vec::new();
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserved_id), parse_opts) {
-            if let Expr::Heading(ref mut heading) = pool[element_id].obj {
+        while let Ok(element_id) = parse_element(parser, cursor, Some(reserved_id), parse_opts) {
+            if let Expr::Heading(ref mut heading) = parser.pool[element_id].obj {
                 if u8::from(heading_level) < u8::from(heading.heading_level) {
                     if let Some(tag_vec) = &mut heading.tags {
                         tag_vec.push(Tag::Loc(reserved_id));
@@ -154,7 +154,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             }
 
             section_vec.push(element_id);
-            cursor.move_to(pool[element_id].end);
+            cursor.move_to(parser.pool[element_id].end);
         }
 
         let children = if section_vec.is_empty() {
@@ -163,7 +163,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some(section_vec)
         };
 
-        Ok(pool.alloc_with_id(
+        Ok(parser.alloc_with_id(
             Self {
                 heading_level,
                 keyword,

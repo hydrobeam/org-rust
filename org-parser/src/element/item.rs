@@ -1,7 +1,7 @@
 use crate::constants::{COLON, HYPHEN, LBRACK, NEWLINE, PERIOD, PLUS, RBRACK, RPAREN, SPACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
 #[derive(Debug, Clone)]
@@ -16,7 +16,7 @@ pub struct Item<'a> {
 
 impl<'a> Parseable<'a> for Item<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
@@ -51,7 +51,7 @@ impl<'a> Parseable<'a> for Item<'a> {
             None
         };
 
-        let reserve_id = pool.reserve_id();
+        let reserve_id = parser.pool.reserve_id();
         let mut children: Vec<NodeID> = Vec::new();
         let mut blank_obj: Option<NodeID> = None;
 
@@ -59,8 +59,8 @@ impl<'a> Parseable<'a> for Item<'a> {
         // so we are Not on a list line.
         parse_opts.list_line = cursor[cursor.index - 1] != NEWLINE;
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
-            let pool_loc = &pool[element_id];
+        while let Ok(element_id) = parse_element(parser, cursor, Some(reserve_id), parse_opts) {
+            let pool_loc = &parser.pool[element_id];
             match &pool_loc.obj {
                 Expr::BlankLine => {
                     if blank_obj.is_some() {
@@ -83,7 +83,7 @@ impl<'a> Parseable<'a> for Item<'a> {
             cursor.move_to(pool_loc.end);
         }
 
-        Ok(pool.alloc_with_id(
+        Ok(parser.alloc_with_id(
             Self {
                 bullet,
                 counter_set,

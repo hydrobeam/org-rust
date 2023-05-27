@@ -1,6 +1,6 @@
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, Expr, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, ParseOpts, Parseable, Parser, Result};
 
 use crate::element::Item;
 use crate::utils::variant_eq;
@@ -23,7 +23,7 @@ pub enum ListKind {
 
 impl<'a> Parseable<'a> for PlainList {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
@@ -38,10 +38,10 @@ impl<'a> Parseable<'a> for PlainList {
             parse_opts.from_list = true;
         }
 
-        let original_item_id = Item::parse(pool, cursor, parent, parse_opts)?;
-        let reserve_id = pool.reserve_id();
+        let original_item_id = Item::parse(parser, cursor, parent, parse_opts)?;
+        let reserve_id = parser.pool.reserve_id();
 
-        let item_node = &mut pool[original_item_id];
+        let item_node = &mut parser.pool[original_item_id];
         let kind = if let Expr::Item(item) = &item_node.obj {
             find_kind(item)
         } else {
@@ -54,8 +54,8 @@ impl<'a> Parseable<'a> for PlainList {
 
         cursor.index = item_node.end;
 
-        while let Ok(element_id) = parse_element(pool, cursor, Some(reserve_id), parse_opts) {
-            let got_obj = &pool[element_id];
+        while let Ok(element_id) = parse_element(parser, cursor, Some(reserve_id), parse_opts) {
+            let got_obj = &parser.pool[element_id];
             match &got_obj.obj {
                 Expr::Item(item) => {
                     let item_kind = find_kind(item);
@@ -71,7 +71,7 @@ impl<'a> Parseable<'a> for PlainList {
                 }
             }
         }
-        Ok(pool.alloc_with_id(
+        Ok(parser.alloc_with_id(
             Self { children, kind },
             start,
             cursor.index,

@@ -2,7 +2,7 @@ use memchr::memmem;
 
 use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LatexEnv<'a> {
@@ -12,7 +12,7 @@ pub struct LatexEnv<'a> {
 
 impl<'a> Parseable<'a> for LatexEnv<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -72,7 +72,7 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
             cursor.index = loc;
         }
 
-        Ok(pool.alloc(
+        Ok(parser.alloc(
             Self {
                 name,
                 // + 1 to skip newline

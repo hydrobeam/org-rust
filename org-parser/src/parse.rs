@@ -11,11 +11,11 @@ use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, RegularLink,
     StrikeThrough, Underline, Verbatim,
 };
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
 
 pub(crate) fn parse_element<'a>(
-    pool: &mut NodePool<'a>,
+    parser: &mut Parser<'a>,
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
@@ -25,7 +25,7 @@ pub(crate) fn parse_element<'a>(
     // means a newline checking thing called this, and newline breaks all
     // table rows
     if parse_opts.markup.contains(MarkupKind::Table) {
-        return Ok(pool.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
+        return Ok(parser.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
     }
 
     // indentation check
@@ -35,7 +35,7 @@ pub(crate) fn parse_element<'a>(
         let byte = cursor[indented_loc];
         if byte.is_ascii_whitespace() {
             if byte == NEWLINE {
-                return Ok(pool.alloc(Expr::BlankLine, cursor.index, indented_loc + 1, parent));
+                return Ok(parser.alloc(Expr::BlankLine, cursor.index, indented_loc + 1, parent));
             } else {
                 new_opts.indentation_level += 1;
                 indented_loc += 1;
@@ -56,7 +56,7 @@ pub(crate) fn parse_element<'a>(
     if !parse_opts.list_line {
         if indentation_level + 1 == parse_opts.indentation_level.into() && parse_opts.from_list {
             if let ret @ Ok(_) =
-                Item::parse(pool, cursor.move_to_copy(indented_loc), parent, new_opts)
+                Item::parse(parser, cursor.move_to_copy(indented_loc), parent, new_opts)
             {
                 return ret;
             } else {
@@ -74,44 +74,45 @@ pub(crate) fn parse_element<'a>(
             // parse_opts, (doesn't totally matter to use the default vs preloaded,
             // since we account for it, but default makes more sense maybe>?)
             if (indentation_level) > 0 {
-                if let ret @ Ok(_) = PlainList::parse(pool, cursor, parent, parse_opts) {
+                if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, parse_opts) {
                     return ret;
                 }
-            } else if let ret @ Ok(_) = Heading::parse(pool, cursor, parent, ParseOpts::default()) {
+            } else if let ret @ Ok(_) = Heading::parse(parser, cursor, parent, ParseOpts::default())
+            {
                 return ret;
             }
         }
         PLUS => {
-            if let ret @ Ok(_) = PlainList::parse(pool, cursor, parent, new_opts) {
+            if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
         }
         HYPHEN => {
-            if let ret @ Ok(_) = PlainList::parse(pool, cursor, parent, new_opts) {
+            if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
         }
         chr if chr.is_ascii_digit() => {
-            if let ret @ Ok(_) = PlainList::parse(pool, cursor, parent, new_opts) {
+            if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
         }
         POUND => {
-            if let ret @ Ok(_) = Keyword::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Keyword::parse(parser, cursor, parent, parse_opts) {
                 return ret;
-            } else if let ret @ Ok(_) = Block::parse(pool, cursor, parent, parse_opts) {
+            } else if let ret @ Ok(_) = Block::parse(parser, cursor, parent, parse_opts) {
                 return ret;
-            } else if let ret @ Ok(_) = Comment::parse(pool, cursor, parent, parse_opts) {
+            } else if let ret @ Ok(_) = Comment::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         BACKSLASH => {
-            if let ret @ Ok(_) = LatexEnv::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = LatexEnv::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         VBAR => {
-            if let ret @ Ok(_) = Table::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Table::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
@@ -119,59 +120,64 @@ pub(crate) fn parse_element<'a>(
     }
 
     if !parse_opts.from_paragraph {
-        Paragraph::parse(pool, cursor, parent, parse_opts)
+        Paragraph::parse(parser, cursor, parent, parse_opts)
     } else {
         Err(MatchError::InvalidLogic)
     }
 }
 
 macro_rules! handle_markup {
-    ($name: tt, $pool: ident, $cursor: ident, $parent: ident, $parse_opts: ident) => {
+    ($name: tt, $parser: ident, $cursor: ident, $parent: ident, $parse_opts: ident) => {
         if $parse_opts.markup.contains(MarkupKind::$name) {
             // None parent cause this
             // FIXME: we allocate in the pool for "marker" return types,,
             if verify_markup($cursor, true) {
-                return Ok($pool.alloc(MarkupKind::$name, $cursor.index, $cursor.index + 1, None));
+                return Ok($parser.alloc(
+                    MarkupKind::$name,
+                    $cursor.index,
+                    $cursor.index + 1,
+                    None,
+                ));
             } else {
                 return Err(MatchError::InvalidLogic);
             }
-        } else if let ret @ Ok(_) = $name::parse($pool, $cursor, $parent, $parse_opts) {
+        } else if let ret @ Ok(_) = $name::parse($parser, $cursor, $parent, $parse_opts) {
             return ret;
         }
     };
 }
 
 pub(crate) fn parse_object<'a>(
-    pool: &mut NodePool<'a>,
+    parser: &mut Parser<'a>,
     cursor: Cursor<'a>,
     parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
 ) -> Result<NodeID> {
     match cursor.try_curr()? {
         SLASH => {
-            handle_markup!(Italic, pool, cursor, parent, parse_opts);
+            handle_markup!(Italic, parser, cursor, parent, parse_opts);
         }
         STAR => {
-            handle_markup!(Bold, pool, cursor, parent, parse_opts);
+            handle_markup!(Bold, parser, cursor, parent, parse_opts);
         }
         UNDERSCORE => {
-            handle_markup!(Underline, pool, cursor, parent, parse_opts);
+            handle_markup!(Underline, parser, cursor, parent, parse_opts);
         }
         PLUS => {
-            handle_markup!(StrikeThrough, pool, cursor, parent, parse_opts);
+            handle_markup!(StrikeThrough, parser, cursor, parent, parse_opts);
         }
         EQUAL => {
-            if let ret @ Ok(_) = Verbatim::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Verbatim::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         TILDE => {
-            if let ret @ Ok(_) = Code::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Code::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         LBRACK => {
-            if let ret @ Ok(_) = RegularLink::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = RegularLink::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
@@ -183,7 +189,7 @@ pub(crate) fn parse_object<'a>(
                 // FIXME: we allocate in the pool for "marker" return types,,
                 if let Ok(byte) = cursor.peek(1) {
                     if byte == RBRACK {
-                        return Ok(pool.alloc(
+                        return Ok(parser.alloc(
                             MarkupKind::Link,
                             cursor.index,
                             cursor.index + 2,
@@ -194,12 +200,12 @@ pub(crate) fn parse_object<'a>(
             }
         }
         BACKSLASH => {
-            if let ret @ Ok(_) = LatexFragment::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = LatexFragment::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         DOLLAR => {
-            if let ret @ Ok(_) = LatexFragment::parse(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = LatexFragment::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
@@ -211,9 +217,14 @@ pub(crate) fn parse_object<'a>(
             // this earlier? any other affected elements?
             parse_opts.from_object = false;
 
-            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
+            match parse_element(parser, cursor.adv_copy(1), parent, parse_opts) {
                 Err(MatchError::InvalidLogic) => {
-                    return Ok(pool.alloc(Expr::SoftBreak, cursor.index, cursor.index + 1, parent));
+                    return Ok(parser.alloc(
+                        Expr::SoftBreak,
+                        cursor.index,
+                        cursor.index + 1,
+                        parent,
+                    ));
                 }
                 // EofError isn't exactly the right error for the Ok(_) case
                 // but we do it to send a signal to `parse_text` to stop collecting:
@@ -223,20 +234,20 @@ pub(crate) fn parse_object<'a>(
             }
         }
         LANGLE => {
-            if let ret @ Ok(_) = parse_angle_link(pool, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = parse_angle_link(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
         VBAR => {
             if parse_opts.markup.contains(MarkupKind::Table) {
-                return Ok(pool.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
+                return Ok(parser.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
             }
         }
         _ => {}
     }
 
     if let Ok(plain_link_match) = parse_plain_link(cursor) {
-        return Ok(pool.alloc(
+        return Ok(parser.alloc(
             plain_link_match.obj,
             cursor.index,
             plain_link_match.end,
@@ -248,21 +259,21 @@ pub(crate) fn parse_object<'a>(
         Err(MatchError::InvalidLogic)
     } else {
         parse_opts.from_object = true;
-        Ok(parse_text(pool, cursor, parent, parse_opts))
+        Ok(parse_text(parser, cursor, parent, parse_opts))
     }
 }
 
 fn parse_text<'a>(
-    pool: &mut NodePool<'a>,
+    parser: &mut Parser<'a>,
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
 ) -> NodeID {
     let start = cursor.index;
 
-    while let Err(MatchError::InvalidLogic) = parse_object(pool, cursor, parent, parse_opts) {
+    while let Err(MatchError::InvalidLogic) = parse_object(parser, cursor, parent, parse_opts) {
         cursor.next();
     }
 
-    pool.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)
+    parser.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)
 }

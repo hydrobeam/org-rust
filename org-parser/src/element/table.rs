@@ -1,7 +1,7 @@
 use crate::constants::{HYPHEN, NEWLINE, VBAR};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 
 #[derive(Debug, Clone)]
 pub struct Table {
@@ -21,7 +21,7 @@ pub enum TableRow {
 
 impl<'a> Parseable<'a> for Table {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
@@ -30,12 +30,12 @@ impl<'a> Parseable<'a> for Table {
 
         // we are a table now
         parse_opts.markup.insert(MarkupKind::Table);
-        let reserve_id = pool.reserve_id();
+        let reserve_id = parser.pool.reserve_id();
         let mut children: Vec<NodeID> = Vec::new();
         let mut rows = 0;
         let mut cols = 0;
-        while let Ok(row_id) = TableRow::parse(pool, cursor, Some(reserve_id), parse_opts) {
-            let obj = &pool[row_id];
+        while let Ok(row_id) = TableRow::parse(parser, cursor, Some(reserve_id), parse_opts) {
+            let obj = &parser.pool[row_id];
 
             children.push(row_id);
             rows += 1;
@@ -43,10 +43,10 @@ impl<'a> Parseable<'a> for Table {
                 cols = cols.max(node_ids.len());
             }
 
-            cursor.index = pool[row_id].end;
+            cursor.index = parser.pool[row_id].end;
         }
 
-        Ok(pool.alloc_with_id(
+        Ok(parser.alloc_with_id(
             Self {
                 rows,
                 cols,
@@ -62,7 +62,7 @@ impl<'a> Parseable<'a> for Table {
 
 impl<'a> Parseable<'a> for TableRow {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -84,14 +84,16 @@ impl<'a> Parseable<'a> for TableRow {
             // adv_till_byte handles eof
             cursor.adv_till_byte(b'\n');
             // cursor.index + 1 to start at the next | on the next line
-            return Ok(pool.alloc(Self::Rule, start, cursor.index + 1, parent));
+            return Ok(parser
+                .pool
+                .alloc(Self::Rule, start, cursor.index + 1, parent));
         }
         // skip VBAR
         cursor.next();
 
         let mut children: Vec<NodeID> = Vec::new();
-        while let Ok(table_cell_id) = TableCell::parse(pool, cursor, parent, parse_opts) {
-            let node_item = &pool[table_cell_id];
+        while let Ok(table_cell_id) = TableCell::parse(parser, cursor, parent, parse_opts) {
+            let node_item = &parser.pool[table_cell_id];
             children.push(table_cell_id);
 
             cursor.index = node_item.end;
@@ -102,13 +104,15 @@ impl<'a> Parseable<'a> for TableRow {
             }
         }
 
-        Ok(pool.alloc(Self::Standard(children), start, cursor.index, parent))
+        Ok(parser
+            .pool
+            .alloc(Self::Standard(children), start, cursor.index, parent))
     }
 }
 
 impl<'a> Parseable<'a> for TableCell {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -116,9 +120,9 @@ impl<'a> Parseable<'a> for TableCell {
         let start = cursor.index;
 
         let mut content_vec: Vec<NodeID> = Vec::new();
-        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts) {
-            cursor.index = pool[id].end;
-            if let Expr::MarkupEnd(MarkupKind::Table) = &pool[id].obj {
+        while let Ok(id) = parse_object(parser, cursor, parent, parse_opts) {
+            cursor.index = parser.pool[id].end;
+            if let Expr::MarkupEnd(MarkupKind::Table) = &parser.pool[id].obj {
                 break;
             } else {
                 content_vec.push(id);
@@ -127,14 +131,14 @@ impl<'a> Parseable<'a> for TableCell {
 
         // set parents of children
         // TODO: abstract this? stolen from markup.rs
-        let new_id = pool.reserve_id();
+        let new_id = parser.pool.reserve_id();
         for id in content_vec.iter_mut() {
-            pool[*id].parent = Some(new_id)
+            parser.pool[*id].parent = Some(new_id)
         }
 
         // get rid of alignment spaces, deleting the object if it becomes empty
         if let Some(last_id) = content_vec.last() {
-            let last_item = &mut pool[*last_id];
+            let last_item = &mut parser.pool[*last_id];
             if let Expr::Plain(plains) = last_item.obj {
                 let repl_str = plains.trim_end();
                 if repl_str.trim_end().is_empty() {
@@ -145,7 +149,9 @@ impl<'a> Parseable<'a> for TableCell {
             }
         }
 
-        Ok(pool.alloc_with_id(Self(content_vec), start, cursor.index, parent, new_id))
+        Ok(parser
+            .pool
+            .alloc_with_id(Self(content_vec), start, cursor.index, parent, new_id))
     }
 }
 
