@@ -20,8 +20,11 @@ pub(crate) fn parse_element<'a>(
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
 ) -> Result<NodeID> {
-    cursor.is_index_valid()?;
+    if let Some(id) = parser.cache.get(&cursor.index) {
+        return Ok(*id);
+    }
 
+    cursor.is_index_valid()?;
     // means a newline checking thing called this, and newline breaks all
     // table rows
     if parse_opts.markup.contains(MarkupKind::Table) {
@@ -153,6 +156,10 @@ pub(crate) fn parse_object<'a>(
     parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
 ) -> Result<NodeID> {
+    if let Some(id) = parser.cache.get(&cursor.index) {
+        return Ok(*id);
+    }
+
     match cursor.try_curr()? {
         SLASH => {
             handle_markup!(Italic, parser, cursor, parent, parse_opts);

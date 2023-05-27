@@ -114,12 +114,19 @@ impl<'a> Parseable<'a> for Heading<'a> {
         // to trim
 
         let mut title_vec: Vec<NodeID> = Vec::new();
-        let mut temp_cursor = Cursor::new(cursor.clamp_forwards(tag_match.start).trim().as_bytes());
+        // try to trim whitespace off the beginning and end of the area
+        // we're searching
+        let mut ending = tag_match.start;
+        // >= so a no title situation is "" (blank) (we go one under, then ending + 1
+        // brings us back up)
+        while cursor[ending] == SPACE  && ending >= cursor.index {
+            ending -=1;
+        }
+        let mut temp_cursor = cursor.cut_off(ending + 1);
+        temp_cursor.skip_ws();
         while let Ok(title_id) = parse_object(
             parser,
             temp_cursor,
-            // run this song and dance to get the trim method
-            // TODO: when trim_ascii is stablized on byte_slices, use that
             Some(reserved_id),
             parse_opts,
         ) {
