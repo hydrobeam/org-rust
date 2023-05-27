@@ -1,6 +1,6 @@
 use crate::constants::{LBRACE, LBRACK, NEWLINE, RBRACE, RBRACK};
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
 #[derive(Debug, Clone, Copy)]
@@ -12,7 +12,7 @@ pub struct InlineSrc<'a> {
 
 impl<'a> Parseable<'a> for InlineSrc<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -30,7 +30,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         match cursor.curr() {
             LBRACE => {
                 let body = Self::parse_body(cursor)?;
-                Ok(pool.alloc(
+                Ok(parser.alloc(
                     Self {
                         lang: body.obj,
                         headers: None,
@@ -46,7 +46,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                 cursor.move_to(header.end);
                 if cursor.curr() != LBRACE {
                     let body = Self::parse_body(cursor)?;
-                    Ok(pool.alloc(
+                    Ok(parser.alloc(
                         Self {
                             lang: lang.obj,
                             headers: Some(header.obj),

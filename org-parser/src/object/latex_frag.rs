@@ -3,13 +3,13 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
 
 use super::parse_entity;
 
 macro_rules! double_ending {
-    ($pool: ident,
+    ($parser: ident,
      $cursor: ident,
      $start: tt,
      $parse_opts: ident,
@@ -22,7 +22,7 @@ macro_rules! double_ending {
                 NEWLINE => {
                     // the error we return doesn't matter, as long as we error
                     if let Err(MatchError::InvalidLogic) =
-                        parse_element($pool, $cursor.adv_copy(1), $parent, $parse_opts)
+                        parse_element($parser, $cursor.adv_copy(1), $parent, $parse_opts)
                     {
                         $cursor.next();
                     } else {
@@ -32,7 +32,7 @@ macro_rules! double_ending {
                 }
                 $byte_1 => {
                     if $cursor.peek(1)? == $byte_2 {
-                        return Ok($pool.alloc(
+                        return Ok($parser.alloc(
                             Self::$type($cursor.clamp_backwards($start + 2)),
                             $start,
                             $cursor.index + 2,
@@ -58,7 +58,7 @@ pub enum LatexFragment<'a> {
 
 impl<'a> Parseable<'a> for LatexFragment<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
@@ -69,9 +69,9 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         if cursor.curr() == DOLLAR {
             if cursor.peek(1)? == DOLLAR {
                 cursor.index += 2;
-                double_ending!(pool, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display)
+                double_ending!(parser, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display)
             } else if cursor.peek(2)? == DOLLAR && verify_single_char_latex_frag(cursor) {
-                return Ok(pool.alloc(
+                return Ok(parser.alloc(
                     Self::Inline(cursor.clamp(cursor.index + 1, cursor.index + 2)),
                     start,
                     cursor.index + 3,
@@ -84,7 +84,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         NEWLINE => {
                             // the error we return doesn't matter, as long as we error
                             if let Err(MatchError::InvalidLogic) =
-                                parse_element(pool, cursor.adv_copy(1), parent, parse_opts)
+                                parse_element(parser, cursor.adv_copy(1), parent, parse_opts)
                             {
                                 cursor.next();
                             } else {
@@ -94,7 +94,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         }
                         DOLLAR => {
                             if verify_latex_frag(cursor, true) {
-                                return Ok(pool.alloc(
+                                return Ok(parser.alloc(
                                     Self::Inline(cursor.clamp_backwards(start + 1)),
                                     start,
                                     cursor.index + 1,
@@ -114,13 +114,13 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                 LPAREN => {
                     cursor.next();
                     double_ending!(
-                        pool, cursor, start, parse_opts, parent, BACKSLASH, RPAREN, Inline
+                        parser, cursor, start, parse_opts, parent, BACKSLASH, RPAREN, Inline
                     )
                 }
                 LBRACK => {
                     cursor.next();
                     double_ending!(
-                        pool, cursor, start, parse_opts, parent, BACKSLASH, RBRACK, Display
+                        parser, cursor, start, parse_opts, parent, BACKSLASH, RBRACK, Display
                     )
                 }
                 chr if chr.is_ascii_alphabetic() => {
@@ -142,7 +142,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
 
                     // TODO stop doing everything in LatexFrag
                     if let Ok(entity) = parse_entity(name) {
-                        return Ok(pool.alloc(entity, start, end_name_ind, parent));
+                        return Ok(parser.alloc(entity, start, end_name_ind, parent));
                     }
 
                     match cursor.curr() {
@@ -154,7 +154,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                         return Err(MatchError::InvalidLogic);
                                     }
                                     RBRACE => {
-                                        return Ok(pool.alloc(
+                                        return Ok(parser.alloc(
                                             Self::Command {
                                                 name,
                                                 contents: Some(
@@ -179,7 +179,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                         return Err(MatchError::InvalidLogic);
                                     }
                                     RBRACK => {
-                                        return Ok(pool.alloc(
+                                        return Ok(parser.alloc(
                                             Self::Command {
                                                 name,
                                                 contents: Some(
@@ -197,7 +197,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                             }
                         }
                         _ => {
-                            return Ok(pool.alloc(
+                            return Ok(parser.alloc(
                                 Self::Command {
                                     name,
                                     contents: None,

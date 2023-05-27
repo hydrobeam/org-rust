@@ -1,6 +1,6 @@
 use crate::constants::COLON;
 use crate::node_pool::{NodeID, NodePool};
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {
@@ -10,7 +10,7 @@ pub struct Keyword<'a> {
 
 impl<'a> Parseable<'a> for Keyword<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
@@ -26,7 +26,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
                 // TODO: use an fn_until_inclusive to not have to add 1 to the end
                 // (we want to eat the ending nl too)
-                Ok(pool.alloc(
+                Ok(parser.alloc(
                     Self {
                         key: key_word.obj,
                         // not mentioned in the spec, but org-element trims

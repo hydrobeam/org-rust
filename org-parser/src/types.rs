@@ -1,4 +1,5 @@
 use derive_more::From;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Index;
 
@@ -16,6 +17,57 @@ use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
 
 pub(crate) type Result<T> = std::result::Result<T, MatchError>;
+
+pub type NodeCache = HashMap<usize, NodeID>;
+
+pub(crate) struct Parser<'a> {
+    pub pool: NodePool<'a>,
+    pub cache: NodeCache,
+}
+
+impl<'a> Parser<'a> {
+    pub(crate) fn alloc<T>(
+        &mut self,
+        obj: T,
+        start: usize,
+        end: usize,
+        parent: Option<NodeID>,
+    ) -> NodeID
+    where
+        Expr<'a>: From<T>,
+    {
+        let ret = self.pool.alloc(obj, start, end, parent);
+        self.cache.insert(start, ret);
+        ret
+    }
+
+    /// Allocates a node in the pool at a given location.
+    ///
+    /// Returns the index that was allocated.
+    ///
+    /// Works well with [`NodePool::reserve_id`].
+    ///
+    /// # Safety:
+    ///
+    /// Must refer to an ID that already exists in the pool.
+    /// Will panic at runtime otherwise.
+    ///
+    pub(crate) fn alloc_with_id<T>(
+        &mut self,
+        obj: T,
+        start: usize,
+        end: usize,
+        parent: Option<NodeID>,
+        target_id: NodeID,
+    ) -> NodeID
+    where
+        Expr<'a>: From<T>,
+    {
+        self.pool.alloc_with_id(obj, start, end, parent, target_id);
+        self.cache.insert(start, target_id);
+        target_id
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Cursor<'a> {
@@ -332,7 +384,7 @@ impl MarkupKind {
 
 pub(crate) trait Parseable<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         cursor: Cursor<'a>,
         parent: Option<NodeID>,
         parse_opts: ParseOpts,

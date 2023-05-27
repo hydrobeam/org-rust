@@ -5,7 +5,7 @@ use crate::constants::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::parse_object;
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
 const ORG_LINK_PARAMETERS: [&'static str; 9] = [
@@ -110,7 +110,7 @@ impl<'a> PathReg<'a> {
 
 impl<'a> Parseable<'a> for RegularLink<'a> {
     fn parse(
-        pool: &mut NodePool<'a>,
+        parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<NodeID>,
         mut parse_opts: ParseOpts,
@@ -142,9 +142,9 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         parse_opts.markup.insert(MarkupKind::Link);
 
                         let mut content_vec: Vec<NodeID> = Vec::new();
-                        while let Ok(id) = parse_object(pool, cursor, parent, parse_opts) {
-                            cursor.index = pool[id].end;
-                            if let Expr::MarkupEnd(leaf) = pool[id].obj {
+                        while let Ok(id) = parse_object(parser, cursor, parent, parse_opts) {
+                            cursor.index = parser.pool[id].end;
+                            if let Expr::MarkupEnd(leaf) = parser.pool[id].obj {
                                 if !leaf.contains(MarkupKind::Link) {
                                     // TODO: cache and explode
                                     return Err(MatchError::InvalidLogic);
@@ -155,11 +155,11 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
 
                                 // set parents of children
                                 // TODO: abstract this? stolen from markup.rs
-                                let new_id = pool.reserve_id();
+                                let new_id = parser.pool.reserve_id();
                                 for id in content_vec.iter_mut() {
-                                    pool[*id].parent = Some(new_id)
+                                    parser.pool[*id].parent = Some(new_id)
                                 }
-                                return Ok(pool.alloc_with_id(
+                                return Ok(parser.alloc_with_id(
                                     Self {
                                         path: pathreg,
                                         description: Some(content_vec),
@@ -176,7 +176,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                     } else if RBRACK == cursor.peek(1)? {
                         // close object;
                         let pathreg = PathReg::new(cursor.clamp_off(start + 2, cursor.index));
-                        return Ok(pool.alloc(
+                        return Ok(parser.alloc(
                             Self {
                                 path: pathreg,
                                 description: None,
@@ -293,7 +293,7 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
 }
 
 pub(crate) fn parse_angle_link<'a>(
-    pool: &mut NodePool<'a>,
+    parser: &mut Parser<'a>,
     mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     parse_opts: ParseOpts,
@@ -319,7 +319,7 @@ pub(crate) fn parse_angle_link<'a>(
 
                 // <PROTOCOL:> is valid, don't need to check indices
 
-                return Ok(pool.alloc(
+                return Ok(parser.alloc(
                     PlainLink {
                         protocol,
                         path: cursor.clamp_backwards(path_start),

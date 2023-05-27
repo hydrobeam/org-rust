@@ -1,7 +1,7 @@
 use crate::constants::{EQUAL, NEWLINE, TILDE};
 use crate::node_pool::{NodeID, NodePool};
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Result};
+use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
 
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ macro_rules! recursive_markup {
     ($name: tt) => {
         impl<'a> Parseable<'a> for $name {
             fn parse(
-                pool: &mut NodePool<'a>,
+                parser: &mut Parser<'a>,
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
@@ -43,22 +43,22 @@ macro_rules! recursive_markup {
                 let mut content_vec: Vec<NodeID> = Vec::new();
                 // if we're being called, that means the first split is the thing
                 loop {
-                    match parse_object(pool, cursor, parent, parse_opts) {
+                    match parse_object(parser, cursor, parent, parse_opts) {
                         Ok(id) => {
-                            let node = &pool[id];
+                            let node = &parser.pool[id];
                             cursor.move_to(node.end);
                             if let Expr::MarkupEnd(leaf) = node.obj {
                                 if leaf.contains(MarkupKind::$name) && cursor.index > start + 2
                                 // prevent ** from being Bold{}
                                 {
                                     // TODO: abstract this?
-                                    let new_id = pool.reserve_id();
+                                    let new_id = parser.pool.reserve_id();
                                     for id in content_vec.iter_mut() {
-                                        pool[*id].parent = Some(new_id)
+                                        parser.pool[*id].parent = Some(new_id)
                                     }
                                     // we can't just get the next ID because alloc_with_id assumes the node is safe to mutate
                                     // and we can't access an index beyond the len of the list.
-                                    return Ok(pool.alloc_with_id(
+                                    return Ok(parser.alloc_with_id(
                                         Self(content_vec),
                                         start,
                                         cursor.index,
@@ -89,7 +89,7 @@ macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
         impl<'a> Parseable<'a> for $name<'a> {
             fn parse(
-                pool: &mut NodePool<'a>,
+                parser: &mut Parser<'a>,
                 mut cursor: Cursor<'a>,
                 parent: Option<NodeID>,
                 mut parse_opts: ParseOpts,
@@ -117,7 +117,7 @@ macro_rules! plain_markup {
                         }
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
-                            match parse_element(pool, cursor.adv_copy(1), parent, parse_opts) {
+                            match parse_element(parser, cursor.adv_copy(1), parent, parse_opts) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {
                                     cursor.next();
@@ -133,7 +133,7 @@ macro_rules! plain_markup {
                     }
                 }
 
-                Ok(pool.alloc(
+                Ok(parser.alloc(
                     Self(cursor.clamp_backwards(start + 1)),
                     start,
                     cursor.index + 1,

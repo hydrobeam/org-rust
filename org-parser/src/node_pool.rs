@@ -13,8 +13,6 @@ impl std::fmt::Debug for NodeID {
     }
 }
 
-type Cache = HashMap<u32, NodeID>;
-
 #[derive(Debug)]
 pub struct NodePool<'a> {
     pub inner_vec: Vec<Node<'a>>,
@@ -30,7 +28,13 @@ impl<'a> NodePool<'a> {
         }
     }
 
-    pub(crate) fn alloc<T>(&mut self, obj: T, start: usize, end: usize, parent: Option<NodeID>) -> NodeID
+    pub(crate) fn alloc<T>(
+        &mut self,
+        obj: T,
+        start: usize,
+        end: usize,
+        parent: Option<NodeID>,
+    ) -> NodeID
     where
         Expr<'a>: From<T>,
     {
