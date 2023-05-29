@@ -1,288 +1,325 @@
-use std::fmt::{Result, Write};
+pub mod types;
+
+use core::fmt;
+use core::fmt::Result;
+use core::fmt::Write;
 
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::{NodeID, NodePool};
 use org_parser::object::LatexFragment;
 use org_parser::parse_org;
 use org_parser::types::Expr;
+use types::Exporter;
 
-pub fn export_org<T: Write>(input: &str, out: &mut T) -> Result {
-    let pool = parse_org(input);
-    export_org_rec(&pool.root().obj, &pool, out)?;
-    Ok(())
+pub struct Org<'a, T: fmt::Write> {
+    buf: T,
+    pool: NodePool<'a>,
+    indentation_level: u8,
 }
 
-fn export_org_rec<T: Write>(node: &Expr, pool: &NodePool, buf: &mut T) -> Result {
-    match node {
-        Expr::Root(inner) => {
-            for id in inner {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-        }
-        Expr::Heading(inner) => {
-            for _ in 0..inner.heading_level.into() {
-                write!(buf, "*")?;
-            }
-            write!(buf, " ")?;
+impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
+    fn export(input: &str) -> core::result::Result<String, fmt::Error> {
+        let mut obj = Org {
+            buf: String::new(),
+            pool: parse_org(input),
+            indentation_level: 0,
+        };
 
-            if let Some(keyword) = inner.keyword {
-                write!(buf, "{keyword} ")?;
-            }
+        obj.export_rec(&obj.pool.root_id())?;
+        Ok(obj.buf)
+    }
 
-            if let Some(priority) = &inner.priority {
-                write!(buf, "[#")?;
-                match priority {
-                    Priority::A => write!(buf, "A")?,
-                    Priority::B => write!(buf, "B")?,
-                    Priority::C => write!(buf, "C")?,
-                    Priority::Num(num) => write!(buf, "{}", num)?,
-                };
-                write!(buf, "] ")?;
-            }
+    fn export_buf<'inp, 'buf>(
+        input: &'inp str,
+        buf: &'buf mut T,
+    ) -> core::result::Result<&'buf mut T, fmt::Error> {
+        let mut obj = Org {
+            buf,
+            pool: parse_org(input),
+            indentation_level: 0,
+        };
 
-            if let Some(title) = &inner.title {
-                for id in title {
-                    export_org_rec(&pool[*id].obj, pool, buf)?;
+        obj.export_rec(&obj.pool.root_id())?;
+        Ok(obj.buf)
+    }
+
+    fn export_rec(&mut self, node_id: &NodeID) -> Result {
+        match &self.pool()[*node_id].obj.clone() {
+            Expr::Root(inner) => {
+                for id in inner {
+                    self.export_rec(id)?;
                 }
             }
+            Expr::Heading(inner) => {
+                for _ in 0..inner.heading_level.into() {
+                    write!(self.buf, "*")?;
+                }
+                write!(self.buf, " ")?;
 
-            fn tag_search<T: Write>(loc: NodeID, pool: &NodePool, buf: &mut T) -> Result {
-                if let Expr::Heading(loc) = &pool[loc].obj {
-                    if let Some(sub_tags) = loc.tags.as_ref() {
-                        for thang in sub_tags.iter().rev() {
-                            match thang {
-                                Tag::Raw(val) => write!(buf, ":{val}")?,
-                                Tag::Loc(id) => {
-                                    tag_search(*id, pool, buf)?;
-                                }
+                if let Some(keyword) = inner.keyword {
+                    write!(self.buf, "{keyword} ")?;
+                }
+
+                if let Some(priority) = &inner.priority {
+                    write!(self.buf, "[#")?;
+                    match priority {
+                        Priority::A => write!(self.buf, "A")?,
+                        Priority::B => write!(self.buf, "B")?,
+                        Priority::C => write!(self.buf, "C")?,
+                        Priority::Num(num) => write!(self.buf, "{}", num)?,
+                    };
+                    write!(self.buf, "] ")?;
+                }
+
+                if let Some(title) = &inner.title {
+                    for id in title {
+                        self.export_rec(id)?;
+                    }
+                }
+
+                // fn tag_search<T: Write>(loc: NodeID, pool: &NodePool, self.buf: &mut T) -> Result {
+                //     if let Expr::Heading(loc) = &pool[loc].obj {
+                //         if let Some(sub_tags) = loc.tags.as_ref() {
+                //             for thang in sub_tags.iter().rev() {
+                //                 match thang {
+                //                     Tag::Raw(val) => write!(self.buf, ":{val}")?,
+                //                     Tag::Loc(id) => {
+                //                         tag_search(*id, pool, self.buf)?;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     Ok(())
+                // }
+
+                if let Some(tags) = &inner.tags {
+                    let mut valid_out = String::new();
+                    for tag in tags.iter().rev() {
+                        match tag {
+                            Tag::Raw(val) => write!(valid_out, ":{val}")?,
+                            Tag::Loc(id) => {
+                                // tag_search(*id, pool, &mut valid_out)?;
                             }
                         }
                     }
+                    // handles the case where a parent heading has no tags
+                    if !valid_out.is_empty() {
+                        write!(self.buf, " {valid_out}:")?;
+                    }
                 }
-                Ok(())
+
+                writeln!(self.buf)?;
+
+                if let Some(children) = &inner.children {
+                    for id in children {
+                        self.export_rec(id)?;
+                    }
+                }
+            }
+            Expr::Block(inner) => {
+                let val: &str = inner.kind.into();
+                write!(self.buf, "#+begin_{val}")?;
+                if let Some(params) = inner.parameters {
+                    write!(self.buf, " {}", params)?;
+                }
+                write!(self.buf, "\n")?;
+                match &inner.contents {
+                    BlockContents::Greater(children) => {
+                        for id in children {
+                            self.export_rec(id)?;
+                        }
+                        writeln!(self.buf)?;
+                    }
+                    BlockContents::Lesser(cont) => {
+                        writeln!(self.buf, "{cont}")?;
+                    }
+                }
+                write!(self.buf, "#+end_{val}\n")?;
+            }
+            Expr::RegularLink(inner) => {
+                write!(self.buf, "[")?;
+                write!(self.buf, "[{}]", inner.path)?;
+                if let Some(children) = &inner.description {
+                    write!(self.buf, "[")?;
+                    for id in children {
+                        self.export_rec(id)?;
+                    }
+                    write!(self.buf, "]")?;
+                }
+                write!(self.buf, "]")?;
             }
 
-            if let Some(tags) = &inner.tags {
-                let mut valid_out = String::new();
-                for tag in tags.iter().rev() {
-                    match tag {
-                        Tag::Raw(val) => write!(valid_out, ":{val}")?,
-                        Tag::Loc(id) => {
+            Expr::Paragraph(inner) => {
+                for id in &inner.0 {
+                    self.export_rec(id)?;
+                }
+                writeln!(self.buf)?;
+            }
 
-                            // tag_search(*id, pool, &mut valid_out)?;
+            Expr::Italic(inner) => {
+                write!(self.buf, "/")?;
+                for id in &inner.0 {
+                    self.export_rec(id)?;
+                }
+                write!(self.buf, "/")?;
+            }
+            Expr::Bold(inner) => {
+                write!(self.buf, "*")?;
+                for id in &inner.0 {
+                    self.export_rec(id)?;
+                }
+                write!(self.buf, "*")?;
+            }
+            Expr::StrikeThrough(inner) => {
+                write!(self.buf, "+")?;
+                for id in &inner.0 {
+                    self.export_rec(id)?;
+                }
+                write!(self.buf, "+")?;
+            }
+            Expr::Underline(inner) => {
+                write!(self.buf, "_")?;
+                for id in &inner.0 {
+                    self.export_rec(id)?;
+                }
+                write!(self.buf, "_")?;
+            }
+            Expr::BlankLine => {
+                writeln!(self.buf)?;
+            }
+            Expr::SoftBreak => {
+                write!(self.buf, " ")?;
+            }
+            Expr::Plain(inner) => {
+                write!(self.buf, "{inner}")?;
+            }
+            Expr::MarkupEnd(inner) => {
+                unreachable!()
+            }
+            Expr::Verbatim(inner) => {
+                write!(self.buf, "={}=", inner.0)?;
+            }
+            Expr::Code(inner) => {
+                write!(self.buf, "~{}~", inner.0)?;
+            }
+            Expr::Comment(inner) => {
+                writeln!(self.buf, "# {}", inner.0)?;
+            }
+            Expr::InlineSrc(inner) => {
+                write!(self.buf, "src_{}", inner.lang)?;
+                if let Some(args) = inner.headers {
+                    write!(self.buf, "[{args}]")?;
+                }
+                write!(self.buf, "{{{}}}", inner.body)?;
+            }
+            Expr::Keyword(inner) => {
+                writeln!(self.buf, "#+{}: {}", inner.key, inner.val)?;
+            }
+            Expr::LatexEnv(inner) => {
+                write!(
+                    self.buf,
+                    "\\begin{{{0}}}\n{1}\n\\end{{{0}}}\n",
+                    inner.name, inner.contents
+                )?;
+            }
+            Expr::LatexFragment(inner) => match inner {
+                LatexFragment::Command { name, contents } => {
+                    write!(self.buf, "\\{name}")?;
+                    if let Some(command_cont) = contents {
+                        write!(self.buf, "{{{command_cont}}}")?;
+                    }
+                }
+                LatexFragment::Display(inner) => {
+                    write!(self.buf, "\\[{inner}\\]")?;
+                }
+                LatexFragment::Inline(inner) => {
+                    write!(self.buf, "\\({inner}\\)")?;
+                }
+            },
+            Expr::Item(inner) => {
+                match inner.bullet {
+                    BulletKind::Unordered => {
+                        write!(self.buf, "-")?;
+                    }
+                    BulletKind::Ordered(counterkind) => match counterkind {
+                        CounterKind::Letter(lettre) => {
+                            write!(self.buf, "{}", lettre as char)?;
+                        }
+                        CounterKind::Number(num) => {
+                            write!(self.buf, "{num}")?;
+                        }
+                    },
+                }
+                write!(self.buf, " ")?;
+
+                if let Some(check) = &inner.check_box {
+                    let val: &str = check.into();
+                    write!(self.buf, "[{val}] ")?;
+                }
+
+                if let Some(tag) = inner.tag {
+                    write!(self.buf, "{tag} :: ")?;
+                }
+
+                for id in &inner.children {
+                    self.export_rec(id)?;
+                    write!(self.buf, "  ")?;
+                }
+            }
+            Expr::PlainList(inner) => {
+                for id in &inner.children {
+                    self.export_rec(id)?;
+                }
+            }
+            Expr::PlainLink(inner) => {
+                write!(self.buf, "{}:{}", inner.protocol, inner.path)?;
+            }
+            Expr::Entity(inner) => {
+                write!(self.buf, "{}", inner.mapped_item)?;
+            }
+            Expr::Table(inner) => {
+                for id in &inner.children {
+                    self.export_rec(id)?;
+                }
+            }
+
+            Expr::TableRow(inner) => {
+                match inner {
+                    TableRow::Standard(stans) => {
+                        write!(self.buf, "|")?;
+                        for id in stans {
+                            self.export_rec(id)?;
                         }
                     }
-                }
-                // handles the case where a parent heading has no tags
-                if !valid_out.is_empty() {
-                    write!(buf, " {valid_out}:")?;
-                }
-            }
-
-            writeln!(buf)?;
-
-            if let Some(children) = &inner.children {
-                for id in children {
-                    export_org_rec(&pool[*id].obj, pool, buf)?;
-                }
-            }
-        }
-        Expr::Block(inner) => {
-            let val: &str = inner.kind.into();
-            write!(buf, "#+begin_{val}")?;
-            if let Some(params) = inner.parameters {
-                write!(buf, " {}", params)?;
-            }
-            write!(buf, "\n")?;
-            match &inner.contents {
-                BlockContents::Greater(children) => {
-                    for id in children {
-                        export_org_rec(&pool[*id].obj, pool, buf)?;
-                    }
-                    writeln!(buf)?;
-                }
-                BlockContents::Lesser(cont) => {
-                    writeln!(buf, "{cont}")?;
-                }
-            }
-            write!(buf, "#+end_{val}\n")?;
-        }
-        Expr::RegularLink(inner) => {
-            write!(buf, "[")?;
-            write!(buf, "[{}]", inner.path)?;
-            if let Some(children) = &inner.description {
-                write!(buf, "[")?;
-                for id in children {
-                    export_org_rec(&pool[*id].obj, pool, buf)?;
-                }
-                write!(buf, "]")?;
-            }
-            write!(buf, "]")?;
-        }
-
-        Expr::Paragraph(inner) => {
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            writeln!(buf)?;
-        }
-
-        Expr::Italic(inner) => {
-            write!(buf, "/")?;
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            write!(buf, "/")?;
-        }
-        Expr::Bold(inner) => {
-            write!(buf, "*")?;
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            write!(buf, "*")?;
-        }
-        Expr::StrikeThrough(inner) => {
-            write!(buf, "+")?;
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            write!(buf, "+")?;
-        }
-        Expr::Underline(inner) => {
-            write!(buf, "_")?;
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            write!(buf, "_")?;
-        }
-        Expr::BlankLine => {
-            writeln!(buf)?;
-        }
-        Expr::SoftBreak => {
-            write!(buf, " ")?;
-        }
-        Expr::Plain(inner) => {
-            write!(buf, "{inner}")?;
-        }
-        Expr::MarkupEnd(inner) => {
-            unreachable!()
-        }
-        Expr::Verbatim(inner) => {
-            write!(buf, "=")?;
-            write!(buf, "{}", inner.0)?;
-            write!(buf, "=")?;
-        }
-        Expr::Code(inner) => {
-            write!(buf, "~")?;
-            write!(buf, "{}", inner.0)?;
-            write!(buf, "~")?;
-        }
-        Expr::Comment(inner) => {
-            writeln!(buf, "# {}", inner.0)?;
-        }
-        Expr::InlineSrc(inner) => {
-            write!(buf, "src_{}", inner.lang)?;
-            if let Some(args) = inner.headers {
-                write!(buf, "[{args}]")?;
-            }
-            write!(buf, "{{{}}}", inner.body)?;
-        }
-        Expr::Keyword(inner) => {
-            writeln!(buf, "#+{}: {}", inner.key, inner.val)?;
-        }
-        Expr::LatexEnv(inner) => {
-            write!(
-                buf,
-                "\\begin{{{0}}}\n{1}\n\\end{{{0}}}\n",
-                inner.name, inner.contents
-            )?;
-        }
-        Expr::LatexFragment(inner) => match inner {
-            LatexFragment::Command { name, contents } => {
-                write!(buf, "\\{name}")?;
-                if let Some(command_cont) = contents {
-                    write!(buf, "{{{command_cont}}}")?;
-                }
-            }
-            LatexFragment::Display(inner) => {
-                write!(buf, "\\[{inner}\\]")?;
-            }
-            LatexFragment::Inline(inner) => {
-                write!(buf, "\\({inner}\\)")?;
-            }
-        },
-        Expr::Item(inner) => {
-            match inner.bullet {
-                BulletKind::Unordered => {
-                    write!(buf, "-")?;
-                }
-                BulletKind::Ordered(counterkind) => match counterkind {
-                    CounterKind::Letter(lettre) => {
-                        write!(buf, "{}", lettre as char)?;
-                    }
-                    CounterKind::Number(num) => {
-                        write!(buf, "{num}")?;
-                    }
-                },
-            }
-            write!(buf, " ")?;
-
-            if let Some(check) = &inner.check_box {
-                let val: &str = check.into();
-                write!(buf, "[{val}] ")?;
-            }
-
-            if let Some(tag) = inner.tag {
-                write!(buf, "{tag} :: ")?;
-            }
-
-            for id in &inner.children {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-                write!(buf, "  ")?;
-            }
-        }
-        Expr::PlainList(inner) => {
-            for id in &inner.children {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-        }
-        Expr::PlainLink(inner) => {
-            write!(buf, "{}:{}", inner.protocol, inner.path)?;
-        }
-        Expr::Entity(inner) => {
-            write!(buf, "{}", inner.mapped_item)?;
-        }
-        Expr::Table(inner) => {
-            for id in &inner.children {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-        }
-
-        Expr::TableRow(inner) => {
-            match inner {
-                TableRow::Standard(stans) => {
-                    write!(buf, "|")?;
-                    for id in stans {
-                        export_org_rec(&pool[*id].obj, pool, buf)?;
+                    TableRow::Rule => {
+                        // TODO: figure out alignment
+                        write!(self.buf, "|-")?;
                     }
                 }
-                TableRow::Rule => {
-                    // TODO: figure out alignment
-                    write!(buf, "|-")?;
+                writeln!(self.buf)?;
+            }
+            Expr::TableCell(inner) => {
+                for id in &inner.0 {
+                    self.export_rec(id)?;
                 }
+                write!(self.buf, "|")?;
             }
-            writeln!(buf)?;
         }
-        Expr::TableCell(inner) => {
-            for id in &inner.0 {
-                export_org_rec(&pool[*id].obj, pool, buf)?;
-            }
-            write!(buf, "|")?;
-        }
+
+        Ok(())
     }
 
-    Ok(())
+    fn buf(&mut self) -> &mut T {
+        &mut self.buf
+    }
+
+    fn pool(&self) -> &NodePool<'a> {
+        &self.pool
+    }
 }
+
+impl<'a, T: fmt::Write> Org<'a, T> {}
 
 #[cfg(test)]
 mod tests {
@@ -291,7 +328,7 @@ mod tests {
     #[test]
     fn basic_org_export() -> Result {
         let mut out_str = String::new();
-        export_org(
+        Org::export_buf(
             r"** one two
 three
 *four*
@@ -333,7 +370,7 @@ three *four*
     #[test]
     fn test_link_export() -> Result {
         let mut out = String::new();
-        export_org("[[https://swag.org][meowww]]", &mut out)?;
+        Org::export_buf("[[https://swag.org][meowww]]", &mut out)?;
 
         println!("{out}");
         Ok(())
@@ -343,7 +380,7 @@ three *four*
     fn test_beeg() -> Result {
         let mut out = String::new();
 
-        export_org(
+        Org::export_buf(
             r"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:
 more content here this is a pargraph
 ** [#1] descendant headline :five:
@@ -485,7 +522,7 @@ more content here this is a pargraph
     #[test]
     fn less() -> Result {
         let mut out = String::new();
-        export_org(
+        Org::export_buf(
             r"* [#1] abc :c:
 ** [#1] descendant headline :a:b:
 *** [#2] inherit the tags

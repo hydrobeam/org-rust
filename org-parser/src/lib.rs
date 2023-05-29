@@ -50,8 +50,8 @@ pub(crate) mod constants {
     pub const RPAREN      : u8 = b')';
 }
 
-pub fn parse_org(input_text: &str) -> NodePool<'_> {
-    let mut cursor = Cursor::new(input_text.as_bytes());
+pub fn parse_org(input: &str) -> NodePool<'_> {
+    let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
     let mut pool = NodePool::new();
     let parent = pool.reserve_id();

@@ -102,6 +102,10 @@ impl<'a> NodePool<'a> {
     pub fn root(&self) -> &Node {
         &self.inner_vec[0]
     }
+
+    pub fn root_id(&self) -> NodeID {
+        NodeID(0)
+    }
 }
 
 impl<'a> Index<NodeID> for NodePool<'a> {
