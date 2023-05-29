@@ -119,17 +119,12 @@ impl<'a> Parseable<'a> for Heading<'a> {
         let mut ending = tag_match.start;
         // >= so a no title situation is "" (blank) (we go one under, then ending + 1
         // brings us back up)
-        while cursor[ending] == SPACE  && ending >= cursor.index {
-            ending -=1;
+        while cursor[ending] == SPACE && ending >= cursor.index {
+            ending -= 1;
         }
         let mut temp_cursor = cursor.cut_off(ending + 1);
         temp_cursor.skip_ws();
-        while let Ok(title_id) = parse_object(
-            parser,
-            temp_cursor,
-            Some(reserved_id),
-            parse_opts,
-        ) {
+        while let Ok(title_id) = parse_object(parser, temp_cursor, Some(reserved_id), parse_opts) {
             title_vec.push(title_id);
             temp_cursor.move_to(parser.pool[title_id].end);
         }

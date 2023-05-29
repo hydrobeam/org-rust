@@ -15,8 +15,8 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | GreaterBlock        | X     | X           | _            |
 | LesserBlock         | X     | X           | _            |
 | Keyword             | X     | X           | _            |
-| Item                | X     | _           | _            |
-| List                | X     | _           | _            |
+| Item                | X     | X           | _            |
+| List                | X     | X           | _            |
 | Paragraph           | X     | X           | _            |
 | InlineSrcBlock      | X     | X           | _            |
 | Comment             | X     | X           | _            |
