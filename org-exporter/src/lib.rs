@@ -247,10 +247,10 @@ impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
                     }
                     BulletKind::Ordered(counterkind) => match counterkind {
                         CounterKind::Letter(lettre) => {
-                            write!(self, "{}", lettre as char)?;
+                            write!(self, "{}.", lettre as char)?;
                         }
                         CounterKind::Number(num) => {
-                            write!(self, "{num}")?;
+                            write!(self, "{num}.")?;
                         }
                     },
                 }
@@ -583,6 +583,7 @@ more content here this is a pargraph
 ",
         )?;
 
+        println!("{a}");
         assert_eq!(
             a,
             r"
@@ -614,6 +615,7 @@ more content here this is a pargraph
 ",
         )?;
 
+        println!("{a}");
         assert_eq!(
             a,
             r"
@@ -627,6 +629,44 @@ more content here this is a pargraph
 - eight
 "
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn list_words() -> Result {
+        let a = Org::<String>::export(
+            r"
+1. item 1
+   abcdef
+
+   next one two three four five
+
+   more thangs more thangs more thangs
+   more thangs
+
+2. [X] item 2
+   - aome tag :: item 2.1
+",
+        )?;
+
+        // TODO: whitespace handling is super janky atm.
+        // can't even test output properly caudse whitespace is inserted into
+        // blanklines, and emacs removes trailing whitespace
+
+//         assert_eq!(
+//             a,
+//             r"
+
+// 1. item 1    abcdef
+
+//   next one two three four five
+
+//   more thangs more thangs more thangs    more thangs
+// 2. [X] item 2
+//   - aome tag :: item 2.1
+// "
+//         );
 
         Ok(())
     }

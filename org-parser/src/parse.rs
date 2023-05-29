@@ -72,6 +72,11 @@ pub(crate) fn parse_element<'a>(
 
     cursor.move_to(indented_loc);
 
+    // for lists: items don't keep track of their indentation level
+    if let Some(id) = parser.cache.get(&cursor.index) {
+        return Ok(*id);
+    }
+
     match cursor.curr() {
         STAR => {
             // parse_opts, (doesn't totally matter to use the default vs preloaded,

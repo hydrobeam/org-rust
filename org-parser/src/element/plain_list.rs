@@ -1,4 +1,4 @@
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, Expr, ParseOpts, Parseable, Parser, Result};
 
@@ -11,7 +11,6 @@ use super::{BulletKind, CounterKind};
 pub struct PlainList {
     pub children: Vec<NodeID>,
     pub kind: ListKind,
-    // identation_level: u8,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -32,6 +31,8 @@ impl<'a> Parseable<'a> for PlainList {
 
         // prevents nested lists from adding unecessary levels of indentation
         let start = cursor.index;
+
+        parse_opts.from_paragraph = false;
 
         if !parse_opts.from_list {
             parse_opts.indentation_level += 1;
@@ -269,6 +270,24 @@ not a list too
 1. item 1
 2. [X] item 2
    - some tag :: item 2.1
+";
+
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn blank_list() {
+        let input = r"1. item 1
+   abcdef
+
+   next one two three four five
+
+   more thangs more thangs more thangs
+   more thangs
+
+2. [X] item 2
+   - aome tag :: item 2.1
 ";
 
         let pool = parse_org(input);

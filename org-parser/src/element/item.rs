@@ -75,6 +75,7 @@ impl<'a> Parseable<'a> for Item<'a> {
                 _ => {
                     if let Some(blank_id) = blank_obj {
                         children.push(blank_id);
+                        blank_obj = None;
                     }
                     children.push(element_id);
                 }
@@ -136,10 +137,12 @@ impl BulletKind {
 
                 cursor.index = num_match.end;
 
-                if !(cursor.curr() == PERIOD || cursor.curr() == RPAREN) {
+                if !(cursor.curr() == PERIOD
+                    || cursor.curr() == RPAREN
+                    || cursor.peek(1)?.is_ascii_whitespace())
+                {
                     return Err(MatchError::InvalidLogic);
                 }
-                cursor.next();
 
                 let bullet_kind = if num_match.len() == 1 {
                     let temp = num_match.obj.as_bytes()[0];
@@ -156,10 +159,6 @@ impl BulletKind {
                         num_match.obj.parse().or(Err(MatchError::InvalidLogic))?,
                     ))
                 };
-
-                if cursor.peek(1)?.is_ascii_whitespace() {
-                    return Err(MatchError::InvalidLogic);
-                }
 
                 Ok(Match {
                     start,
