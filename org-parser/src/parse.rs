@@ -2,7 +2,7 @@ use crate::constants::{
     BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH, STAR,
     TILDE, UNDERSCORE, VBAR,
 };
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 
 use crate::element::{
     Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,

@@ -1,4 +1,4 @@
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_object;
 use crate::types::{Cursor, ParseOpts, Parseable, Parser, Result};
 

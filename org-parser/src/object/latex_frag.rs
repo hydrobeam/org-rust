@@ -1,7 +1,7 @@
 use crate::constants::{
     BACKSLASH, DOLLAR, LBRACE, LBRACK, LPAREN, NEWLINE, RBRACE, RBRACK, RPAREN,
 };
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};

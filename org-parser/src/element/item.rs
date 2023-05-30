@@ -1,5 +1,5 @@
 use crate::constants::{COLON, HYPHEN, LBRACK, NEWLINE, PERIOD, PLUS, RBRACK, RPAREN, SPACE, STAR};
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;

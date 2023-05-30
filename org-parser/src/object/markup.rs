@@ -1,5 +1,5 @@
 use crate::constants::{EQUAL, NEWLINE, TILDE};
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;

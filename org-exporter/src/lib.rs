@@ -102,7 +102,7 @@ impl<'a> Exporter<'a> for Org<'a> {
                     for tag in tags.iter().rev() {
                         match tag {
                             Tag::Raw(val) => self.write(&mut valid_out, &format!(":{val}"))?,
-                            Tag::Loc(id) => {
+                            Tag::Loc(_id) => {
                                 // do nothing with it
                             }
                         }
@@ -198,7 +198,7 @@ impl<'a> Exporter<'a> for Org<'a> {
             Expr::Plain(inner) => {
                 self.write(buf, &format!("{inner}"))?;
             }
-            Expr::MarkupEnd(inner) => {
+            Expr::MarkupEnd(_inner) => {
                 unreachable!()
             }
             Expr::Verbatim(inner) => {
@@ -637,7 +637,7 @@ more content here this is a pargraph
 
     #[test]
     fn list_words() -> Result {
-        let b = Org::export_buf("ine", &mut String::new())?;
+        let _b = Org::export_buf("ine", &mut String::new())?;
         let a: String = Org::export(
             r"
 1. item 1

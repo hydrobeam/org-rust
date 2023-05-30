@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::constants::{
     BACKSLASH, COLON, HYPHEN, LANGLE, LBRACK, LPAREN, POUND, RANGLE, RBRACK, RPAREN, SLASH,
 };
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_object;
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;

@@ -1,5 +1,5 @@
 use crate::constants::NEWLINE;
-use crate::node_pool::{NodeID, NodePool};
+use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use memchr::memmem;

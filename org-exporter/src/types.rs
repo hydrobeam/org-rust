@@ -12,5 +12,5 @@ pub(crate) trait Exporter<'a> {
 
     fn pool(&self) -> &NodePool<'a>;
 
-    fn write(&mut self,  buf: &mut dyn fmt::Write, s: &str) -> fmt::Result;
+    fn write(&mut self, buf: &mut dyn fmt::Write, s: &str) -> fmt::Result;
 }
