@@ -26,7 +26,7 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | AngleLink           | X     | X           | _            |
 | RegularLink         | X     | X           | _            |
 | Entity              | X     | X           | _            |
-| Table               | X     | _           | _            |
+| Table               | X     | X           | _            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | Drawer              | _     | _           | _            |

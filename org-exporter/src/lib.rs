@@ -2,7 +2,6 @@ pub mod types;
 
 use core::fmt;
 use core::fmt::Result;
-use core::fmt::Write;
 
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::{NodeID, NodePool};
@@ -15,7 +14,6 @@ pub struct Org<'a> {
     pool: NodePool<'a>,
     indentation_level: u8,
     on_newline: bool,
-    table_len: u32,
 }
 
 impl<'a> Exporter<'a> for Org<'a> {
@@ -25,7 +23,6 @@ impl<'a> Exporter<'a> for Org<'a> {
             pool: parse_org(input),
             indentation_level: 0,
             on_newline: false,
-            table_len: 0,
         };
 
         obj.export_rec(&obj.pool.root_id(), &mut buf)?;
@@ -40,7 +37,6 @@ impl<'a> Exporter<'a> for Org<'a> {
             pool: parse_org(input),
             indentation_level: 0,
             on_newline: false,
-            table_len: 0,
         };
 
         obj.export_rec(&obj.pool.root_id(), buf)?;
@@ -289,31 +285,106 @@ impl<'a> Exporter<'a> for Org<'a> {
                 self.write(buf, &format!("{}", inner.mapped_item))?;
             }
             Expr::Table(inner) => {
+                let mut build_vec: Vec<Vec<String>> = Vec::with_capacity(inner.rows);
+                // HACK: stop the table cells from receiving indentation from newline
+                // in lists, manually retrigger it here
+                self.write(buf, "")?;
+
+                // set up 2d array
                 for id in &inner.children {
-                    self.export_rec(id, buf)?;
+                    // TODO: get rid of this clone without refcell
+                    // (is it even possible??)
+                    match &self.pool()[*id].obj.clone() {
+                        Expr::TableRow(row) => {
+                            let mut row_vec = vec![];
+                            match &row {
+                                TableRow::Standard(stans) => {
+                                    for id in stans {
+                                        let mut cell_buf = String::new();
+                                        self.export_rec(id, &mut cell_buf)?;
+                                        row_vec.push(cell_buf)
+                                    }
+                                }
+                                TableRow::Rule => {
+                                    // an empty vec represents an hrule
+                                }
+                            }
+                            build_vec.push(row_vec);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+
+                // we use .get throughout because hrule rows are empty
+                // and empty cells don't appear in the table, but we still have
+                // to represent them
+                //
+                // run analysis to find column widths (padding)
+                // travel downwards down rows, finding the largest length in each column
+                let mut col_widths = Vec::with_capacity(inner.cols);
+                for col_ind in 0..inner.cols {
+                    let mut curr_max = 0;
+                    for row_ind in 0..inner.rows {
+                        curr_max =
+                            curr_max.max(if let Some(strang) = build_vec[row_ind].get(col_ind) {
+                                strang.len()
+                            } else {
+                                0
+                            });
+                    }
+                    col_widths.push(curr_max);
+                }
+
+                for row_ind in 0..inner.rows {
+                    self.write(buf, "|")?;
+
+                    // is hrule
+                    if build_vec[row_ind].is_empty() {
+                        for (i, val) in col_widths.iter().enumerate() {
+                            // + 2 to account for buffer around cells
+                            for _ in 0..(*val + 2) {
+                                self.write(buf, "-")?;
+                            }
+
+                            if i == inner.cols {
+                                self.write(buf, "|")?;
+                            } else {
+                                self.write(buf, "+")?;
+                            }
+                        }
+                    } else {
+                        for col_ind in 0..inner.cols {
+                            let cell = build_vec[row_ind].get(col_ind);
+                            let diff;
+
+                            // left buffer
+                            self.write(buf, " ")?;
+                            if let Some(strang) = cell {
+                                diff = col_widths[col_ind] - strang.len();
+                                self.write(buf, strang)?;
+                            } else {
+                                diff = col_widths[col_ind];
+                            };
+
+                            for _ in 0..diff {
+                                self.write(buf, " ")?;
+                            }
+
+                            // right buffer + ending
+                            self.write(buf, " |")?;
+                        }
+                    }
+                    self.write(buf, "\n")?;
                 }
             }
 
-            Expr::TableRow(inner) => {
-                match inner {
-                    TableRow::Standard(stans) => {
-                        self.write(buf, "|")?;
-                        for id in stans {
-                            self.export_rec(id, buf)?;
-                        }
-                    }
-                    TableRow::Rule => {
-                        // TODO: figure out alignment
-                        self.write(buf, "|-")?;
-                    }
-                }
-                self.write(buf, "\n")?;
+            Expr::TableRow(_) => {
+                unreachable!("handled by Expr::Table")
             }
             Expr::TableCell(inner) => {
                 for id in &inner.0 {
                     self.export_rec(id, buf)?;
                 }
-                self.write(buf, "|")?;
             }
         }
 
@@ -332,9 +403,19 @@ impl<'a> Exporter<'a> for Org<'a> {
                         buf.write_str("  ")?;
                     }
                 }
-
                 self.on_newline = chunk.ends_with('\n');
                 buf.write_str(s)?;
+            }
+            // allows us to manually trigger re-indentation
+            // used in Table
+            // HACK
+            if s.is_empty() {
+                if self.on_newline {
+                    for _ in 0..self.indentation_level {
+                        buf.write_str("  ")?;
+                    }
+                }
+                self.on_newline = false;
             }
 
             Ok(())
@@ -343,11 +424,6 @@ impl<'a> Exporter<'a> for Org<'a> {
         }
     }
 }
-
-// impl<'a> Write for Org<'a> {
-//     fn write_str(&mut self, s: &str) -> Result {
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -672,6 +748,99 @@ more content here this is a pargraph
         //   - aome tag :: item 2.1
         // "
         //         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn table_export() -> Result {
+        let a = Org::export(
+            r"
+|one|two|
+|three|four|
+|five|six|seven|
+|eight
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"
+| one   | two  |       |
+| three | four |       |
+| five  | six  | seven |
+| eight |      |       |
+"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn table_export_hrule() -> Result {
+        let a = Org::export(
+            r"
+|one|two|
+|-
+|three|four|
+|five|six|seven|
+|eight
+|-
+|swagg|long the
+|okay| _underline_| ~fake| _fake|
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"
+| one   | two          |        |        |
+|-------+--------------+--------+--------+
+| three | four         |        |        |
+| five  | six          | seven  |        |
+| eight |              |        |        |
+|-------+--------------+--------+--------+
+| swagg | long the     |        |        |
+| okay  |  _underline_ |  ~fake |  _fake |
+"
+        );
+        // println!("{a}");
+
+        Ok(())
+    }
+
+    #[test]
+    fn indented_table() -> Result {
+        let a = Org::export(
+            r"
+- zero
+    |one|two|
+    |-
+    |three|four|
+    |five|six|seven|
+    |eight
+    |-
+    |swagg|long the
+    |okay| _underline_| ~fake| _fake|
+- ten
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"
+- zero
+  | one   | two          |        |        |
+  |-------+--------------+--------+--------+
+  | three | four         |        |        |
+  | five  | six          | seven  |        |
+  | eight |              |        |        |
+  |-------+--------------+--------+--------+
+  | swagg | long the     |        |        |
+  | okay  |  _underline_ |  ~fake |  _fake |
+- ten
+"
+        );
 
         Ok(())
     }
