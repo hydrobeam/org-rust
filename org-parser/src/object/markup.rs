@@ -1,7 +1,7 @@
 use crate::constants::{EQUAL, NEWLINE, TILDE};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
 
 #[derive(Debug, Clone)]
@@ -45,36 +45,33 @@ macro_rules! recursive_markup {
                 loop {
                     match parse_object(parser, cursor, parent, parse_opts) {
                         Ok(id) => {
-                            let node = &parser.pool[id];
-                            cursor.move_to(node.end);
-                            if let Expr::MarkupEnd(leaf) = node.obj {
-                                if leaf.contains(MarkupKind::$name) && cursor.index > start + 2
-                                // prevent ** from being Bold{}
-                                {
-                                    // TODO: abstract this?
-                                    let new_id = parser.pool.reserve_id();
-                                    for id in content_vec.iter_mut() {
-                                        parser.pool[*id].parent = Some(new_id)
-                                    }
-                                    // we can't just get the next ID because alloc_with_id assumes the node is safe to mutate
-                                    // and we can't access an index beyond the len of the list.
-                                    return Ok(parser.alloc_with_id(
-                                        Self(content_vec),
-                                        start,
-                                        cursor.index,
-                                        parent,
-                                        new_id,
-                                    ));
-                                } else {
-                                    return Err(MatchError::InvalidLogic);
-                                }
-                            } else {
-                                content_vec.push(id);
-                            }
+                            cursor.index = (parser.pool[id].end);
+                            content_vec.push(id);
                         }
-                        Err(_) => {
-                            return Err(MatchError::InvalidLogic);
-                            // cache and explode
+                        Err(MatchError::MarkupEnd(kind)) => {
+                            if !kind.contains(MarkupKind::$name) || cursor.index < start + 2
+                            // prevent ** from being Bold{}
+                            {
+                                return Err(MatchError::InvalidLogic);
+                            }
+
+                            // the markup is going to exist,
+                            // so update the children's parents
+                            let new_id = parser.pool.reserve_id();
+                            for id in content_vec.iter_mut() {
+                                parser.pool[*id].parent = Some(new_id)
+                            }
+
+                            return Ok(parser.alloc_with_id(
+                                Self(content_vec),
+                                start,
+                                cursor.index + 1,
+                                parent,
+                                new_id,
+                            ));
+                        }
+                        ret @ Err(_) => {
+                            return ret;
                         }
                     }
                 }
@@ -112,7 +109,11 @@ macro_rules! plain_markup {
                                 && verify_markup(cursor, true) {
                                 break;
                             } else {
-                                    return Err(MatchError::InvalidLogic);
+                                // FIXME: doesn't handle link end.
+                                // [[___][~abc ] amc~ ]]
+                                // won't make one cohesive code object, the rbrack will
+                                // kill it
+                                return Err(MatchError::MarkupEnd(chr.into()));
                             }
                         }
                         NEWLINE => {
@@ -122,9 +123,7 @@ macro_rules! plain_markup {
                                 Err(MatchError::InvalidLogic) => {
                                     cursor.next();
                                 }
-                                Err(MatchError::EofError) => return Err(MatchError::EofError),
-                                Err(MatchError::InvalidIndentation) =>
-                                    return Err(MatchError::InvalidIndentation),
+                                ret @ Err(_) => return ret,
                             }
                         }
                         _ => {

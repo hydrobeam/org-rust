@@ -302,7 +302,6 @@ pub enum Expr<'a> {
     SoftBreak,
     // Normal
     Plain(&'a str),
-    MarkupEnd(MarkupKind),
     Verbatim(Verbatim<'a>),
     Code(Code<'a>),
     Comment(Comment<'a>),
@@ -330,6 +329,7 @@ pub(crate) enum MatchError {
     InvalidLogic,
     EofError,
     InvalidIndentation,
+    MarkupEnd(MarkupKind),
 }
 
 impl std::fmt::Display for MatchError {
@@ -340,8 +340,7 @@ impl std::fmt::Display for MatchError {
 
 bitflags! {
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-    // TODO: make Expr::MarkupEnd an Error thing so that this can be private
-    pub struct MarkupKind: u32 {
+    pub(crate) struct MarkupKind: u32 {
         const Italic        = 1 << 0;
         const Bold          = 1 << 1;
         const Underline     = 1 << 2;
@@ -378,6 +377,22 @@ impl MarkupKind {
             EQUAL => self.contains(MarkupKind::Verbatim),
             VBAR => self.contains(MarkupKind::Table),
             _ => false,
+        }
+    }
+}
+
+impl From<u8> for MarkupKind {
+    fn from(value: u8) -> Self {
+        match value {
+            STAR => MarkupKind::Bold,
+            SLASH => MarkupKind::Italic,
+            UNDERSCORE => MarkupKind::Underline,
+            PLUS => MarkupKind::StrikeThrough,
+            RBRACK => MarkupKind::Link,
+            TILDE => MarkupKind::Code,
+            EQUAL => MarkupKind::Verbatim,
+            VBAR => MarkupKind::Table,
+            _ => unreachable!(),
         }
     }
 }
@@ -510,7 +525,6 @@ impl<'a> Expr<'a> {
             Expr::BlankLine => print!("BlankLine"),
             Expr::SoftBreak => print!("SoftBreak"),
             Expr::Plain(inner) => print!("{inner:#?}"),
-            Expr::MarkupEnd(inner) => print!("{inner:#?}"),
             Expr::Verbatim(inner) => print!("{inner:#?}"),
             Expr::Code(inner) => print!("{inner:#?}"),
             Expr::Comment(inner) => print!("{inner:#?}"),
@@ -585,7 +599,6 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
                 Expr::Plain(inner) => f.write_fmt(format_args!("{inner:#?}")),
-                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Code(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Comment(inner) => f.write_fmt(format_args!("{inner:#?}")),
@@ -617,7 +630,6 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
                 Expr::Plain(inner) => f.write_fmt(format_args!("{inner:?}")),
-                Expr::MarkupEnd(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Code(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Comment(inner) => f.write_fmt(format_args!("{inner:?}")),

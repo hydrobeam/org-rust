@@ -28,7 +28,7 @@ pub(crate) fn parse_element<'a>(
     // means a newline checking thing called this, and newline breaks all
     // table rows
     if parse_opts.markup.contains(MarkupKind::Table) {
-        return Ok(parser.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
+        return Err(MatchError::MarkupEnd(MarkupKind::Table));
     }
 
     // indentation check
@@ -140,12 +140,7 @@ macro_rules! handle_markup {
             // None parent cause this
             // FIXME: we allocate in the pool for "marker" return types,,
             if verify_markup($cursor, true) {
-                return Ok($parser.alloc(
-                    MarkupKind::$name,
-                    $cursor.index,
-                    $cursor.index + 1,
-                    None,
-                ));
+                return Err(MatchError::MarkupEnd(MarkupKind::$name));
             } else {
                 return Err(MatchError::InvalidLogic);
             }
@@ -201,12 +196,7 @@ pub(crate) fn parse_object<'a>(
                 // FIXME: we allocate in the pool for "marker" return types,,
                 if let Ok(byte) = cursor.peek(1) {
                     if byte == RBRACK {
-                        return Ok(parser.alloc(
-                            MarkupKind::Link,
-                            cursor.index,
-                            cursor.index + 2,
-                            None,
-                        ));
+                        return Err(MatchError::MarkupEnd(MarkupKind::Link));
                     }
                 }
             }
@@ -240,9 +230,10 @@ pub(crate) fn parse_object<'a>(
                 }
                 // EofError isn't exactly the right error for the Ok(_) case
                 // but we do it to send a signal to `parse_text` to stop collecting:
-                // it catches on EofError
+                // it keeps collecting while eating InvalidLogic
                 Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
-                Err(MatchError::InvalidIndentation) => return Err(MatchError::InvalidIndentation),
+                // propogate the error backup
+                ret @ Err(_) => return ret,
             }
         }
         LANGLE => {
@@ -252,7 +243,7 @@ pub(crate) fn parse_object<'a>(
         }
         VBAR => {
             if parse_opts.markup.contains(MarkupKind::Table) {
-                return Ok(parser.alloc(MarkupKind::Table, cursor.index, cursor.index + 1, None));
+                return Err(MatchError::MarkupEnd(MarkupKind::Table));
             }
         }
         _ => {}

@@ -5,7 +5,7 @@ use crate::constants::{
 };
 use crate::node_pool::NodeID;
 use crate::parse::parse_object;
-use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
 const ORG_LINK_PARAMETERS: [&'static str; 9] = [
@@ -142,35 +142,40 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         parse_opts.markup.insert(MarkupKind::Link);
 
                         let mut content_vec: Vec<NodeID> = Vec::new();
-                        while let Ok(id) = parse_object(parser, cursor, parent, parse_opts) {
-                            cursor.index = parser.pool[id].end;
-                            if let Expr::MarkupEnd(leaf) = parser.pool[id].obj {
-                                if !leaf.contains(MarkupKind::Link) {
-                                    // TODO: cache and explode
-                                    return Err(MatchError::InvalidLogic);
+                        loop {
+                            match parse_object(parser, cursor, parent, parse_opts) {
+                                Ok(id) => {
+                                    cursor.index = parser.pool[id].end;
+                                    content_vec.push(id);
                                 }
+                                Err(MatchError::MarkupEnd(kind)) => {
+                                    if !kind.contains(MarkupKind::Link) {
+                                        // TODO: cache and explode
+                                        return Err(MatchError::InvalidLogic);
+                                    }
 
-                                let pathreg =
-                                    PathReg::new(cursor.clamp_off(start + 2, path_reg_end));
+                                    let pathreg =
+                                        PathReg::new(cursor.clamp_off(start + 2, path_reg_end));
 
-                                // set parents of children
-                                // TODO: abstract this? stolen from markup.rs
-                                let new_id = parser.pool.reserve_id();
-                                for id in content_vec.iter_mut() {
-                                    parser.pool[*id].parent = Some(new_id)
+                                    // set parents of children
+                                    // TODO: abstract this? stolen from markup.rs
+                                    let new_id = parser.pool.reserve_id();
+                                    for id in content_vec.iter_mut() {
+                                        parser.pool[*id].parent = Some(new_id)
+                                    }
+
+                                    return Ok(parser.alloc_with_id(
+                                        Self {
+                                            path: pathreg,
+                                            description: Some(content_vec),
+                                        },
+                                        start,
+                                        cursor.index + 2, // link end is 2 bytes long
+                                        parent,
+                                        new_id,
+                                    ));
                                 }
-                                return Ok(parser.alloc_with_id(
-                                    Self {
-                                        path: pathreg,
-                                        description: Some(content_vec),
-                                    },
-                                    start,
-                                    cursor.index,
-                                    parent,
-                                    new_id,
-                                ));
-                            } else {
-                                content_vec.push(id);
+                                ret @ Err(_) => return ret,
                             }
                         }
                     } else if RBRACK == cursor.peek(1)? {

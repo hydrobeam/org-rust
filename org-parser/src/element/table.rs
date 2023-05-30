@@ -120,12 +120,23 @@ impl<'a> Parseable<'a> for TableCell {
         let start = cursor.index;
 
         let mut content_vec: Vec<NodeID> = Vec::new();
-        while let Ok(id) = parse_object(parser, cursor, parent, parse_opts) {
-            cursor.index = parser.pool[id].end;
-            if let Expr::MarkupEnd(MarkupKind::Table) = &parser.pool[id].obj {
-                break;
-            } else {
-                content_vec.push(id);
+        loop {
+            match parse_object(parser, cursor, parent, parse_opts) {
+                Ok(id) => {
+                    cursor.index = parser.pool[id].end;
+                    content_vec.push(id);
+                }
+                Err(MatchError::MarkupEnd(kind)) => {
+                    // table cells can end on both a vbar and a newline
+                    // a newline indicates the start of the next row
+                    // we can't skip past it so that tablerow
+                    // has a signal to know when it ends (a table cell ending in a newline)
+                    if cursor.curr() != NEWLINE {
+                        cursor.next();
+                    }
+                    break;
+                }
+                Err(_) => break,
             }
         }
 
@@ -164,7 +175,6 @@ mod tests {
         let input = r"
 |one|two|
 |three|four|
-
 ";
         let pool = parse_org(input);
 

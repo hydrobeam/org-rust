@@ -194,9 +194,6 @@ impl<'a> Exporter<'a> for Org<'a> {
             Expr::Plain(inner) => {
                 self.write(buf, &format!("{inner}"))?;
             }
-            Expr::MarkupEnd(_inner) => {
-                unreachable!()
-            }
             Expr::Verbatim(inner) => {
                 self.write(buf, &format!("={}=", inner.0))?;
             }
@@ -451,25 +448,35 @@ three *four*
         Ok(())
     }
 
-    //     #[test]
-    //     fn test_list_export() -> Result {
-    //         let mut out = String::new();
-    //         export_org(
-    //             r"
-    // + one two three
-    // four five six
+    #[test]
+    fn fancy_list_export() -> Result {
+        let a = Org::export(
+            r"
+    + one two three
+    four five six
 
-    //    + two
-    // + three
-    // + four
-    // +five
-    // ",
-    //             &mut out,
-    //         )?;
+       + two
+    + three
+    + four
+    +five
+",
+        )?;
 
-    //         println!("{out}");
-    //         Ok(())
-    //     }
+        assert_eq!(
+            a,
+            r"
+- one two three
+four five six
+
+- two
+- three
+- four
++five
+"
+        );
+
+        Ok(())
+    }
 
     #[test]
     fn test_link_export() -> Result {
@@ -791,6 +798,7 @@ more content here this is a pargraph
 ",
         )?;
 
+        println!("{a}");
         assert_eq!(
             a,
             r"
