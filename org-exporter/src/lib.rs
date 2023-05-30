@@ -11,27 +11,30 @@ use org_parser::parse_org;
 use org_parser::types::Expr;
 use types::Exporter;
 
-pub struct Org<'a, T: fmt::Write> {
-    buf: T,
+pub struct Org<'a, 'buf> {
+    buf: &'buf mut dyn fmt::Write,
     pool: NodePool<'a>,
     indentation_level: u8,
     on_newline: bool,
+    table_len: u32,
 }
 
-impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
+impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
+        let mut buf = String::new();
         let mut obj = Org {
-            buf: String::new(),
+            buf: &mut buf,
             pool: parse_org(input),
             indentation_level: 0,
             on_newline: false,
+            table_len: 0,
         };
 
         obj.export_rec(&obj.pool.root_id())?;
-        Ok(obj.buf)
+        Ok(buf)
     }
 
-    fn export_buf<'inp, 'buf>(
+    fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
@@ -40,10 +43,11 @@ impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
             pool: parse_org(input),
             indentation_level: 0,
             on_newline: false,
+            table_len: 0,
         };
 
         obj.export_rec(&obj.pool.root_id())?;
-        Ok(obj.buf)
+        Ok(buf)
     }
 
     fn export_rec(&mut self, node_id: &NodeID) -> Result {
@@ -102,7 +106,7 @@ impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
                         match tag {
                             Tag::Raw(val) => write!(valid_out, ":{val}")?,
                             Tag::Loc(id) => {
-                                // tag_search(*id, pool, &mut valid_out)?;
+                                // do nothing with it
                             }
                         }
                     }
@@ -317,7 +321,7 @@ impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
         Ok(())
     }
 
-    fn buf(&mut self) -> &mut T {
+    fn buf(&mut self) -> &mut dyn fmt::Write {
         &mut self.buf
     }
 
@@ -326,7 +330,7 @@ impl<'a, T: fmt::Write> Exporter<'a, T> for Org<'a, T> {
     }
 }
 
-impl<'a, T: fmt::Write> Write for Org<'a, T> {
+impl<'a, 'buf> Write for Org<'a, 'buf> {
     fn write_str(&mut self, s: &str) -> Result {
         if self.indentation_level > 0 {
             for chunk in s.split_inclusive('\n') {
@@ -571,7 +575,7 @@ more content here this is a pargraph
 
     #[test]
     fn list_export() -> Result {
-        let a = Org::<String>::export(
+        let a = Org::export(
             r"
 - one
   - two
@@ -602,7 +606,7 @@ more content here this is a pargraph
 
     #[test]
     fn basic_list_export() -> Result {
-        let a = Org::<String>::export(
+        let a = Org::export(
             r"
 - one
   - two
@@ -635,7 +639,8 @@ more content here this is a pargraph
 
     #[test]
     fn list_words() -> Result {
-        let a = Org::<String>::export(
+        let b = Org::export_buf("ine", &mut String::new())?;
+        let a: String = Org::export(
             r"
 1. item 1
    abcdef
@@ -650,23 +655,25 @@ more content here this is a pargraph
 ",
         )?;
 
+        println!("{a}");
+
         // TODO: whitespace handling is super janky atm.
         // can't even test output properly caudse whitespace is inserted into
         // blanklines, and emacs removes trailing whitespace
 
-//         assert_eq!(
-//             a,
-//             r"
+        //         assert_eq!(
+        //             a,
+        //             r"
 
-// 1. item 1    abcdef
+        // 1. item 1    abcdef
 
-//   next one two three four five
+        //   next one two three four five
 
-//   more thangs more thangs more thangs    more thangs
-// 2. [X] item 2
-//   - aome tag :: item 2.1
-// "
-//         );
+        //   more thangs more thangs more thangs    more thangs
+        // 2. [X] item 2
+        //   - aome tag :: item 2.1
+        // "
+        //         );
 
         Ok(())
     }
