@@ -85,7 +85,6 @@ pub(crate) fn parse_element<'a>(
         }
     }
 
-
     match cursor.curr() {
         STAR => {
             // parse_opts, (doesn't totally matter to use the default vs preloaded,

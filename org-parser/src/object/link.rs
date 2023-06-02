@@ -44,6 +44,12 @@ pub struct PlainLink<'a> {
     pub path: &'a str,
 }
 
+impl From<PlainLink<'_>> for String {
+    fn from(value: PlainLink) -> Self {
+        format!("{}:{}", value.protocol, value.path)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum PathReg<'a> {
     PlainLink(PlainLink<'a>),
@@ -350,7 +356,7 @@ mod tests {
     fn basic_plain_link() {
         let input = "https://swag.org";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -358,7 +364,7 @@ mod tests {
         // http and https are protocols
         let input = "http://swag.org";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -366,7 +372,7 @@ mod tests {
         // http and https are protocols
         let input = "  mailto:swag@cool.com   ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -374,7 +380,7 @@ mod tests {
         // http and https are protocols
         let input = "  https://one_two_three_https______..............~~~!   ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -382,7 +388,7 @@ mod tests {
         // http and https are protocols
         let input = "  https://one_two_three_https______/..............~~~!   ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -390,14 +396,14 @@ mod tests {
         // http and https are protocols
         let input = "  <https://one two  !!@#!OIO DJDFK Jk> ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
     fn basic_regular_link() {
-        let input = "[[https://meow.org]]";
+        let input = "[[hps://.org]]";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -407,27 +413,27 @@ word
 [#A]
 ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
     fn regular_link_description() {
         let input = " [[https://meo][cool site]]";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
     fn regular_link_unclosed_recursive_markup() {
         let input = " [[https://meo][cool *site* ~one two~ three *four ]]";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
     fn regular_link_unclosed_plain_markup() {
         let input = " [[https://meo][cool *site* ~one two~ three *four ~five six ]]";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 }

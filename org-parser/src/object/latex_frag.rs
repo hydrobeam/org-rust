@@ -229,7 +229,7 @@ mod tests {
 
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -238,7 +238,7 @@ mod tests {
 
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
         let inp = r"$$abc$$";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
         let inp = r"$abc$";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -262,7 +262,7 @@ mod tests {
         let inp = r"$c$";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod tests {
         let inp = r"$,$";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -278,14 +278,14 @@ mod tests {
         let inp = r"\command{swag}";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
     #[test]
     fn latex_frag_command_2() {
         let inp = r"\command[swag]";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
         let inp = r"\command no command!";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -302,7 +302,7 @@ mod tests {
         let inp = r"\) not a command";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -312,7 +312,7 @@ mod tests {
 c$";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -322,7 +322,7 @@ c$";
 c$\)";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -335,7 +335,7 @@ ent
 $\)";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -357,7 +357,7 @@ c}
 ";
         let pool = parse_org(inp);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -367,6 +367,6 @@ c}
         let pool = parse_org(input);
 
         dbg!(&pool);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 }

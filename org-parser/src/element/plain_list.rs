@@ -101,7 +101,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -124,7 +124,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -157,7 +157,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -176,7 +176,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -193,7 +193,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -205,7 +205,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -218,7 +218,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -231,7 +231,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -245,7 +245,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -259,7 +259,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -271,7 +271,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -289,7 +289,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -301,6 +301,6 @@ not a list too
 a*
 ";
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 }

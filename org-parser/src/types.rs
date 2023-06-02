@@ -1,5 +1,5 @@
 use derive_more::From;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::ops::Index;
 
@@ -20,9 +20,12 @@ pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 pub type NodeCache = HashMap<usize, NodeID>;
 
-pub(crate) struct Parser<'a> {
+#[derive(Debug)]
+pub struct Parser<'a> {
     pub pool: NodePool<'a>,
-    pub cache: NodeCache,
+    pub(crate) cache: NodeCache,
+    // target names to uuids
+    pub targets: BTreeMap<&'a str, &'a str>,
 }
 
 impl<'a> Parser<'a> {
@@ -66,6 +69,14 @@ impl<'a> Parser<'a> {
         self.pool.alloc_with_id(obj, start, end, parent, target_id);
         self.cache.insert(start, target_id);
         target_id
+    }
+
+    pub fn root(&self) -> &Node {
+        self.pool.root()
+    }
+
+    pub fn print_tree(&self) {
+        self.pool.print_tree();
     }
 }
 

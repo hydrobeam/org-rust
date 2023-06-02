@@ -299,8 +299,8 @@ if let Some(nested) = nest {
 ** headline :tag:meow:
 #+end_quote
 ";
-        let ret = parse_org(inp);
-        ret.root().print_tree(&ret);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
@@ -318,7 +318,7 @@ here is after
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -330,7 +330,7 @@ here is after
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -342,6 +342,6 @@ here is after
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 }

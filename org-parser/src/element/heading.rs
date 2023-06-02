@@ -2,7 +2,7 @@ use crate::constants::{COLON, LBRACK, NEWLINE, POUND, RBRACK, SPACE, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::Match;
+use crate::utils::{bytes_to_str, Match};
 
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
 
@@ -116,14 +116,15 @@ impl<'a> Parseable<'a> for Heading<'a> {
         let mut title_vec: Vec<NodeID> = Vec::new();
         // try to trim whitespace off the beginning and end of the area
         // we're searching
-        let mut ending = tag_match.start;
+        let mut title_end = tag_match.start;
         // >= so a no title situation is "" (blank) (we go one under, then ending + 1
         // brings us back up)
-        while cursor[ending] == SPACE && ending >= cursor.index {
-            ending -= 1;
+        while cursor[title_end] == SPACE && title_end >= cursor.index {
+            title_end -= 1;
         }
-        let mut temp_cursor = cursor.cut_off(ending + 1);
+        let mut temp_cursor = cursor.cut_off(title_end + 1);
         temp_cursor.skip_ws();
+        let title_start = temp_cursor.index;
         while let Ok(title_id) = parse_object(parser, temp_cursor, Some(reserved_id), parse_opts) {
             title_vec.push(title_id);
             temp_cursor.move_to(parser.pool[title_id].end);
@@ -134,6 +135,12 @@ impl<'a> Parseable<'a> for Heading<'a> {
         } else {
             Some(title_vec)
         };
+
+        let title_entry = cursor.clamp(title_start, title_end);
+
+        parser
+            .targets
+            .insert(title_entry, title_entry.split(' ').next().unwrap());
 
         // jump past the newline
         cursor.move_to(tag_match.end);
@@ -446,8 +453,8 @@ more subcontent
 * [#4] separate andy
 ";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
         // dbg!(parse_org(inp));
     }
 }

@@ -10,6 +10,7 @@ mod table;
 
 pub use block::Block;
 pub use block::BlockContents;
+pub use block::BlockKind;
 pub use comment::Comment;
 pub use heading::Heading;
 pub use heading::HeadingLevel;

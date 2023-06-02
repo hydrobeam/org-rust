@@ -197,66 +197,66 @@ mod tests {
     fn markup_recursive_empty() {
         let inp = "**";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
     fn markup_plain_empty() {
         let inp = "~~";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
     fn nested_markup() {
         let inp = "abc /one *two* three/ four";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
     fn leaky_markup() {
         let inp = "abc /one *two thr/ ee* three four";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
     fn mixed_plain_recursive_leaky_markup() {
         let inp = "abc /one ~two thr/ ee~ three four";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
     // #[test]
     // fn
     #[test]
     fn markup_not_fail_on_eof() {
         let inp = "/";
-        let a = parse_org(inp);
+        let pool = parse_org(inp);
 
-        a.root().print_tree(&a);
+        pool.print_tree();
     }
 
     #[test]
     fn markup_plain_single_char() {
         // should be valid
         let inp = "~a~";
-        let a = parse_org(inp);
+        let pool = parse_org(inp);
 
-        a.root().print_tree(&a);
+        pool.print_tree();
     }
 
     #[test]
     fn markup_recursive_single_char() {
         // should be valid
         let inp = "/a/";
-        let a = parse_org(inp);
+        let pool = parse_org(inp);
 
-        a.root().print_tree(&a);
+        pool.print_tree();
     }
 }

@@ -18,7 +18,7 @@ impl<'a> Exporter<'a> for Org<'a> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let mut obj = Org {
-            pool: parse_org(input),
+            pool: parse_org(input).pool,
             indentation_level: 0,
             on_newline: false,
         };
@@ -32,7 +32,7 @@ impl<'a> Exporter<'a> for Org<'a> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let mut obj = Org {
-            pool: parse_org(input),
+            pool: parse_org(input).pool,
             indentation_level: 0,
             on_newline: false,
         };

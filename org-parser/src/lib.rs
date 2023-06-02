@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+use std::collections::{BTreeMap, HashMap};
+
 use node_pool::{NodeID, NodePool};
 use types::{Cursor, Expr, NodeCache, ParseOpts, Parser};
 
@@ -50,7 +52,7 @@ pub(crate) mod constants {
     pub const RPAREN      : u8 = b')';
 }
 
-pub fn parse_org(input: &str) -> NodePool<'_> {
+pub fn parse_org(input: &str) -> Parser<'_> {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
     let mut pool = NodePool::new();
@@ -58,14 +60,18 @@ pub fn parse_org(input: &str) -> NodePool<'_> {
     let mut content_vec: Vec<NodeID> = Vec::new();
 
     let cache = NodeCache::new();
-    let mut parser = Parser { pool, cache };
+    let mut parser = Parser {
+        pool,
+        cache,
+        targets: BTreeMap::new(),
+    };
     while let Ok(id) = parse_element(&mut parser, cursor, Some(parent), parse_opts) {
         content_vec.push(id);
         cursor.move_to(parser.pool[id].end);
     }
     parser.alloc_with_id(Expr::Root(content_vec), 0, cursor.index, None, parent);
 
-    parser.pool
+    parser
 }
 
 #[cfg(test)]
@@ -98,16 +104,16 @@ mod tests {
     fn test_basic_markup() {
         let inp = "hello /italic/ more text after\n";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]
     fn test_newline_in_italic_markup() {
         let inp = "hello /italic \n newline/ more text after\n";
 
-        let a = parse_org(inp);
-        a.root().print_tree(&a);
+        let pool = parse_org(inp);
+        pool.print_tree();
     }
 
     #[test]

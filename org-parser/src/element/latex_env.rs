@@ -166,6 +166,6 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 }

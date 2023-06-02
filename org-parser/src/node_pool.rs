@@ -102,6 +102,10 @@ impl<'a> NodePool<'a> {
         &self.inner_vec[0]
     }
 
+    pub fn print_tree(&self) {
+        self.inner_vec[0].print_tree(&self);
+    }
+
     pub fn root_id(&self) -> NodeID {
         NodeID(0)
     }

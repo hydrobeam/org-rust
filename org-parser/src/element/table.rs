@@ -88,6 +88,7 @@ impl<'a> Parseable<'a> for TableRow {
                 .pool
                 .alloc(Self::Rule, start, cursor.index + 1, parent));
         }
+
         // skip VBAR
         cursor.next();
 
@@ -178,7 +179,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -189,7 +190,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -201,7 +202,7 @@ mod tests {
 |three|four|";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -213,7 +214,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -226,7 +227,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -237,7 +238,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -248,7 +249,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     /// test that alignment spaces are removed
@@ -261,7 +262,7 @@ mod tests {
 
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -273,7 +274,7 @@ mod tests {
 
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -288,7 +289,7 @@ word
 ";
 
         let pool = parse_org(input);
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
 
     #[test]
@@ -304,6 +305,16 @@ word
 
         let pool = parse_org(input);
 
-        pool.root().print_tree(&pool);
+        pool.print_tree();
     }
+
+    // #[test]
+    // #[should_panic]
+    // fn table_no_start() {
+    //     let input = r"|";
+
+    //     let pool = parse_org(input);
+
+    //     pool.pool.root().print_tree(&pool);
+    // }
 }
