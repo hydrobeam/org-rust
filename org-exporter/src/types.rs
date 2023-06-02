@@ -2,7 +2,7 @@ use core::fmt;
 
 use org_parser::node_pool::{NodeID, NodePool};
 
-pub(crate) trait Exporter<'a> {
+pub trait Exporter<'a> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error>;
     fn export_buf<'inp, 'buf, T: fmt::Write>(
         input: &'inp str,

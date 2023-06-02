@@ -6,4 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+latex2mathml = "0.2.3"
 org-parser = { path = "../org-parser" }
