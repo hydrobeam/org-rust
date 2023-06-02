@@ -850,4 +850,51 @@ more content here this is a pargraph
 
         Ok(())
     }
+
+    #[test]
+    fn proper_list_indent() -> Result {
+        let a = Org::export(
+            r"
+- one
+- four
+  - one
+  - two
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"
+- one
+- four
+  - one
+  - two
+"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn heading_list_not() -> Result {
+        let a = Org::export(
+            r"
+- one
+- four
+* one
+",
+        )?;
+
+        // make sure * one is not interpreted as another element of the list,
+        // instead as a separate heading (if it was another element, we'd have three -'s
+        // )
+        assert_eq!(
+            a,
+            r"
+- one
+- four
+* one
+"
+        );
+        Ok(())
+    }
 }

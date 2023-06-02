@@ -32,8 +32,6 @@ impl<'a> Parseable<'a> for PlainList {
         // prevents nested lists from adding unecessary levels of indentation
         let start = cursor.index;
 
-        parse_opts.from_paragraph = false;
-
         if !parse_opts.from_list {
             parse_opts.indentation_level += 1;
             parse_opts.from_list = true;
@@ -290,6 +288,18 @@ not a list too
    - aome tag :: item 2.1
 ";
 
+        let pool = parse_org(input);
+        pool.root().print_tree(&pool);
+    }
+
+    #[test]
+    fn combined_list() {
+        let input = r"
+- zero
+- one
+
+a*
+";
         let pool = parse_org(input);
         pool.root().print_tree(&pool);
     }

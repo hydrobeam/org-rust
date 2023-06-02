@@ -56,11 +56,26 @@ pub(crate) fn parse_element<'a>(
     // the min indentation level is 0, if it manages to be less than parse_opts' indentation
     // level then we're in a list
 
+    cursor.move_to(indented_loc);
+    if let Some(id) = parser.cache.get(&cursor.index) {
+        return Ok(*id);
+    }
+
+    // let elements have child paragraph elements when they propogate,
+    // from_paragraph is only to prevent recursing into a paragraph
+    // TODO: less weird to express this maybe..?
+    let mut no_para_opts = parse_opts.clone();
+    no_para_opts.from_paragraph = false;
+    new_opts.from_paragraph = false;
+
+    // for lists: items don't keep track of their indentation level
     if !parse_opts.list_line {
-        if indentation_level + 1 == parse_opts.indentation_level.into() && parse_opts.from_list {
-            if let ret @ Ok(_) =
-                Item::parse(parser, cursor.move_to_copy(indented_loc), parent, new_opts)
-            {
+        if indentation_level + 1 == parse_opts.indentation_level.into()
+            && parse_opts.from_list
+            // stop unindented headings from being lists
+            && !(indentation_level == 0 && cursor.curr() == STAR)
+        {
+            if let ret @ Ok(_) = Item::parse(parser, cursor, parent, new_opts) {
                 return ret;
             } else {
                 return Err(MatchError::InvalidIndentation);
@@ -70,19 +85,13 @@ pub(crate) fn parse_element<'a>(
         }
     }
 
-    cursor.move_to(indented_loc);
-
-    // for lists: items don't keep track of their indentation level
-    if let Some(id) = parser.cache.get(&cursor.index) {
-        return Ok(*id);
-    }
 
     match cursor.curr() {
         STAR => {
             // parse_opts, (doesn't totally matter to use the default vs preloaded,
             // since we account for it, but default makes more sense maybe>?)
             if (indentation_level) > 0 {
-                if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, parse_opts) {
+                if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                     return ret;
                 }
             } else if let ret @ Ok(_) = Heading::parse(parser, cursor, parent, ParseOpts::default())
@@ -100,27 +109,27 @@ pub(crate) fn parse_element<'a>(
                 return ret;
             }
         }
-        chr if chr.is_ascii_digit() => {
+        chr if chr.is_ascii_alphanumeric() => {
             if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
         }
         POUND => {
-            if let ret @ Ok(_) = Keyword::parse(parser, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Keyword::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
-            } else if let ret @ Ok(_) = Block::parse(parser, cursor, parent, parse_opts) {
+            } else if let ret @ Ok(_) = Block::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
-            } else if let ret @ Ok(_) = Comment::parse(parser, cursor, parent, parse_opts) {
+            } else if let ret @ Ok(_) = Comment::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
             }
         }
         BACKSLASH => {
-            if let ret @ Ok(_) = LatexEnv::parse(parser, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = LatexEnv::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
             }
         }
         VBAR => {
-            if let ret @ Ok(_) = Table::parse(parser, cursor, parent, parse_opts) {
+            if let ret @ Ok(_) = Table::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
             }
         }
@@ -212,7 +221,6 @@ pub(crate) fn parse_object<'a>(
             }
         }
         NEWLINE => {
-            parse_opts.from_paragraph = true;
             parse_opts.list_line = false;
             // REVIEW: added to make parsing  a table from a NEWLINE
             // work, not sure if needed elsewhere i.e. why didn't i catch

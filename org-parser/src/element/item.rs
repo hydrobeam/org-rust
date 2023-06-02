@@ -137,9 +137,8 @@ impl BulletKind {
 
                 cursor.index = num_match.end;
 
-                if !(cursor.curr() == PERIOD
-                    || cursor.curr() == RPAREN
-                    || cursor.peek(1)?.is_ascii_whitespace())
+                if !((cursor.curr() == PERIOD || cursor.curr() == RPAREN)
+                    && cursor.peek(1)?.is_ascii_whitespace())
                 {
                     return Err(MatchError::InvalidLogic);
                 }

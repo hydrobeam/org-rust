@@ -120,11 +120,6 @@ impl<'a> Cursor<'a> {
         self
     }
 
-    pub fn move_to_copy(mut self, loc: usize) -> Self {
-        self.index = loc;
-        self
-    }
-
     pub fn next(&mut self) {
         self.index += 1;
     }
