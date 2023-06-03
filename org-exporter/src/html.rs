@@ -98,7 +98,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     write!(self, "<h{heading_number}>")?;
                 }
 
-                write!(self, "</h{heading_number}>")?;
+                writeln!(self, "</h{heading_number}>")?;
 
                 if let Some(children) = &inner.children {
                     for id in children {
@@ -111,7 +111,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
 
                 match inner.kind {
                     BlockKind::Center => {
-                        write!(self, "<div class=center>")?;
+                        writeln!(self, "<div class=center>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -120,16 +120,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
 
-                        write!(self, "</div>")?;
+                        writeln!(self, "</div>")?;
                     }
                     BlockKind::Quote => {
-                        write!(self, "<div class=quote>")?;
+                        writeln!(self, "<div class=quote>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -138,15 +138,15 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</div>")?;
+                        writeln!(self, "</div>")?;
                     }
                     BlockKind::Special(name) => {
-                        write!(self, "<div class={name}>")?;
+                        writeln!(self, "<div class={name}>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -155,16 +155,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</div>")?;
+                        writeln!(self, "</div>")?;
                     }
                     BlockKind::Comment => {}
                     BlockKind::Example => {
-                        write!(self, "<pre class=example>")?;
+                        writeln!(self, "<pre class=example>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -173,15 +173,15 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</pre>")?;
+                        writeln!(self, "</pre>")?;
                     }
                     BlockKind::Export => {
-                        write!(self, "<pre class=example>")?;
+                        writeln!(self, "<pre class=example>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -190,15 +190,15 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</pre>")?;
+                        writeln!(self, "</pre>")?;
                     }
                     BlockKind::Src => {
-                        write!(self, "<pre class=src>")?;
+                        writeln!(self, "<pre class=src>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -207,15 +207,15 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</pre>")?;
+                        writeln!(self, "</pre>")?;
                     }
                     BlockKind::Verse => {
-                        write!(self, "<pre class=src>")?;
+                        writeln!(self, "<pre class=src>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
@@ -224,12 +224,12 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    write!(self, "{cont}")?;
+                                    writeln!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        write!(self, "</pre>")?;
+                        writeln!(self, "</pre>")?;
                     }
                 }
             }
@@ -277,11 +277,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             }
 
             Expr::Paragraph(inner) => {
-                write!(self, "<p>")?;
+                writeln!(self, "<p>")?;
                 for id in &inner.0 {
                     self.export_rec(id)?;
                 }
-                write!(self, "</p>")?;
+                writeln!(self, "\n</p>")?;
             }
 
             Expr::Italic(inner) => {
@@ -354,14 +354,14 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     DisplayStyle::Block,
                 )
                 .unwrap();
-                write!(self, "{ret}")?;
+                writeln!(self, "{ret}")?;
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
                     pot_cont.write_str("\\{name}")?;
                     if let Some(command_cont) = contents {
-                        pot_cont.write_str("{{{command_cont}}}")?;
+                        write!(pot_cont, "{{{command_cont}}}")?;
                     }
                     write!(
                         self,
@@ -371,7 +371,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     .unwrap();
                 }
                 LatexFragment::Display(inner) => {
-                    write!(
+                    writeln!(
                         self,
                         "{}",
                         &latex_to_mathml(inner, DisplayStyle::Block).unwrap()
@@ -403,44 +403,28 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     "".to_string()
                 };
 
-                match inner.bullet {
-                    BulletKind::Unordered => {
-                        write!(self, "<li{class_val}{tag_val}>")?;
-                    }
-                    BulletKind::Ordered(_) => {
-                        write!(self, "<li{class_val}{tag_val}>")?;
-                    }
-
-                    // match counterkind {
-                    //     CounterKind::Letter(lettre) => {
-                    //         write!(self, "{}.", lettre as char)?;
-                    //     }
-                    //     CounterKind::Number(num) => {
-                    //         write!(self, "{num}.")?;
-                    //     }
-                    // },
-                }
+                write!(self, "<li{class_val}{tag_val}>")?;
 
                 for id in &inner.children {
                     self.export_rec(id)?;
                 }
 
-                write!(self, "</li>")?;
+                writeln!(self, "</li>")?;
             }
             Expr::PlainList(inner) => match inner.kind {
                 ListKind::Unordered | ListKind::Descriptive => {
-                    write!(self, "<ul>")?;
+                    writeln!(self, "<ul>")?;
                     for id in &inner.children {
                         self.export_rec(id)?;
                     }
-                    write!(self, "</ul>")?;
+                    writeln!(self, "</ul>")?;
                 }
                 ListKind::Ordered(_) => {
-                    write!(self, "<ol>")?;
+                    writeln!(self, "<ol>")?;
                     for id in &inner.children {
                         self.export_rec(id)?;
                     }
-                    write!(self, "</ol>")?;
+                    writeln!(self, "</ol>")?;
                 }
             },
             Expr::PlainLink(inner) => {
@@ -450,13 +434,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Table(inner) => {
-                write!(self, "<table>")?;
+                writeln!(self, "<table>")?;
 
                 for id in &inner.children {
                     self.export_rec(id)?;
                 }
 
-                write!(self, "</table>")?;
+                writeln!(self, "</table>")?;
             }
 
             Expr::TableRow(inner) => {
@@ -467,7 +451,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                         for id in stands.iter() {
                             self.export_rec(id)?;
                         }
-                        write!(self, "</tr>")?;
+                        writeln!(self, "</tr>")?;
                     }
                 }
             }
@@ -476,7 +460,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 for id in &inner.0 {
                     self.export_rec(id)?;
                 }
-                write!(self, "</td>")?;
+                writeln!(self, "</td>")?;
             }
         }
 
