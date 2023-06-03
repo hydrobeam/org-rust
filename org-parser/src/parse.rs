@@ -1,6 +1,6 @@
 use crate::constants::{
-    BACKSLASH, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH, STAR,
-    TILDE, UNDERSCORE, VBAR,
+    BACKSLASH, COLON, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH,
+    STAR, TILDE, UNDERSCORE, VBAR,
 };
 use crate::node_pool::NodeID;
 
@@ -8,7 +8,7 @@ use crate::element::{
     Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Italic, LatexFragment, RegularLink,
+    parse_angle_link, parse_plain_link, Bold, Code, Emoji, Italic, LatexFragment, RegularLink,
     StrikeThrough, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
@@ -251,6 +251,11 @@ pub(crate) fn parse_object<'a>(
         VBAR => {
             if parse_opts.markup.contains(MarkupKind::Table) {
                 return Err(MatchError::MarkupEnd(MarkupKind::Table));
+            }
+        }
+        COLON => {
+            if let ret @ Ok(_) = Emoji::parse(parser, cursor, parent, parse_opts) {
+                return ret;
             }
         }
         _ => {}

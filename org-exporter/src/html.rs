@@ -348,7 +348,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::LatexEnv(inner) => {
                 let ret = latex_to_mathml(
                     &format!(
-                        "\\begin{{{0}}}\n{1}\n\\end{{{0}}}\n",
+                        r"\begin{{{0}}}
+{1}
+\end{{{0}}}
+",
                         inner.name, inner.contents
                     ),
                     DisplayStyle::Block,
@@ -461,6 +464,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     self.export_rec(id)?;
                 }
                 writeln!(self, "</td>")?;
+            }
+            Expr::Emoji(inner) => {
+                write!(self, "{}", inner.mapped_item)?;
             }
         }
 

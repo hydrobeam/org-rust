@@ -11,7 +11,7 @@ use crate::element::{
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
     Bold, Code, Entity, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink, StrikeThrough,
-    Underline, Verbatim,
+    Underline, Verbatim, Emoji,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -317,6 +317,7 @@ pub enum Expr<'a> {
     LatexFragment(LatexFragment<'a>),
     PlainLink(PlainLink<'a>),
     Entity(Entity<'a>),
+    Emoji(Emoji<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -573,6 +574,7 @@ impl<'a> Expr<'a> {
                 }
                 print!("|");
             }
+            Expr::Emoji(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -615,6 +617,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Table(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -645,6 +648,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Table(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

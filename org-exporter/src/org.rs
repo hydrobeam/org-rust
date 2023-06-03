@@ -6,6 +6,7 @@ use std::fmt::Write;
 use crate::types::Exporter;
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::{NodeID, NodePool};
+use org_parser::object::Emoji;
 use org_parser::object::LatexFragment;
 use org_parser::parse_org;
 use org_parser::types::Expr;
@@ -221,22 +222,25 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             Expr::LatexEnv(inner) => {
                 write!(
                     self,
-                    "\\begin{{{0}}}\n{1}\n\\end{{{0}}}\n",
+                    r"\begin{{{0}}}
+{1}
+\end{{{0}}}
+",
                     inner.name, inner.contents
                 )?;
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
-                    write!(self, "\\{name}")?;
+                    write!(self, r"\{name}")?;
                     if let Some(command_cont) = contents {
                         write!(self, "{{{command_cont}}}")?;
                     }
                 }
                 LatexFragment::Display(inner) => {
-                    write!(self, "\\[{inner}\\]")?;
+                    write!(self, r"\[{inner}\]")?;
                 }
                 LatexFragment::Inline(inner) => {
-                    write!(self, "\\({inner}\\)")?;
+                    write!(self, r"\({inner}\)")?;
                 }
             },
             Expr::Item(inner) => {
@@ -393,6 +397,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 for id in &inner.0 {
                     self.export_rec(id)?;
                 }
+            }
+            Expr::Emoji(inner) => {
+                write!(self, "{}", inner.mapped_item)?;
             }
         }
 
