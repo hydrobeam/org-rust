@@ -70,7 +70,7 @@ impl<'a> Exporter<'a> for Org<'a> {
                 }
 
                 if let Some(title) = &inner.title {
-                    for id in title {
+                    for id in &title.1 {
                         self.export_rec(id, buf)?;
                     }
                 }
@@ -893,6 +893,30 @@ more content here this is a pargraph
 - one
 - four
 * one
+"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn proper_link() -> Result {
+        let a = Org::export(r"[[abc][one]]")?;
+
+        assert_eq!(
+            a,
+            r"[[abc][one]]
+"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn link_odd() -> Result {
+        let a = Org::export("[aayyyy][one]]")?;
+        assert_eq!(
+            a,
+            r"[aayyyy][one]]
 "
         );
         Ok(())

@@ -79,14 +79,25 @@ impl<'a> Exporter<'a> for Html<'a> {
             }
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
-                self.write(buf, &format!("<h{}>", heading_number))?;
 
                 if let Some(title) = &inner.title {
-                    for id in title {
+                    self.write(
+                        buf,
+                        &format!(
+                            "<h{heading_number} id={}>",
+                            self.targets.get(title.0).unwrap(),
+                        ),
+                    )?;
+                    for id in &title.1 {
                         self.export_rec(id, buf)?;
                     }
+
+                    // must exist if we are a heading
+                } else {
+                    self.write(buf, &format!("<h{heading_number}>"))?;
                 }
-                self.write(buf, &format!("</h{}>", heading_number))?;
+
+                self.write(buf, &format!("</h{heading_number}>"))?;
 
                 if let Some(children) = &inner.children {
                     for id in children {
@@ -112,7 +123,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
 
                         self.write(buf, "</div>")?;
                     }
@@ -130,7 +141,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</div>")?;
                     }
                     BlockKind::Special(name) => {
@@ -147,7 +158,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</div>")?;
                     }
                     BlockKind::Comment => {}
@@ -165,7 +176,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</pre>")?;
                     }
                     BlockKind::Export => {
@@ -182,7 +193,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</pre>")?;
                     }
                     BlockKind::Src => {
@@ -199,7 +210,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</pre>")?;
                     }
                     BlockKind::Verse => {
@@ -216,7 +227,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                                 }
                             };
                             Ok(())
-                        }();
+                        }()?;
                         self.write(buf, "</pre>")?;
                     }
                 }
@@ -231,7 +242,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                         let mut rita = String::new();
                         for (match_targ, ret) in self.targets.iter() {
                             if match_targ.starts_with(a) {
-                                rita = ret.to_string();
+                                rita = format!("#{}", ret.to_string());
                                 break;
                             }
                         }
@@ -248,6 +259,20 @@ impl<'a> Exporter<'a> for Html<'a> {
                     for id in children {
                         self.export_rec(id, buf)?;
                     }
+                } else {
+                    self.write(
+                        buf,
+                        &format!(
+                            "{}",
+                            match inner.path {
+                                PathReg::PlainLink(a) => a.into(),
+                                PathReg::Id(a) => format!("{a}"),
+                                PathReg::CustomId(a) => format!("{a}"),
+                                PathReg::Coderef(_) => todo!(),
+                                PathReg::Unspecified(a) => format!("{a}"),
+                            }
+                        ),
+                    )?;
                 }
                 self.write(buf, "</a>")?;
             }
@@ -460,4 +485,8 @@ impl<'a> Exporter<'a> for Html<'a> {
     fn write(&mut self, buf: &mut dyn fmt::Write, s: &str) -> fmt::Result {
         buf.write_str(s)
     }
+}
+
+mod tests {
+    use super::*;
 }

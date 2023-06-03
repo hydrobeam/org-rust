@@ -442,7 +442,7 @@ impl<'a> Expr<'a> {
                 println!("tags: {:#?}", inner.tags);
                 print!("title: ");
                 if let Some(title) = &inner.title {
-                    for id in title {
+                    for id in &title.1 {
                         pool[*id].obj.print_tree(pool);
                     }
                 }

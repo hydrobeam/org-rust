@@ -13,7 +13,7 @@ pub struct Heading<'a> {
     // Org-Todo type stuff
     pub keyword: Option<&'a str>,
     pub priority: Option<Priority>,
-    pub title: Option<Vec<NodeID>>,
+    pub title: Option<(&'a str, Vec<NodeID>)>,
     pub tags: Option<Vec<Tag<'a>>>,
     pub children: Option<Vec<NodeID>>,
 }
@@ -130,17 +130,17 @@ impl<'a> Parseable<'a> for Heading<'a> {
             temp_cursor.move_to(parser.pool[title_id].end);
         }
 
+        let title_entry = cursor.clamp(title_start, title_end);
+
         let title = if title_vec.is_empty() {
             None
         } else {
-            Some(title_vec)
+            Some((title_entry, title_vec))
         };
-
-        let title_entry = cursor.clamp(title_start, title_end);
 
         parser
             .targets
-            .insert(title_entry, title_entry.split(' ').next().unwrap());
+            .insert(title_entry, title_entry);
 
         // jump past the newline
         cursor.move_to(tag_match.end);

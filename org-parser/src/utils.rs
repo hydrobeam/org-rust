@@ -49,8 +49,8 @@ pub(crate) fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 
-#[derive(Debug)]
-pub(crate) struct Match<T> {
+#[derive(Debug, Clone)]
+pub struct Match<T> {
     pub start: usize,
     pub end: usize,
     pub obj: T,

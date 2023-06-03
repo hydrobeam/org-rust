@@ -91,7 +91,7 @@ impl<'a> PathReg<'a> {
             }
         }
         // unspecified
-        return PathReg::Unspecified(cursor.clamp_forwards(cursor.len() - 1));
+        return PathReg::Unspecified(cursor.clamp_forwards(cursor.len()));
     }
 
     fn parse_id(mut cursor: Cursor<'a>) -> Result<&'a str> {
@@ -123,7 +123,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
     ) -> Result<NodeID> {
         let start = cursor.index;
 
-        if cursor.curr() != LBRACK && cursor.peek(1)? != LBRACK {
+        if cursor.curr() != LBRACK || cursor.peek(1)? != LBRACK {
             return Err(MatchError::InvalidLogic);
         }
         cursor.advance(2);
@@ -436,4 +436,5 @@ word
         let pool = parse_org(input);
         pool.print_tree();
     }
+
 }
