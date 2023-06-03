@@ -138,9 +138,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some((title_entry, title_vec))
         };
 
-        parser
-            .targets
-            .insert(title_entry, title_entry);
+        parser.targets.insert(title_entry, title_entry);
 
         // jump past the newline
         cursor.move_to(tag_match.end);

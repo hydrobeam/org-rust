@@ -15,40 +15,43 @@ use org_parser::object::{LatexFragment, PathReg};
 use org_parser::parse_org;
 use org_parser::types::Expr;
 
-pub struct Html<'a> {
-    pool: NodePool<'a>,
-    targets: BTreeMap<&'a str, &'a str>,
+pub struct Html<'a, 'buf> {
+    buf: &'buf mut dyn fmt::Write,
+    pool: &'a NodePool<'a>,
+    targets: &'a BTreeMap<&'a str, &'a str>,
 }
 
-impl<'a> Exporter<'a> for Html<'a> {
+impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let parsed = parse_org(input);
         let mut obj = Html {
-            pool: parsed.pool,
-            targets: parsed.targets,
+            buf: &mut buf,
+            pool: &parsed.pool,
+            targets: &parsed.targets,
         };
 
-        obj.export_rec(&obj.pool.root_id(), &mut buf)?;
+        obj.export_rec(&obj.pool.root_id())?;
         Ok(buf)
     }
 
-    fn export_buf<'inp, 'buf, T: fmt::Write>(
+    fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = parse_org(input);
         let mut obj = Html {
-            pool: parsed.pool,
-            targets: parsed.targets,
+            buf,
+            pool: &parsed.pool,
+            targets: &parsed.targets,
         };
 
-        obj.export_rec(&obj.pool.root_id(), buf)?;
+        obj.export_rec(&obj.pool.root_id())?;
         Ok(buf)
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, buf: &mut dyn fmt::Write) -> Result {
-        match &self.pool()[*node_id].obj.clone() {
+    fn export_rec(&mut self, node_id: &NodeID) -> Result {
+        match &self.pool[*node_id].obj.clone() {
             Expr::Root(inner) => {
                 //                 self.write(
                 //                     buf,
@@ -65,7 +68,7 @@ impl<'a> Exporter<'a> for Html<'a> {
                 // "#,
                 //                 )?;
                 for id in inner {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
 
                 //                 self.write(
@@ -81,27 +84,25 @@ impl<'a> Exporter<'a> for Html<'a> {
                 let heading_number: u8 = inner.heading_level.into();
 
                 if let Some(title) = &inner.title {
-                    self.write(
-                        buf,
-                        &format!(
-                            "<h{heading_number} id={}>",
-                            self.targets.get(title.0).unwrap(),
-                        ),
+                    write!(
+                        self,
+                        "<h{heading_number} id={}>",
+                        self.targets.get(title.0).unwrap(),
                     )?;
                     for id in &title.1 {
-                        self.export_rec(id, buf)?;
+                        self.export_rec(id)?;
                     }
 
                     // must exist if we are a heading
                 } else {
-                    self.write(buf, &format!("<h{heading_number}>"))?;
+                    write!(self, "<h{heading_number}>")?;
                 }
 
-                self.write(buf, &format!("</h{heading_number}>"))?;
+                write!(self, "</h{heading_number}>")?;
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id, buf)?;
+                        self.export_rec(id)?;
                     }
                 }
             }
@@ -110,125 +111,125 @@ impl<'a> Exporter<'a> for Html<'a> {
 
                 match inner.kind {
                     BlockKind::Center => {
-                        self.write(buf, "<div class=center>")?;
+                        write!(self, "<div class=center>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
 
-                        self.write(buf, "</div>")?;
+                        write!(self, "</div>")?;
                     }
                     BlockKind::Quote => {
-                        self.write(buf, "<div class=quote>")?;
+                        write!(self, "<div class=quote>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</div>")?;
+                        write!(self, "</div>")?;
                     }
                     BlockKind::Special(name) => {
-                        self.write(buf, "<div class={name}>")?;
+                        write!(self, "<div class={name}>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</div>")?;
+                        write!(self, "</div>")?;
                     }
                     BlockKind::Comment => {}
                     BlockKind::Example => {
-                        self.write(buf, "<pre class=example>")?;
+                        write!(self, "<pre class=example>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</pre>")?;
+                        write!(self, "</pre>")?;
                     }
                     BlockKind::Export => {
-                        self.write(buf, "<pre class=example>")?;
+                        write!(self, "<pre class=example>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</pre>")?;
+                        write!(self, "</pre>")?;
                     }
                     BlockKind::Src => {
-                        self.write(buf, "<pre class=src>")?;
+                        write!(self, "<pre class=src>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</pre>")?;
+                        write!(self, "</pre>")?;
                     }
                     BlockKind::Verse => {
-                        self.write(buf, "<pre class=src>")?;
+                        write!(self, "<pre class=src>")?;
                         || -> Result {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id, buf)?;
+                                        self.export_rec(id)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    self.write(buf, cont)?;
+                                    write!(self, "{cont}")?;
                                 }
                             };
                             Ok(())
                         }()?;
-                        self.write(buf, "</pre>")?;
+                        write!(self, "</pre>")?;
                     }
                 }
             }
@@ -253,101 +254,96 @@ impl<'a> Exporter<'a> for Html<'a> {
                         }
                     }
                 };
-                self.write(buf, &format!("<a href={}>", path_link))?;
+                write!(self, "<a href={}>", path_link)?;
 
                 if let Some(children) = &inner.description {
                     for id in children {
-                        self.export_rec(id, buf)?;
+                        self.export_rec(id)?;
                     }
                 } else {
-                    self.write(
-                        buf,
-                        &format!(
-                            "{}",
-                            match inner.path {
-                                PathReg::PlainLink(a) => a.into(),
-                                PathReg::Id(a) => format!("{a}"),
-                                PathReg::CustomId(a) => format!("{a}"),
-                                PathReg::Coderef(_) => todo!(),
-                                PathReg::Unspecified(a) => format!("{a}"),
-                            }
-                        ),
+                    write!(
+                        self,
+                        "{}",
+                        match inner.path {
+                            PathReg::PlainLink(a) => a.into(),
+                            PathReg::Id(a) => format!("{a}"),
+                            PathReg::CustomId(a) => format!("{a}"),
+                            PathReg::Coderef(_) => todo!(),
+                            PathReg::Unspecified(a) => format!("{a}"),
+                        },
                     )?;
                 }
-                self.write(buf, "</a>")?;
+                write!(self, "</a>")?;
             }
 
             Expr::Paragraph(inner) => {
-                self.write(buf, "<p>")?;
+                write!(self, "<p>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</p>")?;
+                write!(self, "</p>")?;
             }
 
             Expr::Italic(inner) => {
-                self.write(buf, "<em>")?;
+                write!(self, "<em>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</em>")?;
+                write!(self, "</em>")?;
             }
             Expr::Bold(inner) => {
-                self.write(buf, "<b>")?;
+                write!(self, "<b>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</b>")?;
+                write!(self, "</b>")?;
             }
             Expr::StrikeThrough(inner) => {
-                self.write(buf, "<del>")?;
+                write!(self, "<del>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</del>")?;
+                write!(self, "</del>")?;
             }
             Expr::Underline(inner) => {
-                self.write(buf, "<u>")?;
+                write!(self, "<u>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</u>")?;
-                // self.write(buf, "<span class=underline>")?;
+                write!(self, "</u>")?;
+                // write!(self, "<span class=underline>")?;
                 // for id in &inner.0 {
-                //     self.export_rec(id, buf)?;
+                //     self.export_rec(id)?;
                 // }
-                // self.write(buf, "</span>")?;
+                // write!(self, "</span>")?;
             }
             Expr::BlankLine => {
-                // self.write(buf, "\n")?;
+                // write!(self, "\n")?;
             }
             Expr::SoftBreak => {
-                self.write(buf, " ")?;
+                write!(self, " ")?;
             }
             Expr::Plain(inner) => {
-                self.write(buf, inner)?;
+                write!(self, "{inner}")?;
             }
             Expr::Verbatim(inner) => {
-                self.write(buf, &format!("<code>{}</code>", inner.0))?;
+                write!(self, "<code>{}</code>", inner.0)?;
             }
             Expr::Code(inner) => {
-                self.write(buf, &format!("<code>{}</code>", inner.0))?;
+                write!(self, "<code>{}</code>", inner.0)?;
             }
             Expr::Comment(inner) => {
-                self.write(buf, &format!("<!--{}-->", inner.0))?;
+                write!(self, "<!--{}-->", inner.0)?;
             }
             Expr::InlineSrc(inner) => {
-                self.write(
-                    buf,
-                    &format!("<code class={}>{}</code>", inner.lang, inner.body),
-                )?;
+                write!(self, "<code class={}>{}</code>", inner.lang, inner.body)?;
                 // if let Some(args) = inner.headers {
-                //     self.write(buf, &format!("[{args}]"))?;
+                //     write!(self, "[{args}]")?;
                 // }
-                // self.write(buf, &format!("{{{}}}", inner.body))?;
+                // write!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
-                // self.write(buf, &format!("#+{}: {}", inner.key, inner.val))?;
+                // write!(self, "#+{}: {}", inner.key, inner.val)?;
             }
             Expr::LatexEnv(inner) => {
                 let ret = latex_to_mathml(
@@ -358,26 +354,35 @@ impl<'a> Exporter<'a> for Html<'a> {
                     DisplayStyle::Block,
                 )
                 .unwrap();
-                self.write(buf, &ret)?;
+                write!(self, "{ret}")?;
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    pot_cont.write_str(&format!("\\{name}"))?;
+                    pot_cont.write_str("\\{name}")?;
                     if let Some(command_cont) = contents {
-                        pot_cont.write_str(&format!("{{{command_cont}}}"))?;
+                        pot_cont.write_str("{{{command_cont}}}")?;
                     }
-                    self.write(
-                        buf,
+                    write!(
+                        self,
+                        "{}",
                         &latex_to_mathml(&pot_cont, DisplayStyle::Inline).unwrap(),
                     )
                     .unwrap();
                 }
                 LatexFragment::Display(inner) => {
-                    self.write(buf, &latex_to_mathml(inner, DisplayStyle::Block).unwrap())?;
+                    write!(
+                        self,
+                        "{}",
+                        &latex_to_mathml(inner, DisplayStyle::Block).unwrap()
+                    )?;
                 }
                 LatexFragment::Inline(inner) => {
-                    self.write(buf, &latex_to_mathml(inner, DisplayStyle::Inline).unwrap())?;
+                    write!(
+                        self,
+                        "{}",
+                        &latex_to_mathml(inner, DisplayStyle::Inline).unwrap()
+                    )?;
                 }
             },
             Expr::Item(inner) => {
@@ -400,90 +405,88 @@ impl<'a> Exporter<'a> for Html<'a> {
 
                 match inner.bullet {
                     BulletKind::Unordered => {
-                        self.write(buf, &format!("<li{class_val}{tag_val}>"))?;
+                        write!(self, "<li{class_val}{tag_val}>")?;
                     }
                     BulletKind::Ordered(_) => {
-                        self.write(buf, &format!("<li{class_val}{tag_val}>"))?;
+                        write!(self, "<li{class_val}{tag_val}>")?;
                     }
 
                     // match counterkind {
                     //     CounterKind::Letter(lettre) => {
-                    //         self.write(buf, &format!("{}.", lettre as char))?;
+                    //         write!(self, "{}.", lettre as char)?;
                     //     }
                     //     CounterKind::Number(num) => {
-                    //         self.write(buf, &format!("{num}."))?;
+                    //         write!(self, "{num}.")?;
                     //     }
                     // },
                 }
 
                 for id in &inner.children {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
 
-                self.write(buf, "</li>")?;
+                write!(self, "</li>")?;
             }
             Expr::PlainList(inner) => match inner.kind {
                 ListKind::Unordered | ListKind::Descriptive => {
-                    self.write(buf, "<ul>")?;
+                    write!(self, "<ul>")?;
                     for id in &inner.children {
-                        self.export_rec(id, buf)?;
+                        self.export_rec(id)?;
                     }
-                    self.write(buf, "</ul>")?;
+                    write!(self, "</ul>")?;
                 }
                 ListKind::Ordered(_) => {
-                    self.write(buf, "<ol>")?;
+                    write!(self, "<ol>")?;
                     for id in &inner.children {
-                        self.export_rec(id, buf)?;
+                        self.export_rec(id)?;
                     }
-                    self.write(buf, "</ol>")?;
+                    write!(self, "</ol>")?;
                 }
             },
             Expr::PlainLink(inner) => {
-                self.write(buf, &format!("{}:{}", inner.protocol, inner.path))?;
+                write!(self, "{}:{}", inner.protocol, inner.path)?;
             }
             Expr::Entity(inner) => {
-                self.write(buf, &format!("{}", inner.mapped_item))?;
+                write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Table(inner) => {
-                self.write(buf, "<table>")?;
+                write!(self, "<table>")?;
 
                 for id in &inner.children {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
 
-                self.write(buf, "</table>")?;
+                write!(self, "</table>")?;
             }
 
             Expr::TableRow(inner) => {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        self.write(buf, "<tr>")?;
+                        write!(self, "<tr>")?;
                         for id in stands.iter() {
-                            self.export_rec(id, buf)?;
+                            self.export_rec(id)?;
                         }
-                        self.write(buf, "</tr>")?;
+                        write!(self, "</tr>")?;
                     }
                 }
             }
             Expr::TableCell(inner) => {
-                self.write(buf, "<td>")?;
+                write!(self, "<td>")?;
                 for id in &inner.0 {
-                    self.export_rec(id, buf)?;
+                    self.export_rec(id)?;
                 }
-                self.write(buf, "</td>")?;
+                write!(self, "</td>")?;
             }
         }
 
         Ok(())
     }
+}
 
-    fn pool(&self) -> &NodePool<'a> {
-        &self.pool
-    }
-
-    fn write(&mut self, buf: &mut dyn fmt::Write, s: &str) -> fmt::Result {
-        buf.write_str(s)
+impl<'a, 'buf> fmt::Write for Html<'_, '_> {
+    fn write_str(&mut self, s: &str) -> Result {
+        self.buf.write_str(s)
     }
 }
 

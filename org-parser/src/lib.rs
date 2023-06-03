@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use node_pool::{NodeID, NodePool};
 use types::{Cursor, Expr, NodeCache, ParseOpts, Parser};
