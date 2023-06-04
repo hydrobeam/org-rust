@@ -6,7 +6,7 @@ use std::fmt::Write;
 use crate::types::Exporter;
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::{NodeID, NodePool};
-use org_parser::object::Emoji;
+
 use org_parser::object::LatexFragment;
 use org_parser::object::PlainOrRec;
 use org_parser::parse_org;
@@ -116,7 +116,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                     }
                 }
 
-                write!(self, "\n")?;
+                writeln!(self)?;
 
                 if let Some(children) = &inner.children {
                     for id in children {
@@ -130,19 +130,19 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 if let Some(params) = inner.parameters {
                     write!(self, " {params}")?;
                 }
-                write!(self, "\n")?;
+                writeln!(self)?;
                 match &inner.contents {
                     BlockContents::Greater(children) => {
                         for id in children {
                             self.export_rec(id)?;
                         }
-                        write!(self, "\n")?;
+                        writeln!(self)?;
                     }
                     BlockContents::Lesser(cont) => {
-                        write!(self, "{cont}\n")?;
+                        writeln!(self, "{cont}")?;
                     }
                 }
-                write!(self, "#+end_{val}\n")?;
+                writeln!(self, "#+end_{val}")?;
             }
             Expr::RegularLink(inner) => {
                 write!(self, "[")?;
@@ -161,7 +161,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 for id in &inner.0 {
                     self.export_rec(id)?;
                 }
-                write!(self, "\n")?;
+                writeln!(self)?;
             }
 
             Expr::Italic(inner) => {
@@ -193,7 +193,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 write!(self, "_")?;
             }
             Expr::BlankLine => {
-                write!(self, "\n")?;
+                writeln!(self)?;
             }
             Expr::SoftBreak => {
                 write!(self, " ")?;
@@ -208,7 +208,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 write!(self, "~{}~", inner.0)?;
             }
             Expr::Comment(inner) => {
-                write!(self, "# {}\n", inner.0)?;
+                writeln!(self, "# {}", inner.0)?;
             }
             Expr::InlineSrc(inner) => {
                 write!(self, "src_{}", inner.lang)?;
@@ -387,7 +387,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                             write!(self, " |")?;
                         }
                     }
-                    write!(self, "\n")?;
+                    writeln!(self)?;
                 }
             }
 
@@ -965,7 +965,7 @@ more content here this is a pargraph
         let a = Org::export(r"sample_text^{\gamma}")?;
         assert_eq!(
             a,
-            r"sample_text^{γ}
+            r"sample_{text}^{γ}
 "
         );
 
@@ -976,7 +976,7 @@ more content here this is a pargraph
 
         assert_eq!(
             b,
-            r"sample_text^{bunchoftextnowhite!,lkljas}  after
+            r"sample_{text}^{bunchoftextnowhite}!,lkljas  after
 "
         );
 
@@ -990,6 +990,38 @@ more content here this is a pargraph
 
         Ok(())
     }
+
+    #[test]
+    fn subscript() -> Result {
+        let a = Org::export(r"sample_text_{\gamma}")?;
+        assert_eq!(
+            a,
+            r"sample_{text}_{γ}
+"
+        );
+
+        let b = Org::export(
+            r"sample_{text}_bunchoftextnowhite!,lkljas
+ after",
+        )?;
+
+        assert_eq!(
+            b,
+            r"sample_{text}_{bunchoftextnowhite}!,lkljas  after
+"
+        );
+
+        let c = Org::export(r"nowhere _texto")?;
+
+        assert_eq!(
+            c,
+            r"nowhere _texto
+"
+        );
+
+        Ok(())
+    }
+
     #[test]
     fn plain_link() -> Result {
 

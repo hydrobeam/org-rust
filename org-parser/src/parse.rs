@@ -64,7 +64,7 @@ pub(crate) fn parse_element<'a>(
     // let elements have child paragraph elements when they propogate,
     // from_paragraph is only to prevent recursing into a paragraph
     // TODO: less weird to express this maybe..?
-    let mut no_para_opts = parse_opts.clone();
+    let mut no_para_opts = parse_opts;
     no_para_opts.from_paragraph = false;
     new_opts.from_paragraph = false;
 
@@ -177,6 +177,10 @@ pub(crate) fn parse_object<'a>(
         }
         UNDERSCORE => {
             handle_markup!(Underline, parser, cursor, parent, parse_opts);
+
+            if let ret @ Ok(_) = Subscript::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
         }
         PLUS => {
             handle_markup!(StrikeThrough, parser, cursor, parent, parse_opts);
@@ -260,11 +264,6 @@ pub(crate) fn parse_object<'a>(
         RBRACE => {
             if parse_opts.markup.contains(MarkupKind::SupSub) {
                 return Err(MatchError::MarkupEnd(MarkupKind::SupSub));
-            }
-        }
-        UNDERSCORE => {
-            if let ret @ Ok(_) = Subscript::parse(parser, cursor, parent, parse_opts) {
-                return ret;
             }
         }
         CARET => {

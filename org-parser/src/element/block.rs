@@ -30,7 +30,6 @@ impl<'a> Parseable<'a> for Block<'a> {
 
         let block_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
 
-        let block_kind: BlockKind;
         let parameters: Option<&str>;
         // if no progress was made looking for the block_type:
         // i.e.: #+begin_\n
@@ -41,7 +40,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         // parse paramters
         cursor.skip_ws();
 
-        block_kind = block_name_match.obj.into();
+        let block_kind: BlockKind = block_name_match.obj.into();
 
         if cursor.curr() == NEWLINE {
             parameters = None;

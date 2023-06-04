@@ -1,4 +1,4 @@
-use crate::constants::{LBRACE, STAR};
+use crate::constants::{BACKSLASH, COMMA, LBRACE, PERIOD, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::parse_object;
 use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
@@ -67,16 +67,15 @@ macro_rules! parse_nscript {
                             }
                         }
                     }
-                    // STAR => {
-                    //     return Ok(parser.alloc(
-                    //         Superscript(PlainOrRec::Plain(cursor.clamp_forwards(cursor.index + 2))),
-                    //         start,
-                    //         cursor.index + 2,
-                    //         parent,
-                    //     ))
-                    // }
+                    STAR => {
+                        return Ok(parser.alloc(
+                            Superscript(PlainOrRec::Plain(cursor.clamp_forwards(cursor.index + 2))),
+                            start,
+                            cursor.index + 2,
+                            parent,
+                        ))
+                    }
                     chr if !chr.is_ascii_whitespace() => {
-                        // explicitly ignoring the spec, i disagree with the definition.
                         // SIGN
                         //     Either a plus sign character (+), a minus sign character (-), or the empty string.
                         // CHARS
@@ -88,12 +87,30 @@ macro_rules! parse_nscript {
                         //     all this is saying is that it has to be: alphanumeric,comma,backslash,dots.
                         //     i don't see why you wouldn't just allow anything.
 
-                        let ret = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
+                        let ret = cursor.fn_while(|chr: u8| {
+                            !chr.is_ascii_whitespace()
+                                && (chr.is_ascii_alphanumeric()
+                                    || chr == COMMA
+                                    || chr == BACKSLASH
+                                    || chr == PERIOD)
+                        })?;
+
+                        cursor.move_to(ret.end);
+
+                        // we won't go back to the start of the file since
+                        // we know we started on an alphanumeric
+                        while !cursor.peek_rev(1)?.is_ascii_alphanumeric() {
+                            cursor.prev();
+                        }
+
+                        if cursor.index <= ret.start {
+                            return Err(MatchError::InvalidLogic);
+                        }
 
                         return Ok(parser.alloc(
-                            Self(PlainOrRec::Plain(cursor.clamp_forwards(ret.end))),
+                            Self(PlainOrRec::Plain(cursor.clamp_backwards(ret.start))),
                             start,
-                            ret.end,
+                            cursor.index,
                             parent,
                         ));
                     }

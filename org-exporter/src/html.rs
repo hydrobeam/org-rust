@@ -9,7 +9,7 @@ use latex2mathml::{latex_to_mathml, DisplayStyle};
 use org_parser::element::{BlockKind, CheckBox, ListKind};
 
 use crate::types::Exporter;
-use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
+use org_parser::element::{BlockContents, TableRow};
 use org_parser::node_pool::{NodeID, NodePool};
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
@@ -107,7 +107,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 }
             }
             Expr::Block(inner) => {
-                let val: &str = inner.kind.into();
+                let _val: &str = inner.kind.into();
 
                 match inner.kind {
                     BlockKind::Center => {
@@ -339,7 +339,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 // }
                 // write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(inner) => {
+            Expr::Keyword(_inner) => {
                 // write!(self, "#+{}: {}", inner.key, inner.val)?;
             }
             Expr::LatexEnv(inner) => {
@@ -427,7 +427,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 }
             },
             Expr::PlainLink(inner) => {
-                write!(self, "{}:{}", inner.protocol, inner.path)?;
+                write!(self, "<a href={0}:{1}>{0}:{1}</a>", inner.protocol, inner.path)?;
             }
             Expr::Entity(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
@@ -502,6 +502,4 @@ impl<'a, 'buf> fmt::Write for Html<'_, '_> {
     }
 }
 
-mod tests {
-    use super::*;
-}
+mod tests {}

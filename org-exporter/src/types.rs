@@ -1,7 +1,6 @@
 use core::fmt;
-use std::fmt::Write;
 
-use org_parser::node_pool::{NodeID, NodePool};
+use org_parser::node_pool::NodeID;
 
 pub trait Exporter<'a, 'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error>;

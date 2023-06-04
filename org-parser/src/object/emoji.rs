@@ -1913,8 +1913,6 @@ pub(crate) fn parse_emoji(name: &str) -> Result<Emoji> {
 mod tests {
     use crate::parse_org;
 
-    use super::*;
-
     #[test]
     fn basic_emoji() {
         let input = r":flushed: abc
