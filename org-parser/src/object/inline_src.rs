@@ -17,13 +17,11 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
-        // TODO: cache this
-        // REVIEW: maybe not :3
         let start = cursor.index;
         cursor.word("src_")?;
 
-        let lang = cursor
-            .fn_until(|chr: u8| !(chr == b'[' || chr == b'{' || chr.is_ascii_whitespace()))?;
+        let lang =
+            cursor.fn_until(|chr: u8| chr == b'[' || chr == b'{' || chr.is_ascii_whitespace())?;
 
         cursor.index = lang.end;
 
@@ -32,19 +30,19 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                 let body = Self::parse_body(cursor)?;
                 Ok(parser.alloc(
                     Self {
-                        lang: body.obj,
+                        lang: lang.obj,
                         headers: None,
                         body: body.obj,
                     },
                     start,
-                    body.end,
+                    body.end + 1,
                     None,
                 ))
             }
             LBRACK => {
                 let header = Self::parse_header(cursor)?;
                 cursor.move_to(header.end);
-                if cursor.curr() != LBRACE {
+                if cursor.curr() == LBRACE {
                     let body = Self::parse_body(cursor)?;
                     Ok(parser.alloc(
                         Self {
@@ -89,12 +87,13 @@ impl<'a> InlineSrc<'a> {
                     bracket_count -= 1;
                 }
                 chr if chr == rperim => {
+                    bracket_count += 1;
                     if bracket_count == 0 {
-                        cursor.next();
                         return Ok(Match {
                             start,
-                            end: cursor.index,
-                            obj: cursor.clamp_backwards(start),
+                            // +1 to skip past lperim and rperim
+                            end: cursor.index + 1,
+                            obj: cursor.clamp_backwards(start + 1),
                         });
                     }
                 }
@@ -106,5 +105,26 @@ impl<'a> InlineSrc<'a> {
 
             cursor.next();
         } // end of loop
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_org;
+
+    #[test]
+    fn basic_src() {
+        let input = "src_python{cooool}";
+
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
+
+    #[test]
+    fn inlinesrc_header() {
+        let input = "src_python[meow]{cooool}";
+
+        let pool = parse_org(input);
+        pool.print_tree();
     }
 }

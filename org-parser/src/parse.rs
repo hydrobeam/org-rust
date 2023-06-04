@@ -9,7 +9,7 @@ use crate::element::{
 };
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Emoji, Italic, LatexFragment, RegularLink,
-    StrikeThrough, Subscript, Superscript, Underline, Verbatim,
+    StrikeThrough, Subscript, Superscript, Underline, Verbatim, InlineSrc,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -268,6 +268,11 @@ pub(crate) fn parse_object<'a>(
         }
         CARET => {
             if let ret @ Ok(_) = Superscript::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+        b's' => {
+            if let ret @ Ok(_) = InlineSrc::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
