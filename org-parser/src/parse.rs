@@ -201,7 +201,6 @@ pub(crate) fn parse_object<'a>(
             // TODO: abstract this
             // if we're in a link description, and we hit ]] , return the ending
             if parse_opts.markup.contains(MarkupKind::Link) {
-                // FIXME: we allocate in the pool for "marker" return types,,
                 if let Ok(byte) = cursor.peek(1) {
                     if byte == RBRACK {
                         return Err(MatchError::MarkupEnd(MarkupKind::Link));

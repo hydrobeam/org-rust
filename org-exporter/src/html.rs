@@ -247,11 +247,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                 break;
                             }
                         }
-                        if rita.is_empty() {
-                            panic!("no matching link");
-                        } else {
-                            rita
-                        }
+                        // TODO: how to handle non-existing links
+                        rita
                     }
                 };
                 write!(self, "<a href={}>", path_link)?;
@@ -362,7 +359,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    pot_cont.write_str("\\{name}")?;
+                    write!(pot_cont, "{name}")?;
                     if let Some(command_cont) = contents {
                         write!(pot_cont, "{{{command_cont}}}")?;
                     }
@@ -370,8 +367,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                         self,
                         "{}",
                         &latex_to_mathml(&pot_cont, DisplayStyle::Inline).unwrap(),
-                    )
-                    .unwrap();
+                    )?;
                 }
                 LatexFragment::Display(inner) => {
                     writeln!(

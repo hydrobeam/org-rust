@@ -186,6 +186,13 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         }
                     } else if RBRACK == cursor.peek(1)? {
                         // close object;
+
+                        // handles the  [[]]  case, would panic without this check
+
+                        if cursor.index == start + 2 {
+                           return Err(MatchError::InvalidLogic);
+                        }
+
                         let pathreg = PathReg::new(cursor.clamp_off(start + 2, cursor.index));
                         return Ok(parser.alloc(
                             Self {

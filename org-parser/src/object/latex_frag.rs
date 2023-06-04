@@ -38,6 +38,8 @@ macro_rules! double_ending {
                             $cursor.index + 2,
                             $parent,
                         ));
+                    } else {
+                        $cursor.next();
                     }
                 }
                 _ => $cursor.next(),
@@ -100,6 +102,8 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                     cursor.index + 1,
                                     parent,
                                 ));
+                            } else {
+                                cursor.next();
                             }
                         }
                         _ => cursor.next(),
