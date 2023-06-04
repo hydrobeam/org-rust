@@ -81,7 +81,7 @@ impl<'a> PathReg<'a> {
             LPAREN => {
                 // FIXME: breaks on ()
                 if cursor[cursor.len() - 1] == RPAREN {
-                    return PathReg::Coderef(cursor.clamp(cursor.index + 1, cursor.len() - 2));
+                    return PathReg::Coderef(cursor.clamp(cursor.index + 1, cursor.len() - 1));
                 }
             }
             chr => {
