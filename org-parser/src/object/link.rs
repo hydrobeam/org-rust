@@ -190,7 +190,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         // handles the  [[]]  case, would panic without this check
 
                         if cursor.index == start + 2 {
-                           return Err(MatchError::InvalidLogic);
+                            return Err(MatchError::InvalidLogic);
                         }
 
                         let pathreg = PathReg::new(cursor.clamp_off(start + 2, cursor.index));

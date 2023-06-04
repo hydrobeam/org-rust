@@ -4,26 +4,11 @@ use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
 
-#[derive(Debug, Clone)]
-pub struct Italic(pub Vec<NodeID>);
-
-#[derive(Debug, Clone)]
-pub struct Bold(pub Vec<NodeID>);
-
-#[derive(Debug, Clone)]
-pub struct StrikeThrough(pub Vec<NodeID>);
-
-#[derive(Debug, Clone)]
-pub struct Underline(pub Vec<NodeID>);
-
-#[derive(Debug, Clone, Copy)]
-pub struct Verbatim<'a>(pub &'a str);
-
-#[derive(Debug, Clone, Copy)]
-pub struct Code<'a>(pub &'a str);
-
 macro_rules! recursive_markup {
     ($name: tt) => {
+        #[derive(Debug, Clone)]
+        pub struct $name(pub Vec<NodeID>);
+
         impl<'a> Parseable<'a> for $name {
             fn parse(
                 parser: &mut Parser<'a>,
@@ -84,6 +69,10 @@ macro_rules! recursive_markup {
 /// $byte is the closing delimeter for the markup object, e.g. TILDE
 macro_rules! plain_markup {
     ($name: tt, $byte: tt) => {
+
+        #[derive(Debug, Clone, Copy)]
+        pub struct $name<'a>(pub &'a str);
+
         impl<'a> Parseable<'a> for $name<'a> {
             fn parse(
                 parser: &mut Parser<'a>,

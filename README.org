@@ -27,6 +27,8 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | RegularLink         | X     | X           | _            |
 | Entity              | X     | X           | _            |
 | Table               | X     | X           | _            |
+| Subscript           | X     | X           | _            |
+| Superscript         | X     | X           | _            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | Drawer              | _     | _           | _            |
@@ -45,8 +47,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Citation            | _     | _           | _            |
 | Target              | _     | _           | _            |
 | StatisticsCookie    | _     | _           | _            |
-| Subscript           | _     | _           | _            |
-| Superscript         | _     | _           | _            |
 | Timestamp           | _     | _           | _            |
 
 * Parsing Approach

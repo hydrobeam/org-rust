@@ -1,6 +1,6 @@
 use crate::constants::{
-    BACKSLASH, COLON, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACK, SLASH,
-    STAR, TILDE, UNDERSCORE, VBAR,
+    BACKSLASH, CARET, COLON, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACE,
+    RBRACK, SLASH, STAR, TILDE, UNDERSCORE, VBAR,
 };
 use crate::node_pool::NodeID;
 
@@ -9,7 +9,7 @@ use crate::element::{
 };
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Emoji, Italic, LatexFragment, RegularLink,
-    StrikeThrough, Underline, Verbatim,
+    StrikeThrough, Subscript, Superscript, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -257,6 +257,22 @@ pub(crate) fn parse_object<'a>(
                 return ret;
             }
         }
+        RBRACE => {
+            if parse_opts.markup.contains(MarkupKind::SupSub) {
+                return Err(MatchError::MarkupEnd(MarkupKind::SupSub));
+            }
+        }
+        UNDERSCORE => {
+            if let ret @ Ok(_) = Subscript::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+        CARET => {
+            if let ret @ Ok(_) = Superscript::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+
         _ => {}
     }
 

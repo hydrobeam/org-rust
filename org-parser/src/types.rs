@@ -3,15 +3,15 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::ops::Index;
 
-use crate::constants::{EQUAL, PLUS, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
+use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
     Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
     TableCell, TableRow,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
-    Bold, Code, Entity, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink, StrikeThrough,
-    Underline, Verbatim, Emoji,
+    Bold, Code, Emoji, Entity, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink,
+    StrikeThrough, Subscript, Superscript, Underline, Verbatim,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -318,6 +318,8 @@ pub enum Expr<'a> {
     PlainLink(PlainLink<'a>),
     Entity(Entity<'a>),
     Emoji(Emoji<'a>),
+    Superscript(Superscript<'a>),
+    Subscript(Subscript<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -356,6 +358,7 @@ bitflags! {
         const Code          = 1 << 5;
         const Link          = 1 << 6;
         const Table         = 1 << 7;
+        const SupSub        = 1 << 8;
     }
 }
 
@@ -383,6 +386,7 @@ impl MarkupKind {
             TILDE => self.contains(MarkupKind::Code),
             EQUAL => self.contains(MarkupKind::Verbatim),
             VBAR => self.contains(MarkupKind::Table),
+            RBRACE => self.contains(MarkupKind::SupSub),
             _ => false,
         }
     }
@@ -399,6 +403,7 @@ impl From<u8> for MarkupKind {
             TILDE => MarkupKind::Code,
             EQUAL => MarkupKind::Verbatim,
             VBAR => MarkupKind::Table,
+            RBRACE => MarkupKind::SupSub,
             _ => unreachable!(),
         }
     }
@@ -575,6 +580,8 @@ impl<'a> Expr<'a> {
                 print!("|");
             }
             Expr::Emoji(inner) => print!("{inner:#?}"),
+            Expr::Superscript(inner) => print!("{inner:#?}"),
+            Expr::Subscript(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -618,6 +625,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -649,6 +658,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::TableRow(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::TableCell(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

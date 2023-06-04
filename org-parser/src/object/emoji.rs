@@ -1,9 +1,9 @@
 use phf::phf_map;
 
-use crate::node_pool::{self, NodeID};
-use crate::types::{self, Cursor, MatchError, ParseOpts, Parser, Result};
-use crate::utils::bytes_to_str;
-use crate::{constants::COLON, types::Parseable};
+use crate::constants::COLON;
+use crate::node_pool::NodeID;
+use crate::types::Parseable;
+use crate::types::{Cursor, MatchError, ParseOpts, Parser, Result};
 
 static EMOJI_MAP: phf::Map<&'static str, char> = phf_map! {
 "interrobang" => '⁉',
@@ -1931,5 +1931,10 @@ mod tests {
 
         let pool = parse_org(input);
         dbg!(pool);
+    }
+
+    #[test]
+    fn emoji_moji() {
+        let input = r"* Heading baby :smirk_cat:  ";
     }
 }

@@ -1,9 +1,10 @@
+mod emoji;
 mod entity;
 mod inline_src;
 mod latex_frag;
 mod link;
 mod markup;
-mod emoji;
+mod sup_sub;
 
 pub use emoji::Emoji;
 pub(crate) use entity::parse_entity;
@@ -16,3 +17,6 @@ pub use link::PathReg;
 pub use link::PlainLink;
 pub use link::RegularLink;
 pub use markup::*;
+pub use sup_sub::PlainOrRec;
+pub use sup_sub::Subscript;
+pub use sup_sub::Superscript;

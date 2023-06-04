@@ -11,7 +11,7 @@ use org_parser::element::{BlockKind, CheckBox, ListKind};
 use crate::types::Exporter;
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::{NodeID, NodePool};
-use org_parser::object::{LatexFragment, PathReg};
+use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
 use org_parser::types::Expr;
 
@@ -464,6 +464,32 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::Emoji(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
             }
+            Expr::Superscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(inner) => {
+                    write!(self, "<sup>{inner}</sup>")?;
+                }
+                PlainOrRec::Rec(inner) => {
+                    write!(self, "<sup>")?;
+                    for id in inner {
+                        self.export_rec(id)?;
+                    }
+
+                    write!(self, "</sup>")?;
+                }
+            },
+            Expr::Subscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(inner) => {
+                    write!(self, "<sub>{inner}</sub>")?;
+                }
+                PlainOrRec::Rec(inner) => {
+                    write!(self, "<sub>")?;
+                    for id in inner {
+                        self.export_rec(id)?;
+                    }
+
+                    write!(self, "</sub>")?;
+                }
+            },
         }
 
         Ok(())

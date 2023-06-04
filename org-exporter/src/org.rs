@@ -8,6 +8,7 @@ use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, Tabl
 use org_parser::node_pool::{NodeID, NodePool};
 use org_parser::object::Emoji;
 use org_parser::object::LatexFragment;
+use org_parser::object::PlainOrRec;
 use org_parser::parse_org;
 use org_parser::types::Expr;
 
@@ -401,6 +402,32 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             Expr::Emoji(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
             }
+            Expr::Superscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(inner) => {
+                    write!(self, "^{{{inner}}}")?;
+                }
+                PlainOrRec::Rec(inner) => {
+                    write!(self, "^{{")?;
+                    for id in inner {
+                        self.export_rec(id)?;
+                    }
+
+                    write!(self, "}}")?;
+                }
+            },
+            Expr::Subscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(inner) => {
+                    write!(self, "_{{{inner}}}")?;
+                }
+                PlainOrRec::Rec(inner) => {
+                    write!(self, "_{{")?;
+                    for id in inner {
+                        self.export_rec(id)?;
+                    }
+
+                    write!(self, "}}")?;
+                }
+            },
         }
 
         Ok(())
@@ -409,7 +436,6 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
 impl<'a, 'buf> fmt::Write for Org<'a, 'buf> {
     fn write_str(&mut self, s: &str) -> Result {
-        dbg!(s);
         if self.indentation_level > 0 {
             for chunk in s.split_inclusive('\n') {
                 if self.on_newline {
@@ -931,6 +957,37 @@ more content here this is a pargraph
             r"[aayyyy][one]]
 "
         );
+        Ok(())
+    }
+
+    #[test]
+    fn superscript() -> Result {
+        let a = Org::export(r"sample_text^{\gamma}")?;
+        assert_eq!(
+            a,
+            r"sample_text^{γ}
+"
+        );
+
+        let b = Org::export(
+            r"sample_text^bunchoftextnowhite!,lkljas
+ after",
+        )?;
+
+        assert_eq!(
+            b,
+            r"sample_text^{bunchoftextnowhite!,lkljas}  after
+"
+        );
+
+        let c = Org::export(r"nowhere ^texto")?;
+
+        assert_eq!(
+            c,
+            r"nowhere ^texto
+"
+        );
+
         Ok(())
     }
 }
