@@ -284,7 +284,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 }
             }
             Expr::PlainLink(inner) => {
-                write!(self, "{}:{}", inner.protocol, inner.path)?;
+                write!(self, "[[{}:{}]]", inner.protocol, inner.path)?;
             }
             Expr::Entity(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
@@ -988,6 +988,17 @@ more content here this is a pargraph
 "
         );
 
+        Ok(())
+    }
+    #[test]
+    fn plain_link() -> Result {
+
+        let a = Org::export("https://cool.com abc rest")?;
+
+        assert_eq!(a,
+                   "[[https://cool.com]] abc rest
+"
+        );
         Ok(())
     }
 }

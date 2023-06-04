@@ -8,7 +8,7 @@ use crate::parse::parse_object;
 use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
-const ORG_LINK_PARAMETERS: [&'static str; 9] = [
+const ORG_LINK_PARAMETERS: [&str; 9] = [
     "shell", "news", "mailto", "https", "http", "ftp", "help", "file", "elisp",
 ];
 
@@ -275,17 +275,14 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
                 // but also if you do that then you're just being difficult.
                 //
 
-                while !cursor.peek_rev(1)?.is_ascii_alphanumeric()
-                    && !(cursor.peek_rev(1)? == SLASH)
-                {
+                while !cursor.peek_rev(1)?.is_ascii_alphanumeric() && cursor.peek_rev(1)? != SLASH {
                     cursor.prev();
                     if cursor.index <= path_start {
                         return Err(MatchError::InvalidLogic);
                     }
                 }
 
-                // Post: allow ending on eof
-                if if let Ok(future_byte) = cursor.peek(1) {
+                if if let Ok(future_byte) = cursor.try_curr() {
                     !future_byte.is_ascii_alphanumeric()
                 } else {
                     true
@@ -370,6 +367,13 @@ mod tests {
     fn plain_link_subprotocol() {
         // http and https are protocols
         let input = "http://swag.org";
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
+
+    #[test]
+    fn plain_link_after() {
+        let input = "http://swag.com meow";
         let pool = parse_org(input);
         pool.print_tree();
     }
