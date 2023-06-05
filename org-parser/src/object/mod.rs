@@ -4,6 +4,7 @@ mod inline_src;
 mod latex_frag;
 mod link;
 mod markup;
+mod org_macro;
 mod sup_sub;
 mod target;
 
@@ -18,6 +19,8 @@ pub use link::PathReg;
 pub use link::PlainLink;
 pub use link::RegularLink;
 pub use markup::*;
+pub use org_macro::MacroCall;
+pub use org_macro::MacroDef;
 pub use sup_sub::PlainOrRec;
 pub use sup_sub::Subscript;
 pub use sup_sub::Superscript;

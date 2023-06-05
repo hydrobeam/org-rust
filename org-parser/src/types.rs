@@ -10,8 +10,8 @@ use crate::element::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
-    Bold, Code, Emoji, Entity, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink,
-    StrikeThrough, Subscript, Superscript, Underline, Verbatim, Target,
+    Bold, Code, Emoji, Entity, InlineSrc, Italic, LatexFragment, MacroCall, PlainLink, RegularLink,
+    StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -26,6 +26,11 @@ pub struct Parser<'a> {
     pub(crate) cache: NodeCache,
     // target names to uuids
     pub targets: BTreeMap<&'a str, &'a str>,
+    // name to macro def
+    pub macros: HashMap<&'a str, NodeID>,
+
+    // basic keywords, key: val
+    pub keywords: HashMap<&'a str, &'a str>,
 }
 
 impl<'a> Parser<'a> {
@@ -321,6 +326,7 @@ pub enum Expr<'a> {
     Superscript(Superscript<'a>),
     Subscript(Subscript<'a>),
     Target(Target<'a>),
+    Macro(MacroCall<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -584,6 +590,7 @@ impl<'a> Expr<'a> {
             Expr::Superscript(inner) => print!("{inner:#?}"),
             Expr::Subscript(inner) => print!("{inner:#?}"),
             Expr::Target(inner) => print!("{inner:#?}"),
+            Expr::Macro(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -630,6 +637,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Macro(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -664,6 +672,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Macro(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

@@ -1,24 +1,24 @@
-use std::collections::BTreeMap;
-
 use core::fmt;
 
-use core::fmt::Result;
+use std::fmt::Result;
 use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use org_parser::element::{BlockKind, CheckBox, ListKind};
 
+use crate::org_macros::macro_handle;
 use crate::types::Exporter;
 use org_parser::element::{BlockContents, TableRow};
-use org_parser::node_pool::{NodeID, NodePool};
+use org_parser::node_pool::NodeID;
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
-use org_parser::types::Expr;
+use org_parser::types::{Expr, Parser};
 
-pub struct Html<'a, 'buf> {
+pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
-    pool: &'a NodePool<'a>,
-    targets: &'a BTreeMap<&'a str, &'a str>,
+    // parser: Parser<'a>,
+    // pool: &'a NodePool<'a>,
+    // targets: &'a BTreeMap<&'a str, &'a str>,
 }
 
 struct HtmlEscape<'a>(&'a str);
@@ -40,17 +40,13 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
     }
 }
 
-impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
+impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let parsed = parse_org(input);
-        let mut obj = Html {
-            buf: &mut buf,
-            pool: &parsed.pool,
-            targets: &parsed.targets,
-        };
+        let mut obj = Html { buf: &mut buf };
 
-        obj.export_rec(&obj.pool.root_id())?;
+        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
     }
 
@@ -59,18 +55,14 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = parse_org(input);
-        let mut obj = Html {
-            buf,
-            pool: &parsed.pool,
-            targets: &parsed.targets,
-        };
+        let mut obj = Html { buf };
 
-        obj.export_rec(&obj.pool.root_id())?;
+        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
     }
 
-    fn export_rec(&mut self, node_id: &NodeID) -> Result {
-        match &self.pool[*node_id].obj.clone() {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+        match &parser.pool[*node_id].obj {
             Expr::Root(inner) => {
                 //                 self.write(
                 //                     buf,
@@ -87,7 +79,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 // "#,
                 //                 )?;
                 for id in inner {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
 
                 //                 self.write(
@@ -106,10 +98,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     write!(
                         self,
                         "<h{heading_number} id={}>",
-                        self.targets.get(title.0).unwrap(),
+                        parser.targets.get(title.0).unwrap(),
                     )?;
                     for id in &title.1 {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
 
                     // must exist if we are a heading
@@ -121,7 +113,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                 }
             }
@@ -135,7 +127,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -153,7 +145,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -170,7 +162,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -188,7 +180,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -205,7 +197,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -222,7 +214,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -239,7 +231,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                             match &inner.contents {
                                 BlockContents::Greater(children) => {
                                     for id in children {
-                                        self.export_rec(id)?;
+                                        self.export_rec(id, parser)?;
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
@@ -260,7 +252,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     PathReg::Coderef(_) => todo!(),
                     PathReg::Unspecified(a) => {
                         let mut rita = String::new();
-                        for (match_targ, ret) in self.targets.iter() {
+                        for (match_targ, ret) in parser.targets.iter() {
                             if match_targ.starts_with(a) {
                                 rita = format!("#{}", ret);
                                 break;
@@ -273,7 +265,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 write!(self, "<a href={}>", HtmlEscape(&path_link))?;
                 if let Some(children) = &inner.description {
                     for id in children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                 } else {
                     write!(
@@ -294,7 +286,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::Paragraph(inner) => {
                 writeln!(self, "<p>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 writeln!(self, "\n</p>")?;
             }
@@ -302,33 +294,33 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::Italic(inner) => {
                 write!(self, "<em>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "</em>")?;
             }
             Expr::Bold(inner) => {
                 write!(self, "<b>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "</b>")?;
             }
             Expr::StrikeThrough(inner) => {
                 write!(self, "<del>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "</del>")?;
             }
             Expr::Underline(inner) => {
                 write!(self, "<u>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "</u>")?;
                 // write!(self, "<span class=underline>")?;
                 // for id in &inner.0 {
-                //     self.export_rec(id)?;
+                //     self.export_rec(id, parser)?;
                 // }
                 // write!(self, "</span>")?;
             }
@@ -429,7 +421,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 write!(self, "<li{class_val}{tag_val}>")?;
 
                 for id in &inner.children {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
 
                 writeln!(self, "</li>")?;
@@ -438,14 +430,14 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 ListKind::Unordered | ListKind::Descriptive => {
                     writeln!(self, "<ul>")?;
                     for id in &inner.children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                     writeln!(self, "</ul>")?;
                 }
                 ListKind::Ordered(_) => {
                     writeln!(self, "<ol>")?;
                     for id in &inner.children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                     writeln!(self, "</ol>")?;
                 }
@@ -464,7 +456,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 writeln!(self, "<table>")?;
 
                 for id in &inner.children {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
 
                 writeln!(self, "</table>")?;
@@ -476,7 +468,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     TableRow::Standard(stands) => {
                         write!(self, "<tr>")?;
                         for id in stands.iter() {
-                            self.export_rec(id)?;
+                            self.export_rec(id, parser)?;
                         }
                         writeln!(self, "</tr>")?;
                     }
@@ -485,7 +477,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::TableCell(inner) => {
                 write!(self, "<td>")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 writeln!(self, "</td>")?;
             }
@@ -499,7 +491,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 PlainOrRec::Rec(inner) => {
                     write!(self, "<sup>")?;
                     for id in inner {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
 
                     write!(self, "</sup>")?;
@@ -512,7 +504,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 PlainOrRec::Rec(inner) => {
                     write!(self, "<sub>")?;
                     for id in inner {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
 
                     write!(self, "</sub>")?;
@@ -521,16 +513,41 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::Target(inner) => {
                 write!(self, "<span id={0}>{0}</span>", HtmlEscape(inner.0))?;
             }
+            Expr::Macro(macro_call) => {
+                write!(self, "{}", HtmlEscape(&macro_handle(parser, macro_call)))?;
+            }
         }
 
         Ok(())
     }
 }
 
-impl<'a, 'buf> fmt::Write for Html<'_, '_> {
+impl<'buf> fmt::Write for Html<'_> {
     fn write_str(&mut self, s: &str) -> Result {
         self.buf.write_str(s)
     }
 }
 
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn combined_macros() -> fmt::Result {
+        let a = Html::export(
+            r"#+macro: poem hiii $1 $2 text
+{{{poem(cool, three)}}}
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"<p>
+hiii cool three text
+</p>
+"
+        );
+        // println!("{a}");
+
+        Ok(())
+    }
+}

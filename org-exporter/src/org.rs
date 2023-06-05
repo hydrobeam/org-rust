@@ -3,34 +3,34 @@ use std::fmt::Result;
 
 use std::fmt::Write;
 
+use crate::org_macros::macro_handle;
 use crate::types::Exporter;
 use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
-use org_parser::node_pool::{NodeID, NodePool};
+use org_parser::node_pool::NodeID;
 
 use org_parser::object::LatexFragment;
 use org_parser::object::PlainOrRec;
 use org_parser::parse_org;
 use org_parser::types::Expr;
+use org_parser::types::Parser;
 
-pub struct Org<'a, 'buf> {
+pub struct Org<'buf> {
     buf: &'buf mut dyn fmt::Write,
-    pool: &'a NodePool<'a>,
     indentation_level: u8,
     on_newline: bool,
 }
 
-impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
+impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let porg = parse_org(input);
         let mut obj = Org {
             buf: &mut buf,
-            pool: &porg.pool,
             indentation_level: 0,
             on_newline: false,
         };
 
-        obj.export_rec(&obj.pool.root_id())?;
+        obj.export_rec(&porg.pool.root_id(), &porg)?;
         Ok(buf)
     }
 
@@ -41,20 +41,19 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
         let porg = parse_org(input);
         let mut obj = Org {
             buf,
-            pool: &porg.pool,
             indentation_level: 0,
             on_newline: false,
         };
 
-        obj.export_rec(&obj.pool.root_id())?;
+        obj.export_rec(&porg.pool.root_id(), &porg)?;
         Ok(buf)
     }
 
-    fn export_rec(&mut self, node_id: &NodeID) -> Result {
-        match &self.pool[*node_id].obj.clone() {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+        match &parser.pool[*node_id].obj {
             Expr::Root(inner) => {
                 for id in inner {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
             }
             Expr::Heading(inner) => {
@@ -80,7 +79,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
                 if let Some(title) = &inner.title {
                     for id in &title.1 {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                 }
 
@@ -90,7 +89,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 //             for thang in sub_tags.iter().rev() {
                 //                 match thang {
                 //                     Tag::Raw(val) => write!(self, ":{val}")?,
-                //                     Tag::Loc(id) => {
+                //                     Tag::Loc(id, parser) => {
                 //                         tag_search(*id, pool, self)?;
                 //                     }
                 //                 }
@@ -120,7 +119,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                 }
             }
@@ -134,7 +133,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 match &inner.contents {
                     BlockContents::Greater(children) => {
                         for id in children {
-                            self.export_rec(id)?;
+                            self.export_rec(id, parser)?;
                         }
                         writeln!(self)?;
                     }
@@ -150,7 +149,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 if let Some(children) = &inner.description {
                     write!(self, "[")?;
                     for id in children {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
                     write!(self, "]")?;
                 }
@@ -159,7 +158,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
             Expr::Paragraph(inner) => {
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 writeln!(self)?;
             }
@@ -167,28 +166,28 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             Expr::Italic(inner) => {
                 write!(self, "/")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "/")?;
             }
             Expr::Bold(inner) => {
                 write!(self, "*")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "*")?;
             }
             Expr::StrikeThrough(inner) => {
                 write!(self, "+")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "+")?;
             }
             Expr::Underline(inner) => {
                 write!(self, "_")?;
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 write!(self, "_")?;
             }
@@ -218,7 +217,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 write!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
-                write!(self, "#+{}: {}", inner.key, inner.val)?;
+                // write!(self, "#+{}: {}", inner.key, inner.val)?;
             }
             Expr::LatexEnv(inner) => {
                 write!(
@@ -271,7 +270,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
                 self.indentation_level += 1;
                 for id in &inner.children {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
                 self.indentation_level -= 1;
                 if self.indentation_level == 0 {
@@ -280,7 +279,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             }
             Expr::PlainList(inner) => {
                 for id in &inner.children {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
             }
             Expr::PlainLink(inner) => {
@@ -301,7 +300,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
 
                 // set up 2d array
                 for id in &inner.children {
-                    match &self.pool[*id].obj {
+                    match &parser.pool[*id].obj {
                         Expr::TableRow(row) => {
                             let mut row_vec = vec![];
                             match &row {
@@ -310,11 +309,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                                         let mut cell_buf = String::new();
                                         let mut new_obj = Org {
                                             buf: &mut cell_buf,
-                                            pool: self.pool,
                                             indentation_level: self.indentation_level,
                                             on_newline: self.on_newline,
                                         };
-                                        new_obj.export_rec(id)?;
+                                        new_obj.export_rec(id, parser)?;
                                         row_vec.push(cell_buf);
                                     }
                                 }
@@ -396,7 +394,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             }
             Expr::TableCell(inner) => {
                 for id in &inner.0 {
-                    self.export_rec(id)?;
+                    self.export_rec(id, parser)?;
                 }
             }
             Expr::Emoji(inner) => {
@@ -409,7 +407,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 PlainOrRec::Rec(inner) => {
                     write!(self, "^{{")?;
                     for id in inner {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
 
                     write!(self, "}}")?;
@@ -422,7 +420,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                 PlainOrRec::Rec(inner) => {
                     write!(self, "_{{")?;
                     for id in inner {
-                        self.export_rec(id)?;
+                        self.export_rec(id, parser)?;
                     }
 
                     write!(self, "}}")?;
@@ -431,13 +429,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
             Expr::Target(inner) => {
                 write!(self, "<<{}>>", inner.0)?;
             }
+            Expr::Macro(macro_call) => {
+                write!(self, "{}", macro_handle(parser, macro_call))?;
+            }
         }
 
         Ok(())
     }
 }
 
-impl<'a, 'buf> fmt::Write for Org<'a, 'buf> {
+impl<'a, 'buf> fmt::Write for Org<'buf> {
     fn write_str(&mut self, s: &str) -> Result {
         if self.indentation_level > 0 {
             for chunk in s.split_inclusive('\n') {
@@ -1027,11 +1028,11 @@ more content here this is a pargraph
 
     #[test]
     fn plain_link() -> Result {
-
         let a = Org::export("https://cool.com abc rest")?;
 
-        assert_eq!(a,
-                   "[[https://cool.com]] abc rest
+        assert_eq!(
+            a,
+            "[[https://cool.com]] abc rest
 "
         );
         Ok(())

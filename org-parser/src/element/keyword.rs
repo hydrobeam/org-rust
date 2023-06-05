@@ -1,11 +1,14 @@
 use crate::constants::COLON;
 use crate::node_pool::NodeID;
+use crate::object::MacroDef;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::utils::bytes_to_str;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Keyword<'a> {
-    pub key: &'a str,
-    pub val: &'a str,
+#[derive(Debug, Clone)]
+pub enum Keyword<'a> {
+    Basic { key: &'a str, val: &'a str },
+    Macro(MacroDef<'a>),
+    Affilliated(&'a str), // TODO
 }
 
 impl<'a> Parseable<'a> for Keyword<'a> {
@@ -19,15 +22,36 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         cursor.word("#+")?;
 
         let key_word = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
+        cursor.index = key_word.end;
 
-        match cursor[key_word.end] {
+        match key_word.obj {
+            "macro" | "MACRO" => {
+                if cursor.curr() == COLON {
+                    cursor.next();
+                    if let Ok(mac) = MacroDef::parse(cursor) {
+                        let nam = mac.obj.name;
+                        let id = parser
+                            .pool
+                            .alloc(Keyword::Macro(mac.obj), start, mac.end, parent);
+                        parser.macros.insert(nam, id);
+                        return Ok(id);
+                    }
+
+                    // if macro fails, interpret it as a regular ol keyword
+                }
+            }
+            _ => {}
+        }
+
+        match cursor.curr() {
             COLON => {
                 cursor.next();
                 let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
                 // TODO: use an fn_until_inclusive to not have to add 1 to the end
                 // (we want to eat the ending nl too)
+                parser.keywords.insert(key_word.obj, val.obj.trim());
                 Ok(parser.alloc(
-                    Self {
+                    Keyword::Basic {
                         key: key_word.obj,
                         // not mentioned in the spec, but org-element trims
                         val: val.obj.trim(),
@@ -37,10 +61,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                     parent,
                 ))
             }
-            chr if chr.is_ascii_whitespace() => Err(MatchError::InvalidLogic),
-            _ => {
-                unreachable!()
-            }
+            _ => Err(MatchError::InvalidLogic),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::constants::{
-    BACKSLASH, CARET, COLON, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACK, NEWLINE, PLUS, POUND, RBRACE,
-    RBRACK, SLASH, STAR, TILDE, UNDERSCORE, VBAR,
+    BACKSLASH, CARET, COLON, DOLLAR, EQUAL, HYPHEN, LANGLE, LBRACE, LBRACK, NEWLINE, PLUS, POUND,
+    RBRACE, RBRACK, SLASH, STAR, TILDE, UNDERSCORE, VBAR,
 };
 use crate::node_pool::NodeID;
 
@@ -9,7 +9,7 @@ use crate::element::{
 };
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Emoji, InlineSrc, Italic, LatexFragment,
-    RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
+    MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -275,6 +275,11 @@ pub(crate) fn parse_object<'a>(
         }
         b's' => {
             if let ret @ Ok(_) = InlineSrc::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+        LBRACE => {
+            if let ret @ Ok(_) = MacroCall::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
