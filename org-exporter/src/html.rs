@@ -333,6 +333,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::LineBreak => {
                 writeln!(self, "\n<br>")?;
             }
+            Expr::HorizontalRule => {
+                writeln!(self, "\n<hr>")?;
+            }
             Expr::Plain(inner) => {
                 write!(self, "{}", HtmlEscape(inner))?;
             }
@@ -604,6 +607,43 @@ abc\\   q
 </p>
 "
         );
+        Ok(())
+    }
+
+    #[test]
+    fn horizontal_rule() -> Result {
+        let a = Html::export(
+            r"-----
+",
+        )?;
+
+        let b = Html::export(
+            r"                -----
+",
+        )?;
+
+        let c = Html::export(
+            r"      -------------------------
+",
+        )?;
+
+        assert_eq!(a, b);
+        assert_eq!(b, c);
+        assert_eq!(a, c);
+
+        let nb = Html::export(
+            r"                ----
+",
+        )?;
+
+        assert_eq!(
+            nb,
+            r"<p>
+----
+</p>
+"
+        );
+
         Ok(())
     }
 }

@@ -200,6 +200,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             Expr::LineBreak => {
                 write!(self, r"\\")?;
             }
+            Expr::HorizontalRule => {
+                writeln!(self, "-----")?;
+            }
             Expr::Plain(inner) => {
                 write!(self, "{inner}")?;
             }

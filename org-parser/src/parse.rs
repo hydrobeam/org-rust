@@ -104,6 +104,18 @@ pub(crate) fn parse_element<'a>(
             }
         }
         HYPHEN => {
+            {
+                // handle Hrule: at least 5 consecutive hyphens
+                let start = cursor.index;
+                while HYPHEN == cursor.curr() {
+                    cursor.next();
+                }
+                if NEWLINE == cursor.curr() && cursor.index - start >= 5 {
+                    return Ok(parser.alloc(Expr::HorizontalRule, start, cursor.index + 1, parent));
+                } else {
+                    cursor.index = start;
+                }
+            }
             if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
