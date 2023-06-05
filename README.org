@@ -29,6 +29,7 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Table               | X     | X           | _            |
 | Subscript           | X     | X           | _            |
 | Superscript         | X     | X           | _            |
+| Target              | X     | X           | _            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | Drawer              | _     | _           | _            |
@@ -45,7 +46,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | LineBreak           | _     | _           | _            |
 | Macro               | _     | _           | _            |
 | Citation            | _     | _           | _            |
-| Target              | _     | _           | _            |
 | StatisticsCookie    | _     | _           | _            |
 | Timestamp           | _     | _           | _            |
 

@@ -518,6 +518,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                     write!(self, "</sub>")?;
                 }
             },
+            Expr::Target(inner) => {
+                write!(self, "<span id={0}>{0}</span>", HtmlEscape(inner.0))?;
+            }
         }
 
         Ok(())

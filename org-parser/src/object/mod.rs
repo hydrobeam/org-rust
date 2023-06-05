@@ -5,6 +5,7 @@ mod latex_frag;
 mod link;
 mod markup;
 mod sup_sub;
+mod target;
 
 pub use emoji::Emoji;
 pub(crate) use entity::parse_entity;
@@ -20,3 +21,4 @@ pub use markup::*;
 pub use sup_sub::PlainOrRec;
 pub use sup_sub::Subscript;
 pub use sup_sub::Superscript;
+pub use target::Target;

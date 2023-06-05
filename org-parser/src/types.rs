@@ -11,7 +11,7 @@ use crate::element::{
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
     Bold, Code, Emoji, Entity, InlineSrc, Italic, LatexFragment, PlainLink, RegularLink,
-    StrikeThrough, Subscript, Superscript, Underline, Verbatim,
+    StrikeThrough, Subscript, Superscript, Underline, Verbatim, Target,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -320,6 +320,7 @@ pub enum Expr<'a> {
     Emoji(Emoji<'a>),
     Superscript(Superscript<'a>),
     Subscript(Subscript<'a>),
+    Target(Target<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -582,6 +583,7 @@ impl<'a> Expr<'a> {
             Expr::Emoji(inner) => print!("{inner:#?}"),
             Expr::Superscript(inner) => print!("{inner:#?}"),
             Expr::Subscript(inner) => print!("{inner:#?}"),
+            Expr::Target(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -627,6 +629,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Target(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -660,6 +663,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Emoji(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Superscript(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Target(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

@@ -428,6 +428,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'a, 'buf> {
                     write!(self, "}}")?;
                 }
             },
+            Expr::Target(inner) => {
+                write!(self, "<<{}>>", inner.0)?;
+            }
         }
 
         Ok(())

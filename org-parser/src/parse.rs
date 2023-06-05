@@ -8,8 +8,8 @@ use crate::element::{
     Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Emoji, Italic, LatexFragment, RegularLink,
-    StrikeThrough, Subscript, Superscript, Underline, Verbatim, InlineSrc,
+    parse_angle_link, parse_plain_link, Bold, Code, Emoji, InlineSrc, Italic, LatexFragment,
+    RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -248,6 +248,8 @@ pub(crate) fn parse_object<'a>(
         }
         LANGLE => {
             if let ret @ Ok(_) = parse_angle_link(parser, cursor, parent, parse_opts) {
+                return ret;
+            } else if let ret @ Ok(_) = Target::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }
