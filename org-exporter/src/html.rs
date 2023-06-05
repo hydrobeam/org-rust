@@ -21,7 +21,7 @@ pub struct Html<'buf> {
     // targets: &'a BTreeMap<&'a str, &'a str>,
 }
 
-struct HtmlEscape<'a>(&'a str);
+pub(crate) struct HtmlEscape<'a>(pub &'a str);
 
 impl<'a> fmt::Display for HtmlEscape<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
@@ -201,7 +201,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
+                                    writeln!(self, "{}", cont)?;
                                 }
                             };
                             Ok(())
@@ -514,7 +514,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "<span id={0}>{0}</span>", HtmlEscape(inner.0))?;
             }
             Expr::Macro(macro_call) => {
-                write!(self, "{}", HtmlEscape(&macro_handle(parser, macro_call)))?;
+                macro_handle(parser, macro_call, self)?;
             }
         }
 
@@ -548,6 +548,27 @@ hiii cool three text
         );
         // println!("{a}");
 
+        Ok(())
+    }
+
+    #[test]
+    fn keyword_macro() -> Result {
+        let a = Html::export(
+            r"
+     #+title: hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+{{{keyword(title)}}}
+",
+        )?;
+
+        println!("{a}");
+        Ok(())
+    }
+
+    #[test]
+    fn defined_keyword_macro() -> Result {
+        let a = Html::export(r" {{{keyword(email)}}}")?;
+
+        println!("{a}");
         Ok(())
     }
 }

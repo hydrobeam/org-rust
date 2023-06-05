@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt;
 
 use crate::constants::{COMMA, DOLLAR, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, UNDERSCORE};
 use crate::node_pool::NodeID;
@@ -62,6 +63,8 @@ impl<'a> MacroDef<'a> {
                         // skip past dollar and number
                         cursor.index += 2;
                         prev_ind = cursor.index;
+                    } else {
+                        cursor.next();
                     }
                 }
                 NEWLINE => {
@@ -83,21 +86,6 @@ impl<'a> MacroDef<'a> {
                 name: name_match.obj,
             },
         })
-    }
-
-    pub fn apply(&self, args: &Vec<&str>) -> Cow<'a, str> {
-        let mut output_string = String::with_capacity(self.input.len() + args.len());
-        for either_enum in &self.input {
-            match *either_enum {
-                ArgNumOrText::Text(text) => {
-                    output_string.push_str(text);
-                }
-                ArgNumOrText::ArgNum(num) => {
-                    output_string.push_str(args[(num - 1) as usize]);
-                }
-            }
-        }
-        Cow::from(output_string)
     }
 }
 
@@ -158,7 +146,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                             }
                         }
                         RPAREN => {
-                            arg_vec.push(cursor.clamp_backwards(prev_ind).trim());
+                            arg_vec.push(cursor.clamp_backwards(prev_ind));
                             cursor.word(")}}}")?;
                             return Ok(parser.alloc(
                                 MacroCall {
@@ -171,7 +159,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                             ));
                         }
                         COMMA => {
-                            arg_vec.push(cursor.clamp_backwards(prev_ind).trim());
+                            arg_vec.push(cursor.clamp_backwards(prev_ind));
                             prev_ind = cursor.index + 1;
                         }
                         _ => {}

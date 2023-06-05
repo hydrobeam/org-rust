@@ -21,6 +21,7 @@ pub use link::RegularLink;
 pub use markup::*;
 pub use org_macro::MacroCall;
 pub use org_macro::MacroDef;
+pub use org_macro::ArgNumOrText;
 pub use sup_sub::PlainOrRec;
 pub use sup_sub::Subscript;
 pub use sup_sub::Superscript;

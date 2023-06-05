@@ -430,7 +430,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 write!(self, "<<{}>>", inner.0)?;
             }
             Expr::Macro(macro_call) => {
-                write!(self, "{}", macro_handle(parser, macro_call))?;
+                macro_handle(parser, macro_call, self)?;
             }
         }
 
