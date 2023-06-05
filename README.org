@@ -31,6 +31,7 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Superscript         | X     | X           | _            |
 | Target              | X     | X           | _            |
 | Macro               | X     | X           | X            |
+| LineBreak           | X     | X           | X            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | Drawer              | _     | _           | _            |
@@ -44,7 +45,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | NodeProperty        | _     | _           | _            |
 | ExportSnippet       | _     | _           | _            |
 | FootnoteReference   | _     | _           | _            |
-| LineBreak           | _     | _           | _            |
 | Citation            | _     | _           | _            |
 | StatisticsCookie    | _     | _           | _            |
 | Timestamp           | _     | _           | _            |

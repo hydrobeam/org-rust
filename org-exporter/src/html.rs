@@ -330,6 +330,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::SoftBreak => {
                 write!(self, " ")?;
             }
+            Expr::LineBreak => {
+                writeln!(self, "\n<br>")?;
+            }
             Expr::Plain(inner) => {
                 write!(self, "{}", HtmlEscape(inner))?;
             }
@@ -569,6 +572,38 @@ hiii cool three text
         let a = Html::export(r" {{{keyword(email)}}}")?;
 
         println!("{a}");
+        Ok(())
+    }
+
+    #[test]
+    fn line_break() -> Result {
+        let a = Html::export(
+            r" abc\\
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"<p>
+abc
+<br>
+
+</p>
+"
+        );
+
+        let n = Html::export(
+            r" abc\\   q
+",
+        )?;
+
+        assert_eq!(
+            n,
+            r"<p>
+abc\\   q
+</p>
+"
+        );
         Ok(())
     }
 }

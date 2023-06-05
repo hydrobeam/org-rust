@@ -160,7 +160,7 @@ macro_rules! handle_markup {
 
 pub(crate) fn parse_object<'a>(
     parser: &mut Parser<'a>,
-    cursor: Cursor<'a>,
+    mut cursor: Cursor<'a>,
     parent: Option<NodeID>,
     mut parse_opts: ParseOpts,
 ) -> Result<NodeID> {
@@ -213,7 +213,19 @@ pub(crate) fn parse_object<'a>(
             }
         }
         BACKSLASH => {
-            if let ret @ Ok(_) = LatexFragment::parse(parser, cursor, parent, parse_opts) {
+            if cursor.peek(1)? == BACKSLASH {
+                //  \\SPACE
+                // SPACE:  Zero or more tab and space characters.
+                let start = cursor.index;
+                cursor.index += 2;
+                cursor.skip_ws();
+                // this checks if try_curr is a newline, doesn't capture
+                if let Ok(NEWLINE) = cursor.try_curr() {
+                    return Ok(parser.alloc(Expr::LineBreak, start, cursor.index + 1, parent));
+                } else {
+                    cursor.index = start;
+                }
+            } else if let ret @ Ok(_) = LatexFragment::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }

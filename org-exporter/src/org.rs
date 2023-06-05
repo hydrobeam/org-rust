@@ -197,6 +197,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             Expr::SoftBreak => {
                 write!(self, " ")?;
             }
+            Expr::LineBreak => {
+                write!(self, r"\\")?;
+            }
             Expr::Plain(inner) => {
                 write!(self, "{inner}")?;
             }

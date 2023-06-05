@@ -311,6 +311,7 @@ pub enum Expr<'a> {
     // Leaf
     BlankLine,
     SoftBreak,
+    LineBreak,
     // Normal
     Plain(&'a str),
     Verbatim(Verbatim<'a>),
@@ -543,6 +544,7 @@ impl<'a> Expr<'a> {
             }
             Expr::BlankLine => print!("BlankLine"),
             Expr::SoftBreak => print!("SoftBreak"),
+            Expr::LineBreak => print!("LineBreak"),
             Expr::Plain(inner) => print!("{inner:#?}"),
             Expr::Verbatim(inner) => print!("{inner:#?}"),
             Expr::Code(inner) => print!("{inner:#?}"),
@@ -622,6 +624,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
 
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
+                Expr::LineBreak => f.write_str("LineBreak"),
                 Expr::Plain(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Code(inner) => f.write_fmt(format_args!("{inner:#?}")),
@@ -658,6 +661,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
 
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),
+                Expr::LineBreak => f.write_str("LineBreak"),
                 Expr::Plain(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Verbatim(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Code(inner) => f.write_fmt(format_args!("{inner:?}")),
