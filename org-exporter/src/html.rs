@@ -21,6 +21,25 @@ pub struct Html<'a, 'buf> {
     targets: &'a BTreeMap<&'a str, &'a str>,
 }
 
+struct HtmlEscape<'a>(&'a str);
+
+impl<'a> fmt::Display for HtmlEscape<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
+        for byte in self.0.as_bytes() {
+            match *byte {
+                b'<' => write!(f, r"&lt;")?,
+                b'>' => write!(f, r"&gt;")?,
+                b'&' => write!(f, r"&amp;")?,
+                b'"' => write!(f, r"&quot;")?,
+                b'\'' => write!(f, r"&#39;")?,
+                byte => write!(f, "{}", byte as char)?,
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
@@ -120,7 +139,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -138,7 +157,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -155,7 +174,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -173,7 +192,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -190,7 +209,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -207,7 +226,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -224,7 +243,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                                     }
                                 }
                                 BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{cont}")?;
+                                    writeln!(self, "{}", HtmlEscape(cont))?;
                                 }
                             };
                             Ok(())
@@ -243,7 +262,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                         let mut rita = String::new();
                         for (match_targ, ret) in self.targets.iter() {
                             if match_targ.starts_with(a) {
-                                rita = format!("#{}", ret.to_string());
+                                rita = format!("#{}", ret);
                                 break;
                             }
                         }
@@ -251,8 +270,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                         rita
                     }
                 };
-                write!(self, "<a href={}>", path_link)?;
-
+                write!(self, "<a href={}>", HtmlEscape(&path_link))?;
                 if let Some(children) = &inner.description {
                     for id in children {
                         self.export_rec(id)?;
@@ -321,19 +339,24 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 write!(self, " ")?;
             }
             Expr::Plain(inner) => {
-                write!(self, "{inner}")?;
+                write!(self, "{}", HtmlEscape(inner))?;
             }
             Expr::Verbatim(inner) => {
-                write!(self, "<code>{}</code>", inner.0)?;
+                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
             }
             Expr::Code(inner) => {
-                write!(self, "<code>{}</code>", inner.0)?;
+                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
             }
             Expr::Comment(inner) => {
                 write!(self, "<!--{}-->", inner.0)?;
             }
             Expr::InlineSrc(inner) => {
-                write!(self, "<code class={}>{}</code>", inner.lang, inner.body)?;
+                write!(
+                    self,
+                    "<code class={}>{}</code>",
+                    inner.lang,
+                    HtmlEscape(inner.body)
+                )?;
                 // if let Some(args) = inner.headers {
                 //     write!(self, "[{args}]")?;
                 // }
@@ -349,7 +372,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
 {1}
 \end{{{0}}}
 ",
-                        inner.name, inner.contents
+                        inner.name,
+                        HtmlEscape(inner.contents)
                     ),
                     DisplayStyle::Block,
                 )
@@ -359,7 +383,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    write!(pot_cont, "{name}")?;
+                    write!(pot_cont, r#"\{name}"#)?;
                     if let Some(command_cont) = contents {
                         write!(pot_cont, "{{{command_cont}}}")?;
                     }
@@ -427,7 +451,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'a, 'buf> {
                 }
             },
             Expr::PlainLink(inner) => {
-                write!(self, "<a href={0}:{1}>{0}:{1}</a>", inner.protocol, inner.path)?;
+                write!(
+                    self,
+                    "<a href={0}:{1}>{0}:{1}</a>",
+                    inner.protocol, inner.path
+                )?;
             }
             Expr::Entity(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
