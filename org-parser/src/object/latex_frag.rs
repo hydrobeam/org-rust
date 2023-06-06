@@ -21,6 +21,8 @@ macro_rules! double_ending {
             match $cursor.try_curr()? {
                 NEWLINE => {
                     // the error we return doesn't matter, as long as we error
+                    $parse_opts.from_object = false;
+                    $parse_opts.list_line = false;
                     if let Err(MatchError::InvalidLogic) =
                         parse_element($parser, $cursor.adv_copy(1), $parent, $parse_opts)
                     {
@@ -85,6 +87,8 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                     match cursor.try_curr()? {
                         NEWLINE => {
                             // the error we return doesn't matter, as long as we error
+                            parse_opts.from_object = false;
+                            parse_opts.list_line = false;
                             if let Err(MatchError::InvalidLogic) =
                                 parse_element(parser, cursor.adv_copy(1), parent, parse_opts)
                             {

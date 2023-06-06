@@ -59,14 +59,19 @@ impl<'a> Parseable<'a> for Item<'a> {
         // so we are Not on a list line.
         parse_opts.list_line = cursor[cursor.index - 1] != NEWLINE;
 
+        // used to restore index to the previous position in the event of two
+        // blank lines
+        let mut prev_ind = cursor.index;
         while let Ok(element_id) = parse_element(parser, cursor, Some(reserve_id), parse_opts) {
             let pool_loc = &parser.pool[element_id];
             match &pool_loc.obj {
                 Expr::BlankLine => {
                     if blank_obj.is_some() {
+                        cursor.index = prev_ind;
                         break;
                     } else {
                         blank_obj = Some(element_id);
+                        prev_ind = cursor.index;
                     }
                 }
                 Expr::Item(_) => {
@@ -227,6 +232,8 @@ fn parse_tag(mut cursor: Cursor) -> Result<Match<&str>> {
                     && cursor.peek(2)?.is_ascii_whitespace()
                 {
                     break cursor.index + 2;
+                } else {
+                    cursor.next();
                 }
             }
             NEWLINE => Err(MatchError::EofError)?,

@@ -370,8 +370,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
 {1}
 \end{{{0}}}
 ",
-                        inner.name,
-                        HtmlEscape(inner.contents)
+                        inner.name, inner.contents
                     ),
                     DisplayStyle::Block,
                 )
@@ -541,7 +540,7 @@ mod tests {
     fn combined_macros() -> fmt::Result {
         let a = Html::export(
             r"#+macro: poem hiii $1 $2 text
-{{{poem(cool, three)}}}
+{{{poem(cool,three)}}}
 ",
         )?;
 
@@ -643,6 +642,23 @@ abc\\   q
 </p>
 "
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn correct_cache() -> Result {
+        let a = Html::export(
+            r"
+- one
+- two
+
+\begin{align}
+abc &+ 10\\
+\end{align}
+",
+        )?;
+        println!("{a}");
 
         Ok(())
     }

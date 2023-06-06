@@ -125,4 +125,76 @@ mod tests {
         // dbg!(parse_org(inp));
         println!("{:?}", parse_org(inp));
     }
+
+    #[test]
+    fn lots() {
+        let input = r#"
+#+macro: greet Hello $1, nice typing... $1.
+* Basic Heading
+
+{{{greet(user)}}}
+
+** Child Heading
+
+- https://plain_links.com.
+  - <mailto:okiedokie@cool.com>
+    - src_python{(technically) inline_src}
+- [[Child Heading]]
+  - \aleph \leftarrow entities
+
+#+begin_export
+<style type="text/css" media="screen">
+table, th, td {
+  border: 1px solid;
+}
+</style>
+#+end_export
+
+|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
+|no|default css (yet)|
+|||||||||table
+
+1. +does+
+2. *it*
+3. /all/
+4. ~code~
+5. =code, again..=
+6. /so _nested_, *t^o_o*./
+
+emojis :flushed: :tada: :sunglasses:
+
+\begin{align}
+x &+ 4\\
+abc &+ 10\\
+\end{align}
+output MathML, little janky atm (might switch to katex..?)
+
+Target here: <<targets>>\\
+
+
+# doesn't look the best, imo
+-----
+
+#+begin_src rust
+nothing styled for source blocks yet, too.
+#+end_src
+
+"#;
+        let pool = parse_org(input);
+        pool.print_tree();
+        dbg!(pool);
+    }
+
+    #[test]
+    fn correctness_cache() {
+        let input = r"
+- one
+- two
+
+--------------
+";
+        let pool = parse_org(input);
+        // dbg!(&pool);
+        pool.print_tree();
+    }
 }

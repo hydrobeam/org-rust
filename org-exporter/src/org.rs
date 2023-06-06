@@ -1043,4 +1043,22 @@ more content here this is a pargraph
         );
         Ok(())
     }
+
+    #[test]
+    fn newline_literal_markup() -> Result {
+        let a = Org::export(
+            r"- test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
+- text that isn't disappearing!
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"- test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
+- text that isn't disappearing!
+"
+        );
+
+        Ok(())
+    }
 }

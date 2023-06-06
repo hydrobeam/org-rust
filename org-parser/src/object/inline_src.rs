@@ -35,7 +35,7 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
                         body: body.obj,
                     },
                     start,
-                    body.end + 1,
+                    body.end,
                     None,
                 ))
             }

@@ -5,7 +5,7 @@ use crate::constants::{COMMA, DOLLAR, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, U
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{bytes_to_str, Match};
+use crate::utils::Match;
 
 #[derive(Debug, Clone)]
 pub struct MacroDef<'a> {
@@ -134,6 +134,8 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                     match cursor.try_curr()? {
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
+                            parse_opts.list_line = false;
+                            parse_opts.from_object = false;
                             match parse_element(parser, cursor.adv_copy(1), parent, parse_opts) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {}

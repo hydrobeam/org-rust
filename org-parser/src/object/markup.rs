@@ -107,6 +107,8 @@ macro_rules! plain_markup {
                         }
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
+                            parse_opts.from_object = false;
+                            parse_opts.list_line = false;
                             match parse_element(parser, cursor.adv_copy(1), parent, parse_opts) {
                                 Ok(_) => return Err(MatchError::InvalidLogic),
                                 Err(MatchError::InvalidLogic) => {

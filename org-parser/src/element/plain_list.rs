@@ -303,4 +303,19 @@ a*
         let pool = parse_org(input);
         pool.print_tree();
     }
+
+
+    #[test]
+    fn indent_list_prop() {
+        let input = r"
+- one
+- two
+  - qq
+
+
+ heyy
+";
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
 }
