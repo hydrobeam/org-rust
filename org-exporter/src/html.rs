@@ -4,11 +4,11 @@ use std::fmt::Result;
 use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
-use org_parser::element::{BlockKind, CheckBox, ListKind};
+use org_parser::element::Block;
+use org_parser::element::{CheckBox, ListKind, TableRow};
 
 use crate::org_macros::macro_handle;
 use crate::types::Exporter;
-use org_parser::element::{BlockContents, TableRow};
 use org_parser::node_pool::NodeID;
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
@@ -118,129 +118,76 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::Block(inner) => {
-                let _val: &str = inner.kind.into();
-
-                match inner.kind {
-                    BlockKind::Center => {
+                match inner {
+                    // Greater Blocks
+                    Block::Center {
+                        parameters,
+                        contents,
+                    } => {
                         writeln!(self, "<div class=center>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "</div>")?;
+                    }
+                    Block::Quote {
+                        parameters,
+                        contents,
+                    } => {
+                        writeln!(self, "<blockquote>")?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "</blockquote>")?;
+                    }
+                    Block::Special {
+                        parameters,
+                        contents,
+                        name,
+                    } => {
+                        writeln!(self, "<div class={}>", name)?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "</div>")?;
+                    }
 
-                        writeln!(self, "</div>")?;
+                    // Lesser blocks
+                    Block::Comment {
+                        parameters,
+                        contents,
+                    } => {
+                        writeln!(self, "<!--{}-->", contents)?;
                     }
-                    BlockKind::Quote => {
-                        writeln!(self, "<div class=quote>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</div>")?;
+                    Block::Example {
+                        parameters,
+                        contents,
+                    } => {
+                        writeln!(self, "<pre class=example>\n{}</pre>", HtmlEscape(contents))?;
                     }
-                    BlockKind::Special(name) => {
-                        writeln!(self, "<div class={name}>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</div>")?;
+                    Block::Export {
+                        parameters,
+                        contents,
+                    } => {
+                        if let Some(params) = parameters {
+                            if params.contains("html") {
+                                writeln!(self, "{}", contents)?;
+                            }
+                        }
                     }
-                    BlockKind::Comment => {}
-                    BlockKind::Example => {
-                        writeln!(self, "<pre class=example>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</pre>")?;
+                    Block::Src {
+                        parameters,
+                        contents,
+                    } => {
+                        // TODO: work with the language parameter
+                        writeln!(self, "<pre class=src>\n{}</pre>", HtmlEscape(contents))?;
                     }
-                    BlockKind::Export => {
-                        writeln!(self, "<pre class=example>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", cont)?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</pre>")?;
-                    }
-                    BlockKind::Src => {
-                        writeln!(self, "<pre class=src>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</pre>")?;
-                    }
-                    BlockKind::Verse => {
-                        writeln!(self, "<pre class=src>")?;
-                        || -> Result {
-                            match &inner.contents {
-                                BlockContents::Greater(children) => {
-                                    for id in children {
-                                        self.export_rec(id, parser)?;
-                                    }
-                                }
-                                BlockContents::Lesser(cont) => {
-                                    writeln!(self, "{}", HtmlEscape(cont))?;
-                                }
-                            };
-                            Ok(())
-                        }()?;
-                        writeln!(self, "</pre>")?;
+                    Block::Verse {
+                        parameters,
+                        contents,
+                    } => {
+                        // FIXME: apparently verse blocks contain objects...
+                        writeln!(self, "<p class=verse>\n{}</p>", HtmlEscape(contents))?;
                     }
                 }
             }

@@ -5,14 +5,13 @@ use std::fmt::Write;
 
 use crate::org_macros::macro_handle;
 use crate::types::Exporter;
-use org_parser::element::{BlockContents, BulletKind, CounterKind, Priority, TableRow, Tag};
+use org_parser::element::Block;
+use org_parser::element::{BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::node_pool::NodeID;
 
-use org_parser::object::LatexFragment;
-use org_parser::object::PlainOrRec;
+use org_parser::object::{LatexFragment, PlainOrRec};
 use org_parser::parse_org;
-use org_parser::types::Expr;
-use org_parser::types::Parser;
+use org_parser::types::{Expr, Parser};
 
 pub struct Org<'buf> {
     buf: &'buf mut dyn fmt::Write,
@@ -124,24 +123,100 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 }
             }
             Expr::Block(inner) => {
-                let val: &str = inner.kind.into();
-                write!(self, "#+begin_{val}")?;
-                if let Some(params) = inner.parameters {
-                    write!(self, " {params}")?;
-                }
-                writeln!(self)?;
-                match &inner.contents {
-                    BlockContents::Greater(children) => {
-                        for id in children {
-                            self.export_rec(id, parser)?;
+                match inner {
+                    // Greater Blocks
+                    Block::Center {
+                        parameters,
+                        contents,
+                    } => {
+                        write!(self, "#+begin_center")?;
+                        if let Some(params) = parameters {
+                            write!(self, " {params}")?;
                         }
                         writeln!(self)?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "#+end_center")?;
                     }
-                    BlockContents::Lesser(cont) => {
-                        writeln!(self, "{cont}")?;
+                    Block::Quote {
+                        parameters,
+                        contents,
+                    } => {
+                        write!(self, "#+begin_quote")?;
+                        if let Some(params) = parameters {
+                            write!(self, " {params}")?;
+                        }
+                        writeln!(self)?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "#+end_quote")?;
+                    }
+                    Block::Special {
+                        parameters,
+                        contents,
+                        name,
+                    } => {
+                        write!(self, "#+begin_{}", name)?;
+                        if let Some(params) = parameters {
+                            write!(self, " {params}")?;
+                        }
+                        writeln!(self)?;
+                        for id in contents {
+                            self.export_rec(id, parser)?;
+                        }
+                        writeln!(self, "#+end_{}", name)?;
+                    }
+
+                    // Lesser blocks
+                    Block::Comment {
+                        parameters,
+                        contents,
+                    } => {
+                        writeln!(self, "#+begin_comment\n{}\n#+end_comment", contents)?;
+                    }
+                    Block::Example {
+                        parameters,
+                        contents,
+                    } => {
+                        writeln!(self, "#+begin_example\n{}\n#+end_example", contents)?;
+                    }
+                    Block::Export {
+                        parameters,
+                        contents,
+                    } => {
+                        if let Some(params) = parameters {
+                            writeln!(
+                                self,
+                                "#+begin_export {}\n{}\n#+end_export",
+                                params, contents
+                            )?;
+                        } else {
+                            writeln!(self, "#+begin_export\n{}\n#+end_export", contents)?;
+                        }
+                    }
+                    Block::Src {
+                        parameters,
+                        contents,
+                    } => {
+                        if let Some(params) = parameters {
+                            writeln!(self, "#+begin_src {}\n{}\n#+end_src", params, contents)?;
+                        } else {
+                            writeln!(self, "#+begin_src\n{}\n#+end_src", contents)?;
+                        }
+                    }
+                    Block::Verse {
+                        parameters,
+                        contents,
+                    } => {
+                        if let Some(params) = parameters {
+                            writeln!(self, "#+begin_verse {}\n{}\n#+end_verse", params, contents)?;
+                        } else {
+                            writeln!(self, "#+begin_verse\n{}\n#+end_verse", contents)?;
+                        }
                     }
                 }
-                writeln!(self, "#+end_{val}")?;
             }
             Expr::RegularLink(inner) => {
                 write!(self, "[")?;

@@ -5,17 +5,43 @@ use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
-pub struct Block<'a> {
-    pub kind: BlockKind<'a>,
-    pub parameters: Option<&'a str>,
-    pub contents: BlockContents<'a>,
-}
+pub enum Block<'a> {
+    // Greater Blocks
+    Center {
+        parameters: Option<&'a str>,
+        contents: Vec<NodeID>,
+    },
+    Quote {
+        parameters: Option<&'a str>,
+        contents: Vec<NodeID>,
+    },
+    Special {
+        parameters: Option<&'a str>,
+        contents: Vec<NodeID>,
+        name: &'a str,
+    },
 
-// TODO; just expost these two different kinds as structs?
-#[derive(Debug, Clone)]
-pub enum BlockContents<'a> {
-    Greater(Vec<NodeID>),
-    Lesser(&'a str),
+    // Lesser Blocks
+    Comment {
+        parameters: Option<&'a str>,
+        contents: &'a str,
+    },
+    Example {
+        parameters: Option<&'a str>,
+        contents: &'a str,
+    },
+    Export {
+        parameters: Option<&'a str>,
+        contents: &'a str,
+    },
+    Src {
+        parameters: Option<&'a str>,
+        contents: &'a str,
+    },
+    Verse {
+        parameters: Option<&'a str>,
+        contents: &'a str,
+    },
 }
 
 impl<'a> Parseable<'a> for Block<'a> {
@@ -30,7 +56,6 @@ impl<'a> Parseable<'a> for Block<'a> {
 
         let block_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
 
-        let parameters: Option<&str>;
         // if no progress was made looking for the block_type:
         // i.e.: #+begin_\n
         if cursor.index == block_name_match.end {
@@ -42,6 +67,7 @@ impl<'a> Parseable<'a> for Block<'a> {
 
         let block_kind: BlockKind = block_name_match.obj.into();
 
+        let parameters: Option<&str>;
         if cursor.curr() == NEWLINE {
             parameters = None;
         } else {
@@ -65,15 +91,17 @@ impl<'a> Parseable<'a> for Block<'a> {
         }
 
         cursor.next();
+        // Find ending cookie: #+end_{}
+        // lesser blocks: clamp a string between the beginning and end
+        // greater blocks: parse between the bounds
         let mut it = memmem::find_iter(cursor.rest(), needle.as_bytes());
-        // returns result at the start of the needle
+        // memmem returns result at the start of the needle
 
-        // done this way to handle indented blocks,
-        // such as in the case of lists
-        //
         let loc;
         let end;
         'l: loop {
+            // done this way to handle indented blocks,
+            // such as in the case of lists
             if let Some(potential_loc) = it.next() {
                 // - 1 since the match is at the start of the word,
                 // which is going to be #
@@ -91,41 +119,74 @@ impl<'a> Parseable<'a> for Block<'a> {
                 Err(MatchError::InvalidLogic)?
             }
         }
-        // let loc = it.next().ok_or(MatchError::InvalidLogic)? + curr_ind;
+
         // handle empty contents
         if cursor.index > loc {
             cursor.index = loc;
         }
 
         if block_kind.is_lesser() {
+            let contents = cursor.clamp_forwards(loc);
             Ok(parser.alloc(
-                Self {
-                    kind: block_kind,
-                    parameters,
-                    // + 1 to skip newline
-                    contents: BlockContents::Lesser(cursor.clamp_forwards(loc)),
+                match block_kind {
+                    BlockKind::Center | BlockKind::Quote | BlockKind::Special(_) => unreachable!(),
+                    BlockKind::Comment => Block::Comment {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Example => Block::Example {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Export => Block::Export {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Src => Block::Src {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Verse => Block::Verse {
+                        parameters,
+                        contents,
+                    },
                 },
                 start,
                 end,
                 parent,
             ))
         } else {
-            let mut content_vec: Vec<NodeID> = Vec::new();
+            let mut contents: Vec<NodeID> = Vec::new();
             let reserve_id = parser.pool.reserve_id();
             // janky
             let mut temp_cursor = cursor.cut_off(loc);
             while let Ok(element_id) =
                 parse_element(parser, temp_cursor, Some(reserve_id), parse_opts)
             {
-                content_vec.push(element_id);
+                contents.push(element_id);
                 temp_cursor.index = parser.pool[element_id].end;
             }
 
             Ok(parser.alloc_with_id(
-                Self {
-                    kind: block_kind,
-                    parameters,
-                    contents: BlockContents::Greater(content_vec),
+                match block_kind {
+                    BlockKind::Center => Block::Center {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Quote => Block::Quote {
+                        parameters,
+                        contents,
+                    },
+                    BlockKind::Special(name) => Block::Special {
+                        parameters,
+                        contents,
+                        name,
+                    },
+                    BlockKind::Comment
+                    | BlockKind::Example
+                    | BlockKind::Export
+                    | BlockKind::Src
+                    | BlockKind::Verse => unreachable!(),
                 },
                 start,
                 end,
@@ -137,7 +198,7 @@ impl<'a> Parseable<'a> for Block<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum BlockKind<'a> {
+enum BlockKind<'a> {
     // Greater
     Center,
     Quote,

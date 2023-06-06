@@ -2,7 +2,6 @@ use crate::constants::COLON;
 use crate::node_pool::NodeID;
 use crate::object::MacroDef;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::bytes_to_str;
 
 #[derive(Debug, Clone)]
 pub enum Keyword<'a> {

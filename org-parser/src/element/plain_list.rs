@@ -304,7 +304,6 @@ a*
         pool.print_tree();
     }
 
-
     #[test]
     fn indent_list_prop() {
         let input = r"

@@ -5,8 +5,8 @@ use std::ops::Index;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
-    Block, BlockContents, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
-    TableCell, TableRow,
+    Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table, TableCell,
+    TableRow,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
@@ -473,19 +473,27 @@ impl<'a> Expr<'a> {
                 print!("]");
                 print!("}}");
             }
-            Expr::Block(inner) => match &inner.contents {
-                BlockContents::Greater(children) => {
-                    println!("Block{{");
-                    for id in children {
-                        pool[*id].obj.print_tree(pool);
-                        print!(",");
+            Expr::Block(inner) => {
+                println!("Block{{");
+                match inner {
+                    Block::Center { contents, .. }
+                    | Block::Quote { contents, .. }
+                    | Block::Special { contents, .. } => {
+                        for id in contents {
+                            pool[*id].obj.print_tree(pool);
+                            print!(",");
+                        }
                     }
-                    print!("\nEndBlock}}");
+                    Block::Comment { contents, .. }
+                    | Block::Example { contents, .. }
+                    | Block::Export { contents, .. }
+                    | Block::Src { contents, .. }
+                    | Block::Verse { contents, .. } => {
+                        println!("{contents:#?}");
+                    }
                 }
-                BlockContents::Lesser(cont) => {
-                    println!("{inner:#?}");
-                }
-            },
+                print!("\nEndBlock}}");
+            }
             Expr::RegularLink(inner) => {
                 println!("RegularLink{{");
                 print!("{:#?}", inner.path);
