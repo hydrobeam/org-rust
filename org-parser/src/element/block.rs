@@ -1,7 +1,8 @@
-use crate::constants::NEWLINE;
+use crate::constants::{NEWLINE, SPACE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::utils::bytes_to_str;
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
@@ -49,7 +50,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<crate::node_pool::NodeID>,
-        parse_opts: ParseOpts,
+        mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
         cursor.word("#+begin_")?;
@@ -106,13 +107,14 @@ impl<'a> Parseable<'a> for Block<'a> {
                 // - 1 since the match is at the start of the word,
                 // which is going to be #
                 let mut moving_loc = potential_loc + cursor.index - 1;
-                while cursor[moving_loc] != NEWLINE {
-                    if !cursor[moving_loc].is_ascii_whitespace() {
-                        continue 'l;
-                    }
+                while cursor[moving_loc] == SPACE {
                     moving_loc -= 1;
                 }
-                loc = moving_loc;
+                if !cursor[moving_loc] == NEWLINE {
+                    continue 'l;
+                }
+                // end the area we're capturing on a newline
+                loc = moving_loc + 1;
                 end = potential_loc + cursor.index + needle.len();
                 break;
             } else {
@@ -160,8 +162,11 @@ impl<'a> Parseable<'a> for Block<'a> {
             let reserve_id = parser.pool.reserve_id();
             // janky
             let mut temp_cursor = cursor.cut_off(loc);
+            parse_opts.indentation_level = 0;
             while let Ok(element_id) =
-                parse_element(parser, temp_cursor, Some(reserve_id), parse_opts)
+                // use default parseopts since it wouldn't make sense for the contents
+                // of the block to be interpreted as a list, or be influenced from the outside
+                parse_element(parser, temp_cursor, Some(reserve_id), ParseOpts::default())
             {
                 contents.push(element_id);
                 temp_cursor.index = parser.pool[element_id].end;
@@ -401,6 +406,38 @@ here is after
              #+end_swag
 ";
 
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
+
+    #[test]
+    fn gblock_plus_list() {
+        let input = r"
+- a
+   #+begin_quote
+hiiiiiiiiiiiiiiiiiii
+   #+end_quote
+-
+";
+
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
+
+    #[test]
+    fn lblock_plus_list() {
+        let input = r"
+-
+   #+begin_src
+
+
+hiiiiiiiiiiiiiiiiiii
+
+meowwwwwwwwww
+   #+end_src
+
+-
+";
         let pool = parse_org(input);
         pool.print_tree();
     }

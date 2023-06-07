@@ -174,13 +174,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_comment\n{}\n#+end_comment", contents)?;
+                        writeln!(self, "#+begin_comment\n{}#+end_comment", contents)?;
                     }
                     Block::Example {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_example\n{}\n#+end_example", contents)?;
+                        writeln!(self, "#+begin_example\n{}#+end_example", contents)?;
                     }
                     Block::Export {
                         parameters,
@@ -189,21 +189,22 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         if let Some(params) = parameters {
                             writeln!(
                                 self,
-                                "#+begin_export {}\n{}\n#+end_export",
+                                "#+begin_export {}\n{}#+end_export",
                                 params, contents
                             )?;
                         } else {
-                            writeln!(self, "#+begin_export\n{}\n#+end_export", contents)?;
+                            writeln!(self, "#+begin_export\n{}#+end_export", contents)?;
                         }
                     }
                     Block::Src {
                         parameters,
                         contents,
                     } => {
+                        dbg!(contents);
                         if let Some(params) = parameters {
-                            writeln!(self, "#+begin_src {}\n{}\n#+end_src", params, contents)?;
+                            writeln!(self, "#+begin_src {}\n{}#+end_src", params, contents)?;
                         } else {
-                            writeln!(self, "#+begin_src\n{}\n#+end_src", contents)?;
+                            writeln!(self, "#+begin_src\n{}#+end_src", contents)?;
                         }
                     }
                     Block::Verse {
@@ -211,9 +212,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            writeln!(self, "#+begin_verse {}\n{}\n#+end_verse", params, contents)?;
+                            writeln!(self, "#+begin_verse {}\n{}#+end_verse", params, contents)?;
                         } else {
-                            writeln!(self, "#+begin_verse\n{}\n#+end_verse", contents)?;
+                            writeln!(self, "#+begin_verse\n{}#+end_verse", contents)?;
                         }
                     }
                 }
@@ -1133,6 +1134,25 @@ more content here this is a pargraph
 - text that isn't disappearing!
 "
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn lblock_plus_list()->Result {
+        let a = Org::export(r"
+-
+   #+begin_src
+
+
+hiiiiiiiiiiiiiiiiiii
+
+meowwwwwwwwww
+   #+end_src
+
+-
+")?;
+        println!("{a}");
 
         Ok(())
     }
