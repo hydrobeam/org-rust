@@ -57,11 +57,17 @@ impl<'a> Parseable<'a> for Item<'a> {
 
         // if the last element was a \n, that means we're starting on a new line
         // so we are Not on a list line.
-        parse_opts.list_line = cursor[cursor.index - 1] != NEWLINE;
+        cursor.skip_ws();
+        if cursor.try_curr()? == NEWLINE {
+            cursor.next();
+        } else {
+            parse_opts.list_line = true;
+        }
 
         // used to restore index to the previous position in the event of two
         // blank lines
         let mut prev_ind = cursor.index;
+
         while let Ok(element_id) = parse_element(parser, cursor, Some(reserve_id), parse_opts) {
             let pool_loc = &parser.pool[element_id];
             match &pool_loc.obj {
@@ -120,13 +126,16 @@ pub enum CounterKind {
 
 impl BulletKind {
     pub(crate) fn parse(mut cursor: Cursor) -> Result<Match<BulletKind>> {
+        // -\n is valid, so we don't want to skip past the newline
+        // since -    \n is also valid
+        // is valid
         let start = cursor.index;
         match cursor.curr() {
             STAR | HYPHEN | PLUS => {
                 if cursor.peek(1)?.is_ascii_whitespace() {
                     Ok(Match {
                         start,
-                        end: cursor.index + 2,
+                        end: cursor.index + if cursor.peek(1)? == NEWLINE { 1 } else { 2 },
                         obj: BulletKind::Unordered,
                     })
                 } else {
@@ -166,7 +175,7 @@ impl BulletKind {
 
                 Ok(Match {
                     start,
-                    end: cursor.index + 2,
+                    end: cursor.index + if cursor.peek(1)? == NEWLINE { 1 } else { 2 },
                     obj: bullet_kind,
                 })
             }

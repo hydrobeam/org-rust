@@ -317,4 +317,18 @@ a*
         let pool = parse_org(input);
         pool.print_tree();
     }
+
+    #[test]
+    fn list_no_item_with_sub_element() {
+        let input = r"-   [X]
+      |a|a|a|a|
+
+-
+
+";
+
+        let pool = parse_org(input);
+        pool.print_tree();
+
+    }
 }
