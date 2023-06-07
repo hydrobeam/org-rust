@@ -1,5 +1,6 @@
 use core::fmt;
 
+use std::borrow::Cow;
 use std::fmt::Result;
 use std::fmt::Write;
 
@@ -368,24 +369,29 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             },
             Expr::Item(inner) => {
-                let tag_val = if let Some(tag) = inner.tag {
-                    format!(" id={tag}")
-                } else {
-                    "".to_string()
-                };
+                write!(self, "<li")?;
 
-                let class_val = if let Some(check) = &inner.check_box {
-                    let val = match check {
-                        CheckBox::Intermediate => "trans",
-                        CheckBox::Off => "off",
-                        CheckBox::On => "on",
-                    };
-                    format!(" class={val}")
-                } else {
-                    "".to_string()
-                };
+                if let Some(counter) = (inner.counter_set) {
+                    write!(self, " value={}", counter)?;
+                }
 
-                write!(self, "<li{class_val}{tag_val}>")?;
+                if let Some(check) = &inner.check_box {
+                    write!(
+                        self,
+                        " class={}",
+                        match check {
+                            CheckBox::Intermediate => "trans",
+                            CheckBox::Off => "off",
+                            CheckBox::On => "on",
+                        }
+                    )?;
+                }
+
+                if let Some(tag) = inner.tag {
+                    write!(self, " id={tag}")?;
+                }
+
+                write!(self, ">")?;
 
                 for id in &inner.children {
                     self.export_rec(id, parser)?;
@@ -640,6 +646,27 @@ a é😳
 "
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn list_counter_set() -> Result {
+        let a = Html::export(
+            r"
+1. [@4] wordsss??
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"<ol>
+<li value=4><p>
+wordsss??
+</p>
+</li>
+</ol>
+"
+        );
         Ok(())
     }
 }

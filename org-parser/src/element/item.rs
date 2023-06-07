@@ -8,7 +8,7 @@ use crate::utils::Match;
 pub struct Item<'a> {
     pub bullet: BulletKind,
     // An instance of the pattern [@COUNTER]
-    pub counter_set: Option<CounterKind>,
+    pub counter_set: Option<&'a str>,
     pub check_box: Option<CheckBox>,
     pub tag: Option<&'a str>,
     pub children: Vec<NodeID>,
@@ -29,8 +29,7 @@ impl<'a> Parseable<'a> for Item<'a> {
         let bullet = bullet_match.obj;
         cursor.move_to(bullet_match.end);
 
-        let counter_set: Option<CounterKind> = if let Ok(counter_match) = parse_counter_set(cursor)
-        {
+        let counter_set: Option<&'a str> = if let Ok(counter_match) = parse_counter_set(cursor) {
             cursor.move_to(counter_match.end);
             Some(counter_match.obj)
         } else {
@@ -185,7 +184,8 @@ impl BulletKind {
     }
 }
 
-fn parse_counter_set(mut cursor: Cursor) -> Result<Match<CounterKind>> {
+// - [@4]
+fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
     let start = cursor.index;
     cursor.is_index_valid()?;
     cursor.skip_ws();
@@ -194,12 +194,11 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<CounterKind>> {
         Err(MatchError::InvalidLogic)?
     }
 
-    let num_match = cursor.fn_while(|chr| {
-        chr.is_ascii_alphanumeric()
-        // effectively these ↓
-        // || chr == PERIOD || chr == RPAREN
-    })?;
-    cursor.move_to(num_match.end);
+    cursor.index += 2;
+
+    let num_match = cursor.fn_while(|chr| chr.is_ascii_alphanumeric())?;
+
+    cursor.index = num_match.end;
 
     // TODO: errors on eof
     if cursor.curr() != RBRACK {
@@ -208,16 +207,23 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<CounterKind>> {
 
     let counter_kind = if num_match.len() == 1 {
         let temp = num_match.obj.as_bytes()[0];
-        if temp.is_ascii_alphabetic() {
-            CounterKind::Letter(temp)
-        } else if temp.is_ascii_digit() {
-            CounterKind::Number(temp)
+        if temp.is_ascii_alphanumeric() {
+            num_match.obj
         } else {
-            Err(MatchError::InvalidLogic)?
+            return Err(MatchError::InvalidLogic);
         }
     } else {
         // must be a number
-        CounterKind::Number(num_match.obj.parse().or(Err(MatchError::InvalidLogic))?)
+        if num_match
+            .obj
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit())
+        {
+            num_match.obj
+        } else {
+            return Err(MatchError::InvalidLogic);
+        }
     };
 
     Ok(Match {
@@ -300,4 +306,12 @@ impl CheckBox {
             },
         })
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_org;
+
+    use super::*;
+
 }

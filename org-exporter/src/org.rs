@@ -187,11 +187,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            writeln!(
-                                self,
-                                "#+begin_export {}\n{}#+end_export",
-                                params, contents
-                            )?;
+                            writeln!(self, "#+begin_export {}\n{}#+end_export", params, contents)?;
                         } else {
                             writeln!(self, "#+begin_export\n{}#+end_export", contents)?;
                         }
@@ -341,6 +337,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 }
                 write!(self, " ")?;
 
+                if let Some(counter_set) = inner.counter_set {
+                    write!(self, "[@{counter_set}]")?;
+                }
+
                 if let Some(check) = &inner.check_box {
                     let val: &str = check.into();
                     write!(self, "[{val}] ")?;
@@ -349,6 +349,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 if let Some(tag) = inner.tag {
                     write!(self, "{tag} :: ")?;
                 }
+
 
                 self.indentation_level += 1;
                 for id in &inner.children {
@@ -1139,8 +1140,9 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn lblock_plus_list()->Result {
-        let a = Org::export(r"
+    fn lblock_plus_list() -> Result {
+        let a = Org::export(
+            r"
 -
    #+begin_src
 
@@ -1151,19 +1153,22 @@ meowwwwwwwwww
    #+end_src
 
 -
-")?;
+",
+        )?;
         println!("{a}");
 
         Ok(())
     }
 
-
     #[test]
     fn markup_enclosed_in_bracks() -> Result {
         let a = Org::export(r"[_enclosed text here_]")?;
 
-        assert_eq!(a, "[_enclosed text here_]
-");
+        assert_eq!(
+            a,
+            "[_enclosed text here_]
+"
+        );
 
         Ok(())
     }
