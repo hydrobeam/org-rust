@@ -20,6 +20,12 @@ static MARKUP_POST: phf::Set<u8> = phf_set! {
  b'\n',
  b' ',
  b'\t',
+ // NOT STANDARD:
+ // add this because
+ // [[][/according to the spec, this shouldn't be marked up/]]
+ // is actually marked up in org, and this saves having to
+ // check for the ending delimter in links (pain in the ass)
+ b']'
 };
 
 // Either a whitespace character, -, (, {, ', ", or the beginning of a line.
@@ -33,7 +39,13 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
  b' ',
  b'\t',
  // checks for beginning of line
- b'\n'
+ b'\n',
+ // NOT STANDARD:
+ // add this because
+ // [[][/according to the spec, this shouldn't be marked up/]]
+ // is actually marked up in org, and this saves having to
+ // check for the ending delimter in links (pain in the ass)
+ b'['
 };
 
 /// ## SAFETY:

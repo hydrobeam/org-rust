@@ -1156,4 +1156,15 @@ meowwwwwwwwww
 
         Ok(())
     }
+
+
+    #[test]
+    fn markup_enclosed_in_bracks() -> Result {
+        let a = Org::export(r"[_enclosed text here_]")?;
+
+        assert_eq!(a, "[_enclosed text here_]
+");
+
+        Ok(())
+    }
 }
