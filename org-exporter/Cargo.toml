@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 latex2mathml = "0.2.3"
 org-parser = { path = "../org-parser" }
+memchr = "2.5.0"

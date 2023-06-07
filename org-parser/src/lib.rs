@@ -197,4 +197,14 @@ nothing styled for source blocks yet, too.
         // dbg!(&pool);
         pool.print_tree();
     }
+
+    #[test]
+    fn basic_unicode() {
+        let input = r"é
+"        ;
+
+
+        let pool = parse_org(input);
+        pool.print_tree();
+    }
 }

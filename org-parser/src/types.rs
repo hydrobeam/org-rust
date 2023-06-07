@@ -136,6 +136,7 @@ impl<'a> Cursor<'a> {
         self
     }
 
+    #[inline]
     pub fn next(&mut self) {
         self.index += 1;
     }

@@ -4,6 +4,7 @@ use std::fmt::Result;
 use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
+use memchr::memchr3_iter;
 use org_parser::element::Block;
 use org_parser::element::{CheckBox, ListKind, TableRow};
 
@@ -16,27 +17,41 @@ use org_parser::types::{Expr, Parser};
 
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
-    // parser: Parser<'a>,
-    // pool: &'a NodePool<'a>,
-    // targets: &'a BTreeMap<&'a str, &'a str>,
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
 
 impl<'a> fmt::Display for HtmlEscape<'a> {
+    // design based on:
+    // https://lise-henry.github.io/articles/optimising_strings.html
+    // we can iterate over bytes since it's not possible for
+    // an ascii character to appear in the codepoint of another larger char
+    // if we see an ascii, then it's guaranteed to be valid
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
-        for byte in self.0.as_bytes() {
-            match *byte {
+        let mut prev_pos = 0;
+        // there are other characters we could escape, but memchr caps out at 3
+        // the really important one is `<`, and then also probably &
+        // throwing in `>` for good measure
+        // based on:
+        // https://mina86.com/2021/no-you-dont-need-to-escape-that/
+        // there are invariants in the parsing (i hope) that should make
+        // using memchr3 okay. if not, consider using jetscii for more byte blasting
+
+        let mut escape_bytes = memchr3_iter(b'<', b'&', b'>', self.0.as_bytes());
+
+        while let Some(ret) = escape_bytes.next() {
+            write!(f, "{}", &self.0[prev_pos..ret])?;
+
+            match self.0.as_bytes()[ret] {
                 b'<' => write!(f, r"&lt;")?,
                 b'>' => write!(f, r"&gt;")?,
                 b'&' => write!(f, r"&amp;")?,
-                b'"' => write!(f, r"&quot;")?,
-                b'\'' => write!(f, r"&#39;")?,
-                byte => write!(f, "{}", byte as char)?,
+                _ => unreachable!(),
             }
+            prev_pos = ret + 1;
         }
 
-        Ok(())
+        write!(f, "{}", &self.0[prev_pos..])
     }
 }
 
@@ -606,6 +621,24 @@ abc &+ 10\\
 ",
         )?;
         println!("{a}");
+
+        Ok(())
+    }
+
+    #[test]
+    fn html_unicode() -> Result {
+        let a = Html::export(
+            r"a é😳
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r"<p>
+a é😳
+</p>
+"
+        );
 
         Ok(())
     }
