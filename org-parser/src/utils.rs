@@ -1,5 +1,5 @@
 use crate::constants::DOLLAR;
-use crate::types::Cursor;
+use crate::types::{Cursor, MarkupKind};
 use phf::phf_set;
 
 // Either a whitespace character, -, ., ,, ;, :, !, ?, ', ), }, [, ", or the end of a line.
@@ -20,12 +20,12 @@ static MARKUP_POST: phf::Set<u8> = phf_set! {
  b'\n',
  b' ',
  b'\t',
- // NOT STANDARD:
- // add this because
- // [[][/according to the spec, this shouldn't be marked up/]]
- // is actually marked up in org, and this saves having to
- // check for the ending delimter in links (pain in the ass)
- b']'
+ b'|',
+ b']',
+ b'/',
+ b'*',
+ b'_',
+ b'+',
 };
 
 // Either a whitespace character, -, (, {, ', ", or the beginning of a line.
@@ -40,13 +40,32 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
  b'\t',
  // checks for beginning of line
  b'\n',
- // NOT STANDARD:
- // add this because
- // [[][/according to the spec, this shouldn't be marked up/]]
- // is actually marked up in org, and this saves having to
- // check for the ending delimter in links (pain in the ass)
- b'['
+ // // Non Standard
+ b'|',
+ b'[',
+ b'/',
+ b'*',
+ b'_',
+ b'+',
 };
+
+// Why add non-standard extenders?
+// org mode syntax allows */abc/* to be defined as both bold and italic
+// even though * and / are not in PRE/POST, this is because it clamps then
+// parses the contents.
+//
+// my extensions to PRE/POST are more permissive than the spec since it allows
+// [/abc/] to be interpreted as markup (the object doesn't have to belong to markup)
+// another example is:
+//
+// /abc _*one*/
+//
+// this shouldn't contain a bold object, but with these changes it does. I find this behaviour
+// to be fairly reasonable imo, and don't mind the more permissive markup syntax.
+// if there are other unexpected interactions however then I'll have to find
+// the ending delimeter and then parse the contents within (entails reading over the
+// contained text twice, not ideal).
+
 
 /// ## SAFETY:
 /// We are given a valid utf8 string to parse with, no need for re-validation
@@ -89,17 +108,17 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
     let before = cursor.peek_rev(1);
 
     // pretty much never going to overflow
-    let after_maybe = cursor.get(cursor.index + 1);
+    let after_maybe = cursor.peek(1);
 
     if post {
         // if we're in post, then a character before the markup Must Exist
         !before.unwrap().is_ascii_whitespace()
-            && if let Some(val) = after_maybe {
-                MARKUP_POST.contains(val)
+            && if let Ok(val) = after_maybe {
+                MARKUP_POST.contains(&val)
             } else {
                 true
             }
-    } else if let Some(after) = after_maybe {
+    } else if let Ok(after) = after_maybe {
         !after.is_ascii_whitespace()
             && if let Ok(val) = before {
                 MARKUP_PRE.contains(&val)
@@ -111,63 +130,4 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
         // if there's no after, cannot be valid markup
         false
     }
-}
-
-pub(crate) fn verify_latex_frag(cursor: Cursor, post: bool) -> bool {
-    let before = cursor.peek_rev(1);
-    let after_maybe = cursor.peek(1);
-
-    if post {
-        let before_val = before.unwrap();
-        // if we're in post, then a character before the markup Must Exist
-        (!before_val.is_ascii_whitespace() && !matches!(before_val, b'.' | b',' | b'$'))
-            && if let Ok(after) = after_maybe {
-                after.is_ascii_punctuation() || after.is_ascii_whitespace()
-            } else {
-                // no after => valid
-                true
-            }
-    } else if let Ok(after) = after_maybe {
-        !after.is_ascii_whitespace()
-            && !matches!(after, b'.' | b',' | b';' | b'$')
-            && if let Ok(val) = before {
-                val != DOLLAR
-            } else {
-                // bof is valid
-                true
-            }
-    } else {
-        // if there's no after, cannot be valid markup
-        false
-    }
-}
-
-pub(crate) fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
-    // distances:
-    // 10123
-    // p$i$c
-    //
-    // we are at the dollar
-
-    // handle access this way in case of underflow
-    let pre = cursor.peek_rev(1);
-    // pretty much never going to overflow
-    let post = cursor.peek(3);
-
-    let Ok(inner) = cursor.peek( 1) else {
-        return false;
-    };
-
-    !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b',' | b'?' | b';' | b'"'))
-        // both could be dne
-        && if let Ok(after) = post {
-            after.is_ascii_punctuation() || after.is_ascii_whitespace()
-        } else {
-            true
-        }
-        && if let Ok(before) = pre {
-            before != DOLLAR
-        } else {
-            true
-        }
 }

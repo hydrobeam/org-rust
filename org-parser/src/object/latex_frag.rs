@@ -4,7 +4,6 @@ use crate::constants::{
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{verify_latex_frag, verify_single_char_latex_frag};
 
 use super::parse_entity;
 
@@ -225,6 +224,65 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
             return Err(MatchError::InvalidLogic);
         }
     }
+}
+
+fn verify_latex_frag(cursor: Cursor, post: bool) -> bool {
+    let before_maybe = cursor.peek_rev(1);
+    let after_maybe = cursor.peek(1);
+
+    if post {
+        let before_val = before_maybe.unwrap();
+        // if we're in post, then a character before the markup Must Exist
+        (!before_val.is_ascii_whitespace() && !matches!(before_val, b'.' | b',' | b'$'))
+            && if let Ok(after) = after_maybe {
+                after.is_ascii_punctuation() || after.is_ascii_whitespace()
+            } else {
+                // no after => valid
+                true
+            }
+    } else if let Ok(after) = after_maybe {
+        !after.is_ascii_whitespace()
+            && !matches!(after, b'.' | b',' | b';' | b'$')
+            && if let Ok(val) = before_maybe {
+                val != DOLLAR
+            } else {
+                // bof is valid
+                true
+            }
+    } else {
+        // if there's no after, cannot be valid markup
+        false
+    }
+}
+
+fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
+    // distances:
+    // 10123
+    // p$i$c
+    //
+    // we are at the dollar
+
+    // handle access this way in case of underflow
+    let pre = cursor.peek_rev(1);
+    // pretty much never going to overflow
+    let post = cursor.peek(3);
+
+    let Ok(inner) = cursor.peek( 1) else {
+        return false;
+    };
+
+    !(inner.is_ascii_whitespace() || matches!(inner, b'.' | b',' | b'?' | b';' | b'"'))
+        // both could be dne
+        && if let Ok(after) = post {
+            after.is_ascii_punctuation() || after.is_ascii_whitespace()
+        } else {
+            true
+        }
+        && if let Ok(before) = pre {
+            before != DOLLAR
+        } else {
+            true
+        }
 }
 
 #[cfg(test)]
