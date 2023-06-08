@@ -514,6 +514,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             Expr::Macro(macro_call) => {
                 macro_handle(parser, macro_call, self)?;
             }
+            Expr::Drawer(inner) => {
+                writeln!(self, ":{}:", inner.name)?;
+                for id in &inner.children {
+                    self.export_rec(id, parser)?;
+                }
+                writeln!(self, ":end:")?;
+            }
         }
 
         Ok(())
@@ -1166,6 +1173,45 @@ meowwwwwwwwww
         assert_eq!(
             a,
             "[_enclosed text here_]
+"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn drawer() -> Result {
+        let a = Org::export(
+            r"
+:NAME:
+
+*words*
+
+||||abcds|
+
+
+
+* abc one two three
+
+four
+:end:
+",
+        )?;
+        assert_eq!(
+            a,
+            r"
+:NAME:
+
+*words*
+
+|  |  |  | abcds |
+
+
+
+* abc one two three
+
+four
+:end:
 "
         );
 

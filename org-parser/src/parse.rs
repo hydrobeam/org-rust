@@ -5,7 +5,7 @@ use crate::constants::{
 use crate::node_pool::NodeID;
 
 use crate::element::{
-    Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
+    Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
 };
 use crate::object::{
     parse_angle_link, parse_plain_link, Bold, Code, Emoji, InlineSrc, Italic, LatexFragment,
@@ -141,6 +141,11 @@ pub(crate) fn parse_element<'a>(
         }
         VBAR => {
             if let ret @ Ok(_) = Table::parse(parser, cursor, parent, no_para_opts) {
+                return ret;
+            }
+        }
+        COLON => {
+            if let ret @ Ok(_) = Drawer::parse(parser, cursor, parent, no_para_opts) {
                 return ret;
             }
         }

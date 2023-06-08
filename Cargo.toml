@@ -1,8 +1,11 @@
 [workspace]
+resolver = "2"
 members = [
 "org-parser",
 "org-exporter",
+"parse-org",
 ]
+
 
 # [package]
 # name = "org-rust"

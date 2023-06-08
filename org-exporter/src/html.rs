@@ -489,6 +489,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::Macro(macro_call) => {
                 macro_handle(parser, macro_call, self)?;
             }
+            Expr::Drawer(inner) => {
+                for id in &inner.children {
+                    self.export_rec(id, parser)?;
+                }
+            }
         }
 
         Ok(())

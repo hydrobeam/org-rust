@@ -162,7 +162,6 @@ impl<'a> Parseable<'a> for Block<'a> {
             let reserve_id = parser.pool.reserve_id();
             // janky
             let mut temp_cursor = cursor.cut_off(loc);
-            parse_opts.indentation_level = 0;
             while let Ok(element_id) =
                 // use default parseopts since it wouldn't make sense for the contents
                 // of the block to be interpreted as a list, or be influenced from the outside

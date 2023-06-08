@@ -5,8 +5,8 @@ use std::ops::Index;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
-    Block, Comment, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table, TableCell,
-    TableRow,
+    Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
+    TableCell, TableRow,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
@@ -308,6 +308,10 @@ pub enum Expr<'a> {
     Table(Table),
     TableRow(TableRow),
     TableCell(TableCell),
+    PlainLink(PlainLink<'a>),
+    Superscript(Superscript<'a>),
+    Subscript(Subscript<'a>),
+    Drawer(Drawer<'a>),
 
     // Leaf
     BlankLine,
@@ -323,11 +327,8 @@ pub enum Expr<'a> {
     Keyword(Keyword<'a>),
     LatexEnv(LatexEnv<'a>),
     LatexFragment(LatexFragment<'a>),
-    PlainLink(PlainLink<'a>),
     Entity(Entity<'a>),
     Emoji(Emoji<'a>),
-    Superscript(Superscript<'a>),
-    Subscript(Subscript<'a>),
     Target(Target<'a>),
     Macro(MacroCall<'a>),
 }
@@ -605,6 +606,7 @@ impl<'a> Expr<'a> {
             Expr::Subscript(inner) => print!("{inner:#?}"),
             Expr::Target(inner) => print!("{inner:#?}"),
             Expr::Macro(inner) => print!("{inner:#?}"),
+            Expr::Drawer(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -654,6 +656,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -691,6 +694,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Subscript(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }
