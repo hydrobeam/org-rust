@@ -1,5 +1,6 @@
 mod block;
 mod comment;
+mod drawer;
 mod heading;
 mod item;
 mod keyword;
@@ -10,6 +11,8 @@ mod table;
 
 pub use block::Block;
 pub use comment::Comment;
+pub(crate) use drawer::parse_property;
+pub(crate) use drawer::PropertyDrawer;
 pub use heading::Heading;
 pub use heading::HeadingLevel;
 pub use heading::Priority;

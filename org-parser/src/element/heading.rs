@@ -4,6 +4,8 @@ use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
+use super::{parse_property, PropertyDrawer};
+
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
 
 // STARS KEYWORD PRIORITY TITLE TAGS
@@ -15,6 +17,7 @@ pub struct Heading<'a> {
     pub priority: Option<Priority>,
     pub title: Option<(&'a str, Vec<NodeID>)>,
     pub tags: Option<Vec<Tag<'a>>>,
+    pub properties: Option<PropertyDrawer<'a>>,
     pub children: Option<Vec<NodeID>>,
 }
 
@@ -145,6 +148,13 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         // Handle subelements
 
+        let properties = if let Ok(ret) = parse_property(cursor) {
+            cursor.index = ret.end;
+            Some(ret.obj)
+        } else {
+            None
+        };
+
         let mut section_vec: Vec<NodeID> = Vec::new();
 
         while let Ok(element_id) = parse_element(parser, cursor, Some(reserved_id), parse_opts) {
@@ -178,6 +188,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
                 title,
                 tags,
                 children,
+                properties,
             },
             start,
             cursor.index,
@@ -341,7 +352,9 @@ impl<'a> Heading<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use std::borrow::Cow;
+
+    use crate::{element::PropertyDrawer, parse_org, types::Expr};
 
     #[test]
     fn basic_headline() {
@@ -454,5 +467,54 @@ more subcontent
         let pool = parse_org(inp);
         pool.print_tree();
         // dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn properties_check() {
+        let input = r"
+* a
+:properties:
+:name: val
+:end:
+
+";
+
+        let pool = parse_org(input);
+
+        let head = pool.pool.iter().find_map(|x| {
+            if let Expr::Heading(heading) = &x.obj {
+                Some(heading)
+            } else {
+                None
+            }
+        });
+        let got_prop = head.as_ref().unwrap().properties.as_ref().unwrap();
+        assert_eq!(
+            got_prop,
+            &PropertyDrawer::from([("name", Cow::from("val"))])
+        );
+
+        let input = r"
+* a
+:properties:
+:name: val
+:name+: val again
+:end:
+
+";
+        let pool = parse_org(input);
+
+        let head = pool.pool.iter().find_map(|x| {
+            if let Expr::Heading(heading) = &x.obj {
+                Some(heading)
+            } else {
+                None
+            }
+        });
+        let got_prop = head.as_ref().unwrap().properties.as_ref().unwrap();
+        assert_eq!(
+            got_prop,
+            &PropertyDrawer::from([("name", Cow::from("val val again"))])
+        );
     }
 }

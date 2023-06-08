@@ -66,7 +66,6 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
 // the ending delimeter and then parse the contents within (entails reading over the
 // contained text twice, not ideal).
 
-
 /// ## SAFETY:
 /// We are given a valid utf8 string to parse with, no need for re-validation
 /// with `str::from_utf8`()

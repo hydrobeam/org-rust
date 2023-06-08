@@ -245,10 +245,7 @@ impl BlockKind<'_> {
 
 impl<'a> From<&'a str> for BlockKind<'a> {
     fn from(value: &'a str) -> Self {
-        // DOES NOT HANDLE SRC!!
-        // SRC holds its language in its value
-        // REVIEW: this is janky
-        match value.to_lowercase().as_str() {
+        match value.to_ascii_lowercase().as_str() {
             "center" => Self::Center,
             "quote" => Self::Quote,
             "comment" => Self::Comment,

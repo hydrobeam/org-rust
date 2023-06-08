@@ -201,8 +201,7 @@ nothing styled for source blocks yet, too.
     #[test]
     fn basic_unicode() {
         let input = r"é
-"        ;
-
+";
 
         let pool = parse_org(input);
         pool.print_tree();

@@ -456,6 +456,7 @@ impl<'a> Expr<'a> {
                 println!("keyword: {:#?}", inner.keyword);
                 println!("priority: {:#?}", inner.priority);
                 println!("tags: {:#?}", inner.tags);
+                println!("properties: {:#?}", inner.properties);
                 print!("title: ");
                 if let Some(title) = &inner.title {
                     for id in &title.1 {

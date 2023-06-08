@@ -350,7 +350,6 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                     write!(self, "{tag} :: ")?;
                 }
 
-
                 self.indentation_level += 1;
                 for id in &inner.children {
                     self.export_rec(id, parser)?;

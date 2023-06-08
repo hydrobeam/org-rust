@@ -33,6 +33,8 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Macro               | X     | X           | X            |
 | LineBreak           | X     | X           | X            |
 | HorizontalRule      | X     | X           | X            |
+| NodeProperty        | X     | X           | X            |
+| PropertyDrawer      | X     | ~           | ~            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | Drawer              | _     | _           | _            |
@@ -42,7 +44,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | Affiliated Keywords | _     | _           | _            |
 | Planning            | _     | _           | _            |
 | FixedWidth          | _     | _           | _            |
-| NodeProperty        | _     | _           | _            |
 | ExportSnippet       | _     | _           | _            |
 | FootnoteReference   | _     | _           | _            |
 | Citation            | _     | _           | _            |
