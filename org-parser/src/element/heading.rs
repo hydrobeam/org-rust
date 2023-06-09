@@ -2,7 +2,7 @@ use crate::constants::{COLON, LBRACK, NEWLINE, POUND, RBRACK, SPACE, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::Match;
+use crate::utils::{bytes_to_str, Match};
 
 use super::{parse_property, PropertyDrawer};
 
@@ -116,32 +116,34 @@ impl<'a> Parseable<'a> for Heading<'a> {
         // use separate idx and shorten the bottom and top of the byte_arr
         // to trim
 
-        let mut title_vec: Vec<NodeID> = Vec::new();
         // try to trim whitespace off the beginning and end of the area
         // we're searching
         let mut title_end = tag_match.start;
-        // >= so a no title situation is "" (blank) (we go one under, then ending + 1
-        // brings us back up)
         while cursor[title_end] == SPACE && title_end >= cursor.index {
             title_end -= 1;
         }
-        let mut temp_cursor = cursor.cut_off(title_end + 1);
-        temp_cursor.skip_ws();
-        let title_start = temp_cursor.index;
-        while let Ok(title_id) = parse_object(parser, temp_cursor, Some(reserved_id), parse_opts) {
-            title_vec.push(title_id);
-            temp_cursor.move_to(parser.pool[title_id].end);
-        }
+        let mut temp_cursor = cursor.cut_off(title_end);
 
-        let title_entry = cursor.clamp(title_start, title_end);
-
-        let title = if title_vec.is_empty() {
+        // FIXME: currently repeating work trimming hte beginning at skip_ws and with trim_start
+        let title = if bytes_to_str(temp_cursor.rest()).trim_start().is_empty() {
             None
         } else {
+            let mut title_vec: Vec<NodeID> = Vec::new();
+
+            temp_cursor.skip_ws();
+            let title_start = temp_cursor.index;
+            while let Ok(title_id) =
+                parse_object(parser, temp_cursor, Some(reserved_id), parse_opts)
+            {
+                title_vec.push(title_id);
+                temp_cursor.move_to(parser.pool[title_id].end);
+            }
+
+            let title_entry = cursor.clamp(title_start, title_end);
+            parser.targets.insert(title_entry, title_entry);
+
             Some((title_entry, title_vec))
         };
-
-        parser.targets.insert(title_entry, title_entry);
 
         // jump past the newline
         cursor.move_to(tag_match.end);
@@ -516,5 +518,17 @@ more subcontent
             got_prop,
             &PropertyDrawer::from([("name", Cow::from("val val again"))])
         );
+    }
+
+    #[test]
+    fn tag_parse() {
+        let input = r"
+* q ac:qbc:
+qqqqq
+
+aaaa";
+
+        let pool = parse_org(input);
+        pool.print_tree();
     }
 }

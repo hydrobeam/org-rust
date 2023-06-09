@@ -1879,7 +1879,8 @@ impl<'a> Parseable<'a> for Emoji<'a> {
         let start = cursor.index;
         // skip past colon
         cursor.next();
-        if cursor.curr() == COLON {
+        // check against ::
+        if cursor.try_curr()? == COLON {
             return Err(MatchError::InvalidLogic);
         }
 
