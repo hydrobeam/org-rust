@@ -10,8 +10,8 @@ use crate::element::{
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
-    Bold, Code, Emoji, Entity, InlineSrc, Italic, LatexFragment, MacroCall, PlainLink, RegularLink,
-    StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
+    Bold, Code, Emoji, Entity, ExportSnippet, InlineSrc, Italic, LatexFragment, MacroCall,
+    PlainLink, RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
 };
 use crate::utils::{bytes_to_str, Match};
 use bitflags::bitflags;
@@ -331,6 +331,7 @@ pub enum Expr<'a> {
     Emoji(Emoji<'a>),
     Target(Target<'a>),
     Macro(MacroCall<'a>),
+    ExportSnippet(ExportSnippet<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -607,6 +608,7 @@ impl<'a> Expr<'a> {
             Expr::Target(inner) => print!("{inner:#?}"),
             Expr::Macro(inner) => print!("{inner:#?}"),
             Expr::Drawer(inner) => print!("{inner:#?}"),
+            Expr::ExportSnippet(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -657,6 +659,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::ExportSnippet(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -695,6 +698,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Target(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::ExportSnippet(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

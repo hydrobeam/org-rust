@@ -8,8 +8,9 @@ use crate::element::{
     Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Emoji, InlineSrc, Italic, LatexFragment,
-    MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
+    parse_angle_link, parse_plain_link, Bold, Code, Emoji, ExportSnippet, InlineSrc, Italic,
+    LatexFragment, MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target,
+    Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -309,6 +310,11 @@ pub(crate) fn parse_object<'a>(
         }
         LBRACE => {
             if let ret @ Ok(_) = MacroCall::parse(parser, cursor, parent, parse_opts) {
+                return ret;
+            }
+        }
+        b'@' => {
+            if let ret @ Ok(_) = ExportSnippet::parse(parser, cursor, parent, parse_opts) {
                 return ret;
             }
         }

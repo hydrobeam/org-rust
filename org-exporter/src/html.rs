@@ -494,6 +494,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                     self.export_rec(id, parser)?;
                 }
             }
+            Expr::ExportSnippet(inner) => {
+                if inner.backend == "html" {
+                    write!(self, "{}", inner.contents)?;
+                }
+            }
         }
 
         Ok(())

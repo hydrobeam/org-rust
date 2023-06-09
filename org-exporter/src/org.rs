@@ -521,6 +521,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 }
                 writeln!(self, ":end:")?;
             }
+            Expr::ExportSnippet(inner) => {
+                if inner.backend == "org" {
+                    write!(self, "{}", inner.contents)?;
+                }
+            }
         }
 
         Ok(())
