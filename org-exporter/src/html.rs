@@ -505,7 +505,12 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             },
             Expr::Target(inner) => {
-                write!(self, "<span id={0}>{0}</span>", HtmlEscape(inner.0))?;
+                write!(
+                    self,
+                    "<span id={}>{}</span>",
+                    parser.pool[*node_id].id_target.as_ref().unwrap(), // must exist
+                    HtmlEscape(inner.0)
+                )?;
             }
             Expr::Macro(macro_call) => {
                 macro_handle(parser, macro_call, self)?;

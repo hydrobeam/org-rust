@@ -56,6 +56,7 @@ pub fn apply(macro_def: &MacroDef, args: &Vec<&str>, buf: &mut dyn fmt::Write) -
                 write!(buf, "{}", HtmlEscape(text))?;
             }
             ArgNumOrText::ArgNum(num) => {
+                // argnums are 1-indexed, so subtract by 1
                 write!(buf, "{}", HtmlEscape(args[(num - 1) as usize]))?;
             }
         }

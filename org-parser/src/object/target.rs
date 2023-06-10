@@ -1,4 +1,4 @@
-use crate::constants::{LANGLE, RANGLE};
+use crate::constants::{LANGLE, NEWLINE, RANGLE};
 use crate::node_pool::NodeID;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 
@@ -21,13 +21,12 @@ impl<'a> Parseable<'a> for Target<'a> {
         }
         cursor.advance(2);
 
-        let ret = cursor
-            .fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == RANGLE || chr == LANGLE)?;
+        let ret = cursor.fn_until(|chr: u8| chr == NEWLINE || chr == RANGLE || chr == LANGLE)?;
 
-        if cursor[ret.end].is_ascii_whitespace() || cursor[ret.end] == LANGLE {
+        cursor.index = ret.end;
+        if matches!(cursor.curr(), NEWLINE | LANGLE) {
             return Err(MatchError::InvalidLogic);
         }
-        cursor.index = ret.end;
 
         // now we must have a RANGLE at cursor.curr()
         // so, handle the next element
