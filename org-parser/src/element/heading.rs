@@ -124,6 +124,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
         }
         let mut temp_cursor = cursor.cut_off(title_end);
 
+        let mut target = None;
         // FIXME: currently repeating work trimming hte beginning at skip_ws and with trim_start
         let title = if bytes_to_str(temp_cursor.rest()).trim_start().is_empty() {
             None
@@ -140,7 +141,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             }
 
             let title_entry = cursor.clamp(title_start, title_end);
-            parser.targets.insert(title_entry, title_entry);
+            target = Some(parser.generate_target(title_entry));
 
             Some((title_entry, title_vec))
         };
@@ -182,7 +183,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
             Some(section_vec)
         };
 
-        Ok(parser.alloc_with_id(
+        let ret_id = parser.alloc_with_id(
             Self {
                 heading_level,
                 keyword,
@@ -196,7 +197,9 @@ impl<'a> Parseable<'a> for Heading<'a> {
             cursor.index,
             parent,
             reserved_id,
-        ))
+        );
+        parser.pool[ret_id].id_target = target;
+        Ok(ret_id)
     }
 }
 

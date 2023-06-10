@@ -33,8 +33,12 @@ impl<'a> Parseable<'a> for Target<'a> {
         // so, handle the next element
         match cursor.peek(1)? {
             RANGLE => {
-                parser.targets.insert(ret.obj, ret.obj);
-                Ok(parser.alloc(Self(ret.obj), start, cursor.index + 2, parent))
+                let ret_id = parser.alloc(Self(ret.obj), start, cursor.index + 2, parent);
+
+                // TODO: use builder pattern to not have to do this:
+                // don't want to modify every invocation of alloc to include target_id
+                parser.pool[ret_id].id_target = Some(parser.generate_target(ret.obj));
+                Ok(ret_id)
             }
             _ => Err(MatchError::InvalidLogic),
         }

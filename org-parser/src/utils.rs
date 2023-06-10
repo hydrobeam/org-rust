@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::constants::DOLLAR;
 use crate::types::{Cursor, MarkupKind};
 use phf::phf_set;
@@ -129,4 +131,23 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
         // if there's no after, cannot be valid markup
         false
     }
+}
+
+pub(crate) fn id_escape<'a>(potential_id: &'a str) -> String {
+    // minor over-allocation in some cases, but I expect most
+    // id recepients to be light on the shenanigans
+    let mut ret = String::with_capacity(potential_id.len());
+    for chr in potential_id.chars() {
+        if chr == ' ' {
+            ret.push('-');
+        } else if chr == '_' || chr == '-' {
+            ret.push(chr);
+        } else if chr.is_alphanumeric() {
+            // unicode lowercases can span multiple characters
+            for val in chr.to_lowercase() {
+                ret.push(val);
+            }
+        }
+    }
+    ret
 }

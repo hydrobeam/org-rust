@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use node_pool::{NodeID, NodePool};
 use types::{Cursor, Expr, NodeCache, ParseOpts, Parser};
@@ -63,9 +63,10 @@ pub fn parse_org(input: &str) -> Parser<'_> {
     let mut parser = Parser {
         pool,
         cache,
-        targets: BTreeMap::new(),
+        targets: HashMap::new(),
         macros: HashMap::new(),
         keywords: HashMap::new(),
+        target_occurences: HashMap::new(),
     };
     while let Ok(id) = parse_element(&mut parser, cursor, Some(parent), parse_opts) {
         content_vec.push(id);

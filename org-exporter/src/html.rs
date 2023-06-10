@@ -1,12 +1,14 @@
 use core::fmt;
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
 use org_parser::element::Block;
+use org_parser::element::Keyword;
 use org_parser::element::{CheckBox, ListKind, TableRow};
 
 use crate::org_macros::macro_handle;
@@ -15,6 +17,16 @@ use org_parser::node_pool::NodeID;
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
+
+// static ORG_AFFILIATED_KEYWORDS: phf::Set<&str> = phf::phf_set! {
+//     "attr_html",
+//     "caption",
+//     "data",
+//     "header",
+//     "name",
+//     "plot",
+//     "results",
+// };
 
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
@@ -113,8 +125,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 if let Some(title) = &inner.title {
                     write!(
                         self,
-                        "<h{heading_number} id={}>",
-                        parser.targets.get(title.0).unwrap(),
+                        "<h{heading_number} id=\"{}\">",
+                        parser.pool[*node_id].id_target.as_ref().expect("wahoo") // must exist, we're a heading
                     )?;
                     for id in &title.1 {
                         self.export_rec(id, parser)?;
@@ -225,7 +237,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         rita
                     }
                 };
-                write!(self, "<a href={}>", HtmlEscape(&path_link))?;
+                write!(self, "<a href=\"{}\">", HtmlEscape(&path_link))?;
                 if let Some(children) = &inner.description {
                     for id in children {
                         self.export_rec(id, parser)?;
@@ -323,8 +335,17 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 // }
                 // write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(_inner) => {
-                // write!(self, "#+{}: {}", inner.key, inner.val)?;
+            Expr::Keyword(inner) => {
+                // todo!()
+                // match inner {
+                //     Keyword::Basic { key, val } => {
+                //         if ORG_AFFILIATED_KEYWORDS.contains(key) {
+                //             todo!()
+                //         }
+                //     }
+                //     Keyword::Macro(_) => todo!(),
+                //     Keyword::Affilliated(_) => todo!(),
+                // }
             }
             Expr::LatexEnv(inner) => {
                 let ret = latex_to_mathml(

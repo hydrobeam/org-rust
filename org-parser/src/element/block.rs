@@ -2,7 +2,6 @@ use crate::constants::{NEWLINE, SPACE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::bytes_to_str;
 use memchr::memmem;
 
 #[derive(Debug, Clone)]
@@ -50,7 +49,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         parser: &mut Parser<'a>,
         mut cursor: Cursor<'a>,
         parent: Option<crate::node_pool::NodeID>,
-        mut parse_opts: ParseOpts,
+        parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
         cursor.word("#+begin_")?;

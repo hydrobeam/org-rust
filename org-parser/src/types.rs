@@ -1,7 +1,8 @@
 use derive_more::From;
-use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
+use std::collections::HashMap;
+use std::fmt::{Debug, Write};
 use std::ops::Index;
+use std::rc::Rc;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
@@ -13,7 +14,7 @@ use crate::object::{
     Bold, Code, Emoji, Entity, ExportSnippet, InlineSrc, Italic, LatexFragment, MacroCall,
     PlainLink, RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
 };
-use crate::utils::{bytes_to_str, Match};
+use crate::utils::{bytes_to_str, id_escape, Match};
 use bitflags::bitflags;
 
 pub(crate) type Result<T> = std::result::Result<T, MatchError>;
@@ -25,7 +26,11 @@ pub struct Parser<'a> {
     pub pool: NodePool<'a>,
     pub(crate) cache: NodeCache,
     // target names to uuids
-    pub targets: BTreeMap<&'a str, &'a str>,
+    pub targets: HashMap<&'a str, Rc<str>>,
+    // uuids to number of times they occur, we increment name
+    // like uuid-1 if there are duplicates
+    // used to help ensure no duplicates are being inserted
+    pub(crate) target_occurences: HashMap<Rc<str>, usize>,
     // name to macro def
     pub macros: HashMap<&'a str, NodeID>,
 
@@ -82,6 +87,27 @@ impl<'a> Parser<'a> {
 
     pub fn print_tree(&self) {
         self.pool.print_tree();
+    }
+
+    /// Creates a unique id based on the raw contents of the item
+    /// use an Rc<str> since the generated id will also be stored in the node
+    /// and in target_occurences.
+    /// and we'd like not to triple allocate
+    pub (crate) fn generate_target(&mut self, raw_entry: &'a str) -> Rc<str> {
+        let mut id_string = id_escape(raw_entry);
+        // doesn't compile if we're not explicit about the coercion
+        let rc_ret: Rc<str>;
+        if let Some(counter) = self.target_occurences.get_mut(&id_string as &str) {
+            *counter += 1;
+            write!(id_string, "-{counter}").unwrap();
+            rc_ret = id_string.into();
+        } else {
+            rc_ret = id_string.into();
+            self.targets.entry(raw_entry).or_insert(rc_ret.clone());
+        }
+
+        self.target_occurences.insert(rc_ret.clone(), 0);
+        rc_ret.clone()
     }
 }
 
@@ -260,6 +286,7 @@ pub struct Node<'a> {
     // makes starting the next match more convenient too
     pub end: usize,
     pub parent: Option<NodeID>,
+    pub id_target: Option<Rc<str>>,
 }
 
 impl<'a> Default for Node<'a> {
@@ -269,6 +296,7 @@ impl<'a> Default for Node<'a> {
             start: Default::default(),
             end: Default::default(),
             parent: Option::default(),
+            id_target: None,
         }
     }
 }
@@ -283,6 +311,7 @@ impl<'a> Node<'a> {
             start,
             end,
             parent,
+            id_target: None,
         }
     }
 

@@ -2,9 +2,7 @@ use std::borrow::Cow;
 
 use crate::constants::COLON;
 use crate::element::PropertyDrawer;
-use crate::node_pool::NodeID;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{bytes_to_str, Match};
+use crate::types::{Cursor, MatchError, Result};
 use std::fmt::Write;
 
 #[derive(Debug, Clone)]
