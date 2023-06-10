@@ -1,5 +1,5 @@
-use org_parser::element::Keyword;
-use org_parser::object::{ArgNumOrText, MacroCall, MacroDef};
+use org_parser::element::{Keyword, MacroDef, ArgNumOrText};
+use org_parser::object::MacroCall;
 use org_parser::types::{Expr, Parser};
 use std::fmt::{self, Error};
 
@@ -32,15 +32,11 @@ pub(crate) fn macro_execute<'a>(
     let macid = parser.macros.get(macro_call.name).unwrap();
     // FIXME: pretty janky, but have to do this dance cause of NodeID
 
-    if let Expr::Keyword(temp) = &parser.pool[*macid].obj {
-        if let Keyword::Macro(mac_def) = temp {
-            if macro_call.args.len() == mac_def.num_args as usize {
-                apply(mac_def, &macro_call.args, buf)?;
-            } else {
-                return Err(Error);
-            }
+    if let Expr::MacroDef(mac_def) = &parser.pool[*macid].obj {
+        if macro_call.args.len() == mac_def.num_args as usize {
+            apply(mac_def, &macro_call.args, buf)?;
         } else {
-            unreachable!()
+            return Err(Error);
         }
     } else {
         unreachable!()
