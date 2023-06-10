@@ -1,7 +1,5 @@
 use core::fmt;
 
-use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
 
@@ -9,7 +7,6 @@ use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
 use org_parser::element::Affiliated;
 use org_parser::element::Block;
-use org_parser::element::Keyword;
 use org_parser::element::{CheckBox, ListKind, TableRow};
 
 use crate::org_macros::macro_handle;
@@ -20,16 +17,7 @@ use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
 
 macro_rules! tag_form {
-    ($buf: tt, $tag:expr, $node:ident, $contents:ident) => {
-        write!($buf, "<{}", $tag)?;
-
-        if let Some(tag_contents) = $node.id_target.as_ref() {
-            write!($buf, r#" id="{tag_contents}""#)?;
-        }
-
-        write!($buf, ">{}</{}>", $contents, $tag)?;
-    };
-    ($buf: tt, $tag:expr, $node:ident, $contents:expr) => {
+    ($buf: tt, $tag:expr, $node:ident, $contents:block) => {
         write!($buf, "<{}", $tag)?;
 
         if let Some(tag_contents) = $node.id_target.as_ref() {
@@ -41,7 +29,7 @@ macro_rules! tag_form {
 
         write!($buf, "</{}>", $tag)?;
     };
-    ($buf: tt, $tag:expr, $node:ident, $contents:expr, $($class:expr),+) => {
+    ($buf: tt, $tag:expr, $node:ident, $contents:block, $($class:expr),+) => {
         write!($buf, "<{}", $tag)?;
 
         if let Some(tag_contents) = $node.id_target.as_ref() {
@@ -57,6 +45,28 @@ macro_rules! tag_form {
         $contents;
 
         write!($buf, "</{}>", $tag)?;
+    };
+    ($buf: tt, $tag:expr, $node:ident, $contents:expr) => {
+        write!($buf, "<{}", $tag)?;
+
+        if let Some(tag_contents) = $node.id_target.as_ref() {
+            write!($buf, r#" id="{tag_contents}""#)?;
+        }
+
+        write!($buf, ">{}</{}>", $contents, $tag)?;
+    };
+    ($buf: tt, $tag:expr, $node:ident, $contents:expr, $($class:expr),+) => {
+        write!($buf, "<{}", $tag)?;
+
+        if let Some(tag_contents) = $node.id_target.as_ref() {
+            write!($buf, r#" id="{tag_contents}""#)?;
+        }
+
+        $(
+        write!($buf, r#" class="{}""#, $class)?;
+        )+
+
+        write!($buf, ">{}</{}>", $contents, $tag)?;
     };
 }
 pub struct Html<'buf> {
@@ -179,8 +189,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                             self,
                             "div",
                             node_obj,
-                            for id in contents {
-                                self.export_rec(id, parser)?;
+                            {
+                                for id in contents {
+                                    self.export_rec(id, parser)?;
+                                }
                             },
                             "center"
                         );
@@ -189,14 +201,11 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         parameters,
                         contents,
                     } => {
-                        tag_form!(
-                            self,
-                            "blockquote",
-                            node_obj,
+                        tag_form!(self, "blockquote", node_obj, {
                             for id in contents {
                                 self.export_rec(id, parser)?;
                             }
-                        );
+                        });
                     }
                     Block::Special {
                         parameters,
@@ -207,8 +216,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                             self,
                             "div",
                             node_obj,
-                            for id in contents {
-                                self.export_rec(id, parser)?;
+                            {
+                                for id in contents {
+                                    self.export_rec(id, parser)?;
+                                }
                             },
                             name
                         );
@@ -297,55 +308,40 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             }
 
             Expr::Paragraph(inner) => {
-                tag_form!(
-                    self,
-                    "p",
-                    node_obj,
+                tag_form!(self, "p", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
 
             Expr::Italic(inner) => {
-                tag_form!(
-                    self,
-                    "em",
-                    node_obj,
+                tag_form!(self, "em", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
             Expr::Bold(inner) => {
-                tag_form!(
-                    self,
-                    "b",
-                    node_obj,
+                tag_form!(self, "b", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
             Expr::StrikeThrough(inner) => {
-                tag_form!(
-                    self,
-                    "del",
-                    node_obj,
+                tag_form!(self, "del", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
             Expr::Underline(inner) => {
-                tag_form!(
-                    self,
-                    "u",
-                    node_obj,
+                tag_form!(self, "u", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
                 // write!(self, "<span class=underline>")?;
                 // for id in &inner.0 {
                 //     self.export_rec(id, parser)?;
@@ -438,46 +434,54 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             },
             Expr::Item(inner) => {
-                write!(self, "<li")?;
-
-                if let Some(counter) = (inner.counter_set) {
-                    write!(self, " value={}", counter)?;
-                }
-
-                if let Some(check) = &inner.check_box {
-                    write!(
-                        self,
-                        " class={}",
-                        match check {
-                            CheckBox::Intermediate => "trans",
-                            CheckBox::Off => "off",
-                            CheckBox::On => "on",
-                        }
-                    )?;
-                }
-
                 if let Some(tag) = inner.tag {
-                    write!(self, " id={tag}")?;
+                    tag_form!(self, "dt", node_obj, HtmlEscape(tag));
+                    tag_form!(self, "dd", node_obj, {
+                        for id in &inner.children {
+                            self.export_rec(id, parser)?;
+                        }
+                    });
+                } else {
+                    write!(self, "<li")?;
+
+                    if let Some(counter) = inner.counter_set {
+                        write!(self, " value={}", counter)?;
+                    }
+
+                    if let Some(check) = &inner.check_box {
+                        write!(
+                            self,
+                            " class={}",
+                            match check {
+                                CheckBox::Intermediate => "trans",
+                                CheckBox::Off => "off",
+                                CheckBox::On => "on",
+                            }
+                        )?;
+                    }
+
+                    write!(self, ">")?;
+
+                    for id in &inner.children {
+                        self.export_rec(id, parser)?;
+                    }
+
+                    writeln!(self, "</li>")?;
                 }
-
-                write!(self, ">")?;
-
-                for id in &inner.children {
-                    self.export_rec(id, parser)?;
-                }
-
-                writeln!(self, "</li>")?;
             }
             Expr::PlainList(inner) => {
                 tag_form!(
                     self,
                     match inner.kind {
-                        ListKind::Unordered | ListKind::Descriptive => "ul",
+                        ListKind::Unordered => "ul",
+                        ListKind::Descriptive => "dl",
                         ListKind::Ordered(_) => "ol",
                     },
                     node_obj,
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
+                    {
+                        for id in &inner.children {
+                            self.export_rec(id, parser)?;
+                        }
                     }
                 );
             }
@@ -492,49 +496,37 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Table(inner) => {
-                tag_form!(
-                    self,
-                    "table",
-                    node_obj,
+                tag_form!(self, "table", node_obj, {
                     for id in &inner.children {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
 
             Expr::TableRow(inner) => {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        tag_form!(
-                            self,
-                            "tr",
-                            node_obj,
+                        tag_form!(self, "tr", node_obj, {
                             for id in stands.iter() {
                                 self.export_rec(id, parser)?;
                             }
-                        );
+                        });
                     }
                 }
             }
             Expr::TableCell(inner) => {
-                tag_form!(
-                    self,
-                    "td",
-                    node_obj,
+                tag_form!(self, "td", node_obj, {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
-                );
+                });
             }
             Expr::Emoji(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Superscript(inner) => {
-                tag_form!(
-                    self,
-                    "sub",
-                    node_obj,
+                tag_form!(self, "sub", node_obj, {
                     match &inner.0 {
                         PlainOrRec::Plain(inner) => {
                             write!(self, "{}", HtmlEscape(inner))?;
@@ -545,13 +537,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                             }
                         }
                     }
-                );
+                });
             }
             Expr::Subscript(inner) => {
-                tag_form!(
-                    self,
-                    "sub",
-                    node_obj,
+                tag_form!(self, "sub", node_obj, {
                     match &inner.0 {
                         PlainOrRec::Plain(inner) => {
                             write!(self, "{}", HtmlEscape(inner))?;
@@ -562,15 +551,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                             }
                         }
                     }
-                );
+                });
             }
             Expr::Target(inner) => {
-                tag_form!(
-                    self,
-                    "span",
-                    node_obj,
-                    write!(self, "{}", HtmlEscape(inner.0))?
-                );
+                tag_form!(self, "span", node_obj, HtmlEscape(inner.0));
             }
             Expr::Macro(macro_call) => {
                 macro_handle(parser, macro_call, self)?;
@@ -765,13 +749,8 @@ a é😳
 
         assert_eq!(
             a,
-            r"<ol>
-<li value=4><p>
-wordsss??
-</p>
-</li>
-</ol>
-"
+            r"<ol><li value=4><p>wordsss??</p></li>
+</ol>"
         );
         Ok(())
     }
