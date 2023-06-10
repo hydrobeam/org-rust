@@ -119,10 +119,10 @@ impl<'a> Parseable<'a> for Heading<'a> {
         // try to trim whitespace off the beginning and end of the area
         // we're searching
         let mut title_end = tag_match.start;
-        while cursor[title_end] == SPACE && title_end >= cursor.index {
+        while cursor[title_end] == SPACE && title_end > cursor.index {
             title_end -= 1;
         }
-        let mut temp_cursor = cursor.cut_off(title_end);
+        let mut temp_cursor = cursor.cut_off(title_end + 1);
 
         let mut target = None;
         // FIXME: currently repeating work trimming hte beginning at skip_ws and with trim_start
@@ -140,7 +140,7 @@ impl<'a> Parseable<'a> for Heading<'a> {
                 temp_cursor.move_to(parser.pool[title_id].end);
             }
 
-            let title_entry = cursor.clamp(title_start, title_end);
+            let title_entry = cursor.clamp(title_start, title_end + 1);
             target = Some(parser.generate_target(title_entry));
 
             Some((title_entry, title_vec))
