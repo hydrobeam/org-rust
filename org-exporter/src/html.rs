@@ -24,7 +24,9 @@ macro_rules! tag_form {
         ]
      )?
      $(
-         ,$((($field:expr,$val:expr))),*
+         ,$(
+             (($field:expr,$val:expr))
+         ),*
      )?
     $(,$node:ident)?
     ) => {
