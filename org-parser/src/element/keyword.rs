@@ -1,4 +1,4 @@
-use crate::constants::{COLON, HYPHEN, NEWLINE, UNDERSCORE};
+use crate::constants::{COLON, DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};

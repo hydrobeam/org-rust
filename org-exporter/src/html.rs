@@ -399,7 +399,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 } else {
                     write!(self, "<li")?;
 
-                    if let Some(counter) = (inner.counter_set) {
+                    if let Some(counter) = inner.counter_set {
                         write!(self, " value={}", counter)?;
                     }
 
@@ -549,7 +549,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                     child_id,
                     backend,
                     val,
-                } => todo!(),
+                } => {}
             },
             Expr::MacroDef(_) => {}
         }
