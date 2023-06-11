@@ -1,4 +1,4 @@
-use org_parser::element::{Keyword, MacroDef, ArgNumOrText};
+use org_parser::element::{ArgNumOrText, Keyword, MacroDef};
 use org_parser::object::MacroCall;
 use org_parser::types::{Expr, Parser};
 use std::fmt::{self, Error};
@@ -39,7 +39,7 @@ pub(crate) fn macro_execute<'a>(
             return Err(Error);
         }
     } else {
-        unreachable!()
+        return Err(Error);
     }
 
     Ok(())
