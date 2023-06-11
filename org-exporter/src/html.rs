@@ -17,54 +17,76 @@ use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
 
 macro_rules! tag_form {
-    ($buf: tt, $tag:expr, $node:ident, $contents:block) => {
-        write!($buf, "<{}", $tag)?;
+    ($buf: tt, $tag:expr,  $contents:block
+     $(
+        ,[
+            $($class:expr),*
+        ]
+     )?
+     $(
+         ,$((($field:expr,$val:expr))),*
+     )?
+    $(,$node:ident)?
+    ) => {
+            write!($buf, "<{}", $tag)?;
 
-        if let Some(tag_contents) = $node.id_target.as_ref() {
-            write!($buf, r#" id="{tag_contents}""#)?;
-        }
-
-        write!($buf, ">")?;
-        $contents;
-
-        write!($buf, "</{}>", $tag)?;
-    };
-    ($buf: tt, $tag:expr, $node:ident, $contents:block, $($class:expr),+) => {
-        write!($buf, "<{}", $tag)?;
-
-        if let Some(tag_contents) = $node.id_target.as_ref() {
-            write!($buf, r#" id="{tag_contents}""#)?;
-        }
 
         $(
-        write!($buf, r#" class="{}""#, $class)?;
-        )+
+            if let Some(tag_contents) = $node.id_target.as_ref() {
+                write!($buf, r#" id="{tag_contents}""#)?;
+            }
+        )?
 
-        write!($buf, ">")?;
+            $(
+                $(
+                write!($buf, r#" class="{}""#, $class)?;
+                )*
+            )?
 
-        $contents;
+            $(
+                $(
+                    write!($buf, r#" {}="{}""#, $field, $val)?;
+                )*
+            )?
 
-        write!($buf, "</{}>", $tag)?;
+            write!($buf, ">")?;
+
+            $contents;
+
+            write!($buf, "</{}>", $tag)?;
     };
-    ($buf: tt, $tag:expr, $node:ident, $contents:expr) => {
+    ($buf: tt, $tag:expr, $contents:expr
+     $(
+        ,[
+            $($class:expr)
+        ,*]
+     )?
+     $(
+         ,$(
+             (($field:expr,$val:expr))
+         ),*
+     )?
+    $(,$node:ident)?
+    ) => {
         write!($buf, "<{}", $tag)?;
-
-        if let Some(tag_contents) = $node.id_target.as_ref() {
-            write!($buf, r#" id="{tag_contents}""#)?;
-        }
-
-        write!($buf, ">{}</{}>", $contents, $tag)?;
-    };
-    ($buf: tt, $tag:expr, $node:ident, $contents:expr, $($class:expr),+) => {
-        write!($buf, "<{}", $tag)?;
-
-        if let Some(tag_contents) = $node.id_target.as_ref() {
-            write!($buf, r#" id="{tag_contents}""#)?;
-        }
 
         $(
-        write!($buf, r#" class="{}""#, $class)?;
-        )+
+            if let Some(tag_contents) = $node.id_target.as_ref() {
+                write!($buf, r#" id="{tag_contents}""#)?;
+            }
+        )?
+
+        $(
+            $(
+            write!($buf, r#" class="{}""#, $class)?;
+            )*
+        )?
+
+        $(
+            $(
+                write!($buf, r#" {}="{}""#, $field, $val)?;
+            )*
+        )?
 
         write!($buf, ">{}</{}>", $contents, $tag)?;
     };
@@ -164,13 +186,18 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
 
-                tag_form!(self, format_args!("h{heading_number}"), node_obj, {
-                    if let Some(title) = &inner.title {
-                        for id in &title.1 {
-                            self.export_rec(id, parser)?;
+                tag_form!(
+                    self,
+                    format_args!("h{heading_number}"),
+                    {
+                        if let Some(title) = &inner.title {
+                            for id in &title.1 {
+                                self.export_rec(id, parser)?;
+                            }
                         }
-                    }
-                });
+                    },
+                    node_obj
+                );
 
                 if let Some(children) = &inner.children {
                     for id in children {
@@ -188,24 +215,29 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         tag_form!(
                             self,
                             "div",
-                            node_obj,
                             {
                                 for id in contents {
                                     self.export_rec(id, parser)?;
                                 }
                             },
-                            "center"
+                            ["center", "three"],
+                            node_obj
                         );
                     }
                     Block::Quote {
                         parameters,
                         contents,
                     } => {
-                        tag_form!(self, "blockquote", node_obj, {
-                            for id in contents {
-                                self.export_rec(id, parser)?;
-                            }
-                        });
+                        tag_form!(
+                            self,
+                            "blockquote",
+                            {
+                                for id in contents {
+                                    self.export_rec(id, parser)?;
+                                }
+                            },
+                            node_obj
+                        );
                     }
                     Block::Special {
                         parameters,
@@ -215,13 +247,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         tag_form!(
                             self,
                             "div",
-                            node_obj,
                             {
                                 for id in contents {
                                     self.export_rec(id, parser)?;
                                 }
                             },
-                            name
+                            [name],
+                            node_obj
                         );
                     }
 
@@ -237,7 +269,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                     } => {
                         // TODO: correct whitespace
-                        tag_form!(self, "pre", node_obj, HtmlEscape(contents), "example");
+                        tag_form!(self, "pre", HtmlEscape(contents), ["example"], node_obj);
 
                         // writeln!(self, "<pre class=example>\n{}</pre>", HtmlEscape(contents))?;
                     }
@@ -256,7 +288,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                     } => {
                         // TODO: work with the language parameter
-                        tag_form!(self, "pre", node_obj, HtmlEscape(contents), "src");
+                        tag_form!(self, "pre", HtmlEscape(contents), ["src"], node_obj);
                         // writeln!(self, "<pre class=src>\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
@@ -264,7 +296,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                     } => {
                         // FIXME: apparently verse blocks contain objects...
-                        tag_form!(self, "p", node_obj, HtmlEscape(contents), "verse");
+                        tag_form!(self, "p", HtmlEscape(contents), ["verse"], node_obj);
                     }
                 }
             }
@@ -286,58 +318,68 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         rita
                     }
                 };
-                write!(self, "<a href=\"{}\">", HtmlEscape(&path_link))?;
-                if let Some(children) = &inner.description {
-                    for id in children {
-                        self.export_rec(id, parser)?;
-                    }
-                } else {
-                    write!(
-                        self,
-                        "{}",
-                        match inner.path {
-                            PathReg::PlainLink(a) => a.into(),
-                            PathReg::Id(a) => format!("{a}"),
-                            PathReg::CustomId(a) => format!("{a}"),
-                            PathReg::Coderef(_) => todo!(),
-                            PathReg::Unspecified(a) => format!("{a}"),
-                        },
-                    )?;
-                }
-                write!(self, "</a>")?;
+                tag_form!(
+                    self,
+                    "a",
+                    {
+                        if let Some(children) = &inner.description {
+                            for id in children {
+                                self.export_rec(id, parser)?;
+                            }
+                        } else {
+                            write!(
+                                self,
+                                "{}",
+                                match inner.path {
+                                    PathReg::PlainLink(a) => a.into(),
+                                    PathReg::Id(a) => format!("{a}"),
+                                    PathReg::CustomId(a) => format!("{a}"),
+                                    PathReg::Coderef(_) => todo!(),
+                                    PathReg::Unspecified(a) => format!("{a}"),
+                                },
+                            )?;
+                        }
+                    },
+                    (("href", &path_link))
+                );
             }
 
             Expr::Paragraph(inner) => {
-                tag_form!(self, "p", node_obj, {
-                    for id in &inner.0 {
-                        self.export_rec(id, parser)?;
-                    }
-                });
+                tag_form!(
+                    self,
+                    "p",
+                    {
+                        for id in &inner.0 {
+                            self.export_rec(id, parser)?;
+                        }
+                    },
+                    node_obj
+                );
             }
 
             Expr::Italic(inner) => {
-                tag_form!(self, "em", node_obj, {
+                tag_form!(self, "em", {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
                 });
             }
             Expr::Bold(inner) => {
-                tag_form!(self, "b", node_obj, {
+                tag_form!(self, "b", {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
                 });
             }
             Expr::StrikeThrough(inner) => {
-                tag_form!(self, "del", node_obj, {
+                tag_form!(self, "del", {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
                 });
             }
             Expr::Underline(inner) => {
-                tag_form!(self, "u", node_obj, {
+                tag_form!(self, "u", {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
@@ -364,16 +406,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "{}", HtmlEscape(inner))?;
             }
             Expr::Verbatim(inner) => {
-                tag_form!(self, "code", node_obj, HtmlEscape(inner.0));
+                tag_form!(self, "code", HtmlEscape(inner.0));
             }
             Expr::Code(inner) => {
-                tag_form!(self, "code", node_obj, HtmlEscape(inner.0));
+                tag_form!(self, "code", HtmlEscape(inner.0));
             }
             Expr::Comment(inner) => {
                 write!(self, "<!--{}-->", inner.0)?;
             }
             Expr::InlineSrc(inner) => {
-                tag_form!(self, "code", node_obj, HtmlEscape(inner.body), inner.lang);
+                tag_form!(self, "code", HtmlEscape(inner.body), [inner.lang]);
                 // if let Some(args) = inner.headers {
                 //     write!(self, "[{args}]")?;
                 // }
@@ -435,8 +477,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             },
             Expr::Item(inner) => {
                 if let Some(tag) = inner.tag {
-                    tag_form!(self, "dt", node_obj, HtmlEscape(tag));
-                    tag_form!(self, "dd", node_obj, {
+                    tag_form!(self, "dt", HtmlEscape(tag));
+                    tag_form!(self, "dd", {
                         for id in &inner.children {
                             self.export_rec(id, parser)?;
                         }
@@ -477,12 +519,12 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         ListKind::Descriptive => "dl",
                         ListKind::Ordered(_) => "ol",
                     },
-                    node_obj,
                     {
                         for id in &inner.children {
                             self.export_rec(id, parser)?;
                         }
-                    }
+                    },
+                    node_obj
                 );
             }
             Expr::PlainLink(inner) => {
@@ -496,18 +538,23 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Table(inner) => {
-                tag_form!(self, "table", node_obj, {
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                });
+                tag_form!(
+                    self,
+                    "table",
+                    {
+                        for id in &inner.children {
+                            self.export_rec(id, parser)?;
+                        }
+                    },
+                    node_obj
+                );
             }
 
             Expr::TableRow(inner) => {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        tag_form!(self, "tr", node_obj, {
+                        tag_form!(self, "tr", {
                             for id in stands.iter() {
                                 self.export_rec(id, parser)?;
                             }
@@ -516,7 +563,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::TableCell(inner) => {
-                tag_form!(self, "td", node_obj, {
+                tag_form!(self, "td", {
                     for id in &inner.0 {
                         self.export_rec(id, parser)?;
                     }
@@ -526,7 +573,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Superscript(inner) => {
-                tag_form!(self, "sub", node_obj, {
+                tag_form!(self, "sub", {
                     match &inner.0 {
                         PlainOrRec::Plain(inner) => {
                             write!(self, "{}", HtmlEscape(inner))?;
@@ -540,7 +587,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 });
             }
             Expr::Subscript(inner) => {
-                tag_form!(self, "sub", node_obj, {
+                tag_form!(self, "sub", {
                     match &inner.0 {
                         PlainOrRec::Plain(inner) => {
                             write!(self, "{}", HtmlEscape(inner))?;
@@ -554,7 +601,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 });
             }
             Expr::Target(inner) => {
-                tag_form!(self, "span", node_obj, HtmlEscape(inner.0));
+                tag_form!(self, "span", HtmlEscape(inner.0), node_obj);
             }
             Expr::Macro(macro_call) => {
                 macro_handle(parser, macro_call, self)?;
