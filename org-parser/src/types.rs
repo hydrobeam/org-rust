@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
 use crate::element::{
-    Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
-    TableCell, TableRow,
+    Affiliated, Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, MacroDef, Paragraph,
+    PlainList, Table, TableCell, TableRow,
 };
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::{
@@ -20,6 +20,12 @@ use bitflags::bitflags;
 pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 pub type NodeCache = HashMap<usize, NodeID>;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Attr<'a> {
+    pub key: &'a str,
+    pub val: &'a str,
+}
 
 #[derive(Debug)]
 pub struct Parser<'a> {
@@ -93,7 +99,7 @@ impl<'a> Parser<'a> {
     /// use an Rc<str> since the generated id will also be stored in the node
     /// and in target_occurences.
     /// and we'd like not to triple allocate
-    pub (crate) fn generate_target(&mut self, raw_entry: &'a str) -> Rc<str> {
+    pub(crate) fn generate_target(&mut self, raw_entry: &'a str) -> Rc<str> {
         let mut id_string = id_escape(raw_entry);
         // doesn't compile if we're not explicit about the coercion
         let rc_ret: Rc<str>;
@@ -287,6 +293,8 @@ pub struct Node<'a> {
     pub end: usize,
     pub parent: Option<NodeID>,
     pub id_target: Option<Rc<str>>,
+    pub attrs: HashMap<String, Vec<Attr<'a>>>,
+    // pub keywords:
 }
 
 impl<'a> Default for Node<'a> {
@@ -297,6 +305,7 @@ impl<'a> Default for Node<'a> {
             end: Default::default(),
             parent: Option::default(),
             id_target: None,
+            attrs: HashMap::new(),
         }
     }
 }
@@ -312,6 +321,7 @@ impl<'a> Node<'a> {
             end,
             parent,
             id_target: None,
+            attrs: HashMap::new(),
         }
     }
 
@@ -341,6 +351,7 @@ pub enum Expr<'a> {
     Superscript(Superscript<'a>),
     Subscript(Subscript<'a>),
     Drawer(Drawer<'a>),
+    Affiliated(Affiliated<'a>),
 
     // Leaf
     BlankLine,
@@ -361,6 +372,7 @@ pub enum Expr<'a> {
     Target(Target<'a>),
     Macro(MacroCall<'a>),
     ExportSnippet(ExportSnippet<'a>),
+    MacroDef(MacroDef<'a>),
 }
 
 // TODO: maybe make all fields bitflags for space optimization
@@ -638,6 +650,8 @@ impl<'a> Expr<'a> {
             Expr::Macro(inner) => print!("{inner:#?}"),
             Expr::Drawer(inner) => print!("{inner:#?}"),
             Expr::ExportSnippet(inner) => print!("{inner:#?}"),
+            Expr::Affiliated(inner) => print!("{inner:#?}"),
+            Expr::MacroDef(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -689,6 +703,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::ExportSnippet(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::Affiliated(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::MacroDef(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -728,6 +744,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::Macro(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Drawer(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::ExportSnippet(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::Affiliated(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::MacroDef(inner) => f.write_fmt(format_args!("{inner:?}")),
             }
         }
     }

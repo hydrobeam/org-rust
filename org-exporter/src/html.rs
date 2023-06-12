@@ -1,15 +1,13 @@
 use core::fmt;
 
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
-use org_parser::element::Block;
-use org_parser::element::Keyword;
-use org_parser::element::{CheckBox, ListKind, TableRow};
+use org_parser::element::{Affiliated, Block, CheckBox, Keyword, ListKind, TableRow};
+use org_parser::types::Node;
 
 use crate::org_macros::macro_handle;
 use crate::types::Exporter;
@@ -18,18 +16,13 @@ use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
 
-// static ORG_AFFILIATED_KEYWORDS: phf::Set<&str> = phf::phf_set! {
-//     "attr_html",
-//     "caption",
-//     "data",
-//     "header",
-//     "name",
-//     "plot",
-//     "results",
-// };
+const BACKEND_NAME: &str = "html";
 
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
+    // HACK: When we export a caption, insert the child id here to make sure
+    // it's not double exported
+    nox: HashSet<NodeID>, // no-export
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
@@ -67,12 +60,14 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
         write!(f, "{}", &self.0[prev_pos..])
     }
 }
-
 impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let parsed = parse_org(input);
-        let mut obj = Html { buf: &mut buf };
+        let mut obj = Html {
+            buf: &mut buf,
+            nox: HashSet::new(),
+        };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
@@ -83,14 +78,21 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = parse_org(input);
-        let mut obj = Html { buf };
+        let mut obj = Html {
+            buf,
+            nox: HashSet::new(),
+        };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
-        match &parser.pool[*node_id].obj {
+        if self.nox.contains(node_id) {
+            return Ok(());
+        }
+        let node = &parser.pool[*node_id];
+        match &node.obj {
             Expr::Root(inner) => {
                 //                 self.write(
                 //                     buf,
@@ -122,19 +124,14 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
 
+                write!(self, "<h{heading_number}",)?;
+                self.prop(node)?;
+                write!(self, ">")?;
+
                 if let Some(title) = &inner.title {
-                    write!(
-                        self,
-                        "<h{heading_number} id=\"{}\">",
-                        parser.pool[*node_id].id_target.as_ref().expect("wahoo") // must exist, we're a heading
-                    )?;
                     for id in &title.1 {
                         self.export_rec(id, parser)?;
                     }
-
-                    // must exist if we are a heading
-                } else {
-                    write!(self, "<h{heading_number}>")?;
                 }
 
                 writeln!(self, "</h{heading_number}>")?;
@@ -152,7 +149,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "<div class=center>")?;
+                        write!(self, "<div")?;
+                        self.class("center")?;
+                        self.prop(node)?;
+                        writeln!(self, ">")?;
                         for id in contents {
                             self.export_rec(id, parser)?;
                         }
@@ -162,7 +162,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "<blockquote>")?;
+                        write!(self, "<blockquote")?;
+                        self.prop(node)?;
+                        writeln!(self, ">")?;
                         for id in contents {
                             self.export_rec(id, parser)?;
                         }
@@ -173,7 +175,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                         name,
                     } => {
-                        writeln!(self, "<div class={}>", name)?;
+                        write!(self, "<div")?;
+                        self.prop(node)?;
+                        self.class(name)?;
+                        writeln!(self, ">")?;
                         for id in contents {
                             self.export_rec(id, parser)?;
                         }
@@ -191,14 +196,17 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "<pre class=example>\n{}</pre>", HtmlEscape(contents))?;
+                        write!(self, "<pre")?;
+                        self.class("example")?;
+                        self.prop(node)?;
+                        writeln!(self, "\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Export {
                         parameters,
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            if params.contains("html") {
+                            if params.contains(BACKEND_NAME) {
                                 writeln!(self, "{}", contents)?;
                             }
                         }
@@ -208,14 +216,20 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                     } => {
                         // TODO: work with the language parameter
-                        writeln!(self, "<pre class=src>\n{}</pre>", HtmlEscape(contents))?;
+                        write!(self, "<pre")?;
+                        self.class("src")?;
+                        self.prop(node)?;
+                        writeln!(self, "\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
                         parameters,
                         contents,
                     } => {
                         // FIXME: apparently verse blocks contain objects...
-                        writeln!(self, "<p class=verse>\n{}</p>", HtmlEscape(contents))?;
+                        write!(self, "<p")?;
+                        self.class("verse")?;
+                        self.prop(node)?;
+                        writeln!(self, "\n{}</p>", HtmlEscape(contents))?;
                     }
                 }
             }
@@ -237,7 +251,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         rita
                     }
                 };
-                write!(self, "<a href=\"{}\">", HtmlEscape(&path_link))?;
+                write!(self, r#"<a href="{}">"#, HtmlEscape(&path_link))?;
                 if let Some(children) = &inner.description {
                     for id in children {
                         self.export_rec(id, parser)?;
@@ -259,7 +273,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             }
 
             Expr::Paragraph(inner) => {
-                writeln!(self, "<p>")?;
+                write!(self, "<p")?;
+                self.prop(node)?;
+                writeln!(self, ">")?;
+
                 for id in &inner.0 {
                     self.export_rec(id, parser)?;
                 }
@@ -390,52 +407,51 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             },
             Expr::Item(inner) => {
-                write!(self, "<li")?;
+                if let Some(tag) = inner.tag {
+                    write!(self, "<dt>{}</dt>", HtmlEscape(tag))?;
+                    write!(self, "<dd>")?;
+                    for id in &inner.children {
+                        self.export_rec(id, parser)?;
+                    }
+                    write!(self, "</dd>")?;
+                } else {
+                    write!(self, "<li")?;
 
-                if let Some(counter) = (inner.counter_set) {
-                    write!(self, " value={}", counter)?;
-                }
+                    if let Some(counter) = inner.counter_set {
+                        self.attr("value", counter)?;
+                    }
 
-                if let Some(check) = &inner.check_box {
-                    write!(
-                        self,
-                        " class={}",
-                        match check {
+                    if let Some(check) = &inner.check_box {
+                        self.class(match check {
                             CheckBox::Intermediate => "trans",
                             CheckBox::Off => "off",
                             CheckBox::On => "on",
-                        }
-                    )?;
+                        })?;
+                    }
+
+                    write!(self, ">")?;
+
+                    for id in &inner.children {
+                        self.export_rec(id, parser)?;
+                    }
+
+                    writeln!(self, "</li>")?;
                 }
-
-                if let Some(tag) = inner.tag {
-                    write!(self, " id={tag}")?;
-                }
-
-                write!(self, ">")?;
-
+            }
+            Expr::PlainList(inner) => {
+                let tag = match inner.kind {
+                    ListKind::Unordered => "ul",
+                    ListKind::Ordered(_) => "ol",
+                    ListKind::Descriptive => "dd",
+                };
+                write!(self, "<{tag}")?;
+                self.prop(node)?;
+                writeln!(self, ">")?;
                 for id in &inner.children {
                     self.export_rec(id, parser)?;
                 }
-
-                writeln!(self, "</li>")?;
+                writeln!(self, "</{tag}>")?;
             }
-            Expr::PlainList(inner) => match inner.kind {
-                ListKind::Unordered | ListKind::Descriptive => {
-                    writeln!(self, "<ul>")?;
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                    writeln!(self, "</ul>")?;
-                }
-                ListKind::Ordered(_) => {
-                    writeln!(self, "<ol>")?;
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                    writeln!(self, "</ol>")?;
-                }
-            },
             Expr::PlainLink(inner) => {
                 write!(
                     self,
@@ -447,7 +463,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "{}", inner.mapped_item)?;
             }
             Expr::Table(inner) => {
-                writeln!(self, "<table>")?;
+                write!(self, "<table")?;
+                self.prop(node)?;
+                writeln!(self, ">")?;
 
                 for id in &inner.children {
                     self.export_rec(id, parser)?;
@@ -460,7 +478,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        write!(self, "<tr>")?;
+                        writeln!(self, "<tr>")?;
                         for id in stands.iter() {
                             self.export_rec(id, parser)?;
                         }
@@ -478,33 +496,38 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::Emoji(inner) => {
                 write!(self, "{}", inner.mapped_item)?;
             }
-            Expr::Superscript(inner) => match &inner.0 {
-                PlainOrRec::Plain(inner) => {
-                    write!(self, "<sup>{inner}</sup>")?;
-                }
-                PlainOrRec::Rec(inner) => {
-                    write!(self, "<sup>")?;
-                    for id in inner {
-                        self.export_rec(id, parser)?;
+            Expr::Superscript(inner) => {
+                write!(self, "<sup>")?;
+                match &inner.0 {
+                    PlainOrRec::Plain(inner) => {
+                        write!(self, "{inner}")?;
                     }
-
-                    write!(self, "</sup>")?;
-                }
-            },
-            Expr::Subscript(inner) => match &inner.0 {
-                PlainOrRec::Plain(inner) => {
-                    write!(self, "<sub>{inner}</sub>")?;
-                }
-                PlainOrRec::Rec(inner) => {
-                    write!(self, "<sub>")?;
-                    for id in inner {
-                        self.export_rec(id, parser)?;
+                    PlainOrRec::Rec(inner) => {
+                        for id in inner {
+                            self.export_rec(id, parser)?;
+                        }
                     }
-
-                    write!(self, "</sub>")?;
                 }
-            },
+                write!(self, "</sup>")?;
+            }
+            Expr::Subscript(inner) => {
+                write!(self, "<sub>")?;
+                match &inner.0 {
+                    PlainOrRec::Plain(inner) => {
+                        write!(self, "{inner}")?;
+                    }
+                    PlainOrRec::Rec(inner) => {
+                        for id in inner {
+                            self.export_rec(id, parser)?;
+                        }
+                    }
+                }
+                write!(self, "</sub>")?;
+            }
             Expr::Target(inner) => {
+                write!(self, "<span")?;
+                self.prop(node)?;
+                write!(self, ">")?;
                 write!(
                     self,
                     "<span id={}>{}</span>",
@@ -521,13 +544,55 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::ExportSnippet(inner) => {
-                if inner.backend == "html" {
+                if inner.backend == BACKEND_NAME {
                     write!(self, "{}", inner.contents)?;
                 }
+            }
+            Expr::Affiliated(inner) => match inner {
+                Affiliated::Name(id) => {}
+                Affiliated::Caption(id, contents) => {
+                    if let Some(caption_id) = id {
+                        writeln!(self, "<figure>")?;
+                        writeln!(self, "<figcaption>{contents}</figcaption>")?;
+                        self.export_rec(caption_id, parser)?;
+                        writeln!(self, "</figure>")?;
+                        self.nox.insert(*caption_id);
+                    }
+                }
+                Affiliated::Attr {
+                    child_id,
+                    backend,
+                    val,
+                } => {}
+            },
+            Expr::MacroDef(_) => {}
+        }
+
+        Ok(())
+    }
+}
+
+impl<'buf> Html<'buf> {
+    fn prop(&mut self, node: &Node) -> Result {
+        if let Some(tag_contents) = node.id_target.as_ref() {
+            write!(self, r#" id="{tag_contents}""#)?;
+        }
+
+        if let Some(attrs) = node.attrs.get(BACKEND_NAME) {
+            for item in attrs {
+                self.attr(item.key, item.val)?;
             }
         }
 
         Ok(())
+    }
+
+    fn class(&mut self, name: &str) -> Result {
+        write!(self, r#" class="{}""#, name)
+    }
+
+    fn attr(&mut self, key: &str, val: &str) -> Result {
+        write!(self, r#" {}="{}""#, key, HtmlEscape(val))
     }
 }
 

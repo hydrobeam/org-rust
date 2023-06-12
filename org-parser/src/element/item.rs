@@ -43,9 +43,13 @@ impl<'a> Parseable<'a> for Item<'a> {
             None
         };
 
-        let tag: Option<&str> = if let Ok(tag_match) = parse_tag(cursor) {
-            cursor.move_to(tag_match.end);
-            Some(tag_match.obj)
+        let tag: Option<&str> = if let BulletKind::Unordered = bullet {
+            if let Ok(tag_match) = parse_tag(cursor) {
+                cursor.move_to(tag_match.end);
+                Some(tag_match.obj)
+            } else {
+                None
+            }
         } else {
             None
         };

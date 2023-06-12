@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::types::{Expr, Node};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
 pub struct NodeID(u32);
 
 impl std::fmt::Debug for NodeID {

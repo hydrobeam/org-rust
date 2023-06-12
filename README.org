@@ -37,12 +37,12 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 | PropertyDrawer      | X     | ~           | ~            |
 | Drawer              | X     | X           | X            |
 | ExportSnippet       | X     | X           | X            |
+| Affiliated Keywords | X     | _           | X            |
 | RadioLink           | _     | _           | _            |
 | RadioTarget         | _     | _           | _            |
 | FootnoteDefinition  | _     | _           | _            |
 | BabelCall           | _     | _           | _            |
 | InlineBabelCall     | _     | _           | _            |
-| Affiliated Keywords | _     | _           | _            |
 | Planning            | _     | _           | _            |
 | FixedWidth          | _     | _           | _            |
 | FootnoteReference   | _     | _           | _            |
