@@ -293,7 +293,7 @@ pub struct Node<'a> {
     pub end: usize,
     pub parent: Option<NodeID>,
     pub id_target: Option<Rc<str>>,
-    pub attrs: Option<HashMap<&'a str, Vec<Attr<'a>>>>,
+    pub attrs: Option<HashMap<String, Vec<Attr<'a>>>>,
     // pub keywords:
 }
 

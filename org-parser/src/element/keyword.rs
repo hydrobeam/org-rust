@@ -44,7 +44,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         cursor.word("#+")?;
 
         // ,#+attr_html: :class one :class one two three four :attr :attr1
-        if cursor.word("attr_").is_ok() {
+        if cursor.word("attr_").is_ok() | cursor.word("ATTR_").is_ok() {
             let backend = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
             cursor.index = backend.end;
             cursor.word(":")?;
@@ -70,12 +70,26 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                             break;
                         }
 
-                        let val_match = cursor.fn_until(|chr| chr == COLON || chr == NEWLINE)?;
-                        cursor.index = val_match.end;
+                        let val_begin = cursor.index;
+                        // allows for non-breaking colons:
+                        // #+attr_html: :style border:2px solid black
+                        loop {
+                            match cursor.curr() {
+                                NEWLINE => break,
+                                COLON => {
+                                    if cursor.peek_rev(1)?.is_ascii_whitespace() {
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            cursor.next();
+                        }
+                        let val_obj = cursor.clamp_backwards(val_begin);
 
                         new_attrs.push(Attr {
                             key: key_match.obj.trim(),
-                            val: val_match.obj.trim(),
+                            val: val_obj.trim(),
                         });
                     }
                     _ => cursor.skip_ws(),
@@ -86,6 +100,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             cursor.next();
             let end = cursor.index;
 
+            let lowercase_backend = backend.obj.to_ascii_lowercase();
             let child_id = loop {
                 if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
                     let node = &mut parser.pool[child_id];
@@ -95,10 +110,10 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                     } else {
                         if let Some(attrs) = &mut node.attrs {
                             attrs
-                                .entry(backend.obj)
+                                .entry(lowercase_backend)
                                 .and_modify(|attr_vec| attr_vec.append(&mut new_attrs));
                         } else {
-                            node.attrs = Some(HashMap::from([(backend.obj, new_attrs)]));
+                            node.attrs = Some(HashMap::from([(lowercase_backend, new_attrs)]));
                         }
                         break Some(child_id);
                     }

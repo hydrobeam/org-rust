@@ -592,7 +592,7 @@ impl<'buf> Html<'buf> {
     }
 
     fn attr(&mut self, key: &str, val: &str) -> Result {
-        write!(self, r#" {}="{}""#, key, val)
+        write!(self, r#" {}="{}""#, key, HtmlEscape(val))
     }
 }
 
