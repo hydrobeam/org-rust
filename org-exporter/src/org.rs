@@ -270,7 +270,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 write!(self, " ")?;
             }
             Expr::LineBreak => {
-                write!(self, r"\")?;
+                write!(self, r#"\\"#)?;
             }
             Expr::HorizontalRule => {
                 writeln!(self, "-----")?;
@@ -309,7 +309,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
-                    write!(self, r"{name}")?;
+                    write!(self, r#"\{name}"#)?;
                     if let Some(command_cont) = contents {
                         write!(self, "{{{command_cont}}}")?;
                     }
@@ -318,7 +318,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                     write!(self, r"\[{inner}\]")?;
                 }
                 LatexFragment::Inline(inner) => {
-                    write!(self, r"({inner})")?;
+                    write!(self, r#"\({inner}\)"#)?;
                 }
             },
             Expr::Item(inner) => {
