@@ -108,13 +108,10 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                         // skip affiliated objects
                         cursor.index = node.end;
                     } else {
-                        if let Some(attrs) = &mut node.attrs {
-                            attrs
-                                .entry(lowercase_backend)
-                                .and_modify(|attr_vec| attr_vec.append(&mut new_attrs));
-                        } else {
-                            node.attrs = Some(HashMap::from([(lowercase_backend, new_attrs)]));
-                        }
+                        node.attrs
+                            .entry(lowercase_backend)
+                            .and_modify(|attr_vec| attr_vec.append(&mut new_attrs))
+                            .or_insert(new_attrs);
                         break Some(child_id);
                     }
                 } else {
@@ -358,9 +355,7 @@ mod tests {
                 }
             })
             .unwrap()
-            .attrs
-            .as_ref()
-            .unwrap()["html"];
+            .attrs["html"];
 
         assert_eq!(
             table,

@@ -293,7 +293,7 @@ pub struct Node<'a> {
     pub end: usize,
     pub parent: Option<NodeID>,
     pub id_target: Option<Rc<str>>,
-    pub attrs: Option<HashMap<String, Vec<Attr<'a>>>>,
+    pub attrs: HashMap<String, Vec<Attr<'a>>>,
     // pub keywords:
 }
 
@@ -305,7 +305,7 @@ impl<'a> Default for Node<'a> {
             end: Default::default(),
             parent: Option::default(),
             id_target: None,
-            attrs: None,
+            attrs: HashMap::new(),
         }
     }
 }
@@ -321,7 +321,7 @@ impl<'a> Node<'a> {
             end,
             parent,
             id_target: None,
-            attrs: None,
+            attrs: HashMap::new(),
         }
     }
 

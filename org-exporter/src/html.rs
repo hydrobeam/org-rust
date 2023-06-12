@@ -16,11 +16,13 @@ use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
 
+const BACKEND_NAME: &str = "html";
+
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
     // HACK: When we export a caption, insert the child id here to make sure
     // it's not double exported
-    nox: HashSet<NodeID>,// no-export
+    nox: HashSet<NodeID>, // no-export
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
@@ -204,7 +206,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            if params.contains("html") {
+                            if params.contains(BACKEND_NAME) {
                                 writeln!(self, "{}", contents)?;
                             }
                         }
@@ -542,7 +544,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::ExportSnippet(inner) => {
-                if inner.backend == "html" {
+                if inner.backend == BACKEND_NAME {
                     write!(self, "{}", inner.contents)?;
                 }
             }
@@ -576,11 +578,9 @@ impl<'buf> Html<'buf> {
             write!(self, r#" id="{tag_contents}""#)?;
         }
 
-        if let Some(attr_map) = &node.attrs {
-            if let Some(attrs) = attr_map.get("html") {
-                for item in attrs {
-                    self.attr(item.key, item.val)?;
-                }
+        if let Some(attrs) = node.attrs.get(BACKEND_NAME) {
+            for item in attrs {
+                self.attr(item.key, item.val)?;
             }
         }
 
