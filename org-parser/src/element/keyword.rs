@@ -43,29 +43,46 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         let start = cursor.index;
         cursor.word("#+")?;
 
+        // ,#+attr_html: :class one :class one two three four :attr :attr1
         if cursor.word("attr_").is_ok() {
             let backend = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
             cursor.index = backend.end;
             cursor.word(":")?;
-            let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
-            cursor.index = val.end;
-            cursor.next();
+
             let mut new_attrs: Vec<Attr> = Vec::new();
 
             // val is in the form
             // :key val :key val :key val
-            let mut q = val.obj.trim().split(' ');
+            let val_start_ind = cursor.index;
             loop {
-                if let Some(key) = q.next() {
-                    new_attrs.push(Attr {
-                        // skip the starting colon
-                        key: &key[1..],
-                        val: q.next().unwrap(), // blow up if not a multiple of two
-                    });
-                } else {
-                    break;
+                match cursor.try_curr()? {
+                    NEWLINE => break,
+                    COLON => {
+                        cursor.next();
+                        let key_match = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
+                        cursor.index = key_match.end;
+                        cursor.skip_ws();
+                        if NEWLINE == cursor.try_curr()? {
+                            new_attrs.push(Attr {
+                                key: key_match.obj.trim(),
+                                val: "",
+                            });
+                            break;
+                        }
+
+                        let val_match = cursor.fn_until(|chr| chr == COLON || chr == NEWLINE)?;
+                        cursor.index = val_match.end;
+
+                        new_attrs.push(Attr {
+                            key: key_match.obj.trim(),
+                            val: val_match.obj.trim(),
+                        });
+                    }
+                    _ => cursor.skip_ws(),
                 }
             }
+            let val = cursor.clamp_backwards(val_start_ind);
+            let end = cursor.index + 1;
 
             let child_id = loop {
                 if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
@@ -92,10 +109,10 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 Affiliated::Attr {
                     child_id,
                     backend: backend.obj,
-                    val: val.obj.trim(),
+                    val: val.trim(),
                 },
                 start,
-                val.end + 1,
+                end,
                 parent,
             ));
         }
@@ -300,5 +317,15 @@ mod tests {
         let inp = "#+key:     \nval\n";
 
         dbg!(parse_org(inp));
+    }
+
+    #[test]
+    fn affiliated() {
+        let input = r"
+#+attr_html: :black yes :class :attr :attr1
+|table
+";
+        let pool = parse_org(input);
+        pool.print_tree();
     }
 }
