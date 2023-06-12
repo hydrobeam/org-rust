@@ -433,35 +433,20 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                     writeln!(self, "</li>")?;
                 }
             }
-            Expr::PlainList(inner) => match inner.kind {
-                ListKind::Unordered => {
-                    write!(self, "<ul")?;
-                    self.prop(node)?;
-                    writeln!(self, ">")?;
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                    writeln!(self, "</ul>")?;
+            Expr::PlainList(inner) => {
+                let tag = match inner.kind {
+                    ListKind::Unordered => "ul",
+                    ListKind::Ordered(_) => "ol",
+                    ListKind::Descriptive => "dd",
+                };
+                write!(self, "<{tag}")?;
+                self.prop(node)?;
+                writeln!(self, ">")?;
+                for id in &inner.children {
+                    self.export_rec(id, parser)?;
                 }
-                ListKind::Ordered(_) => {
-                    write!(self, "<ol")?;
-                    self.prop(node)?;
-                    writeln!(self, ">")?;
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                    writeln!(self, "</ol>")?;
-                }
-                ListKind::Descriptive => {
-                    write!(self, "<dl")?;
-                    self.prop(node)?;
-                    writeln!(self, ">")?;
-                    for id in &inner.children {
-                        self.export_rec(id, parser)?;
-                    }
-                    writeln!(self, "</dl>")?;
-                }
-            },
+                writeln!(self, "</{tag}>")?;
+            }
             Expr::PlainLink(inner) => {
                 write!(
                     self,
@@ -476,15 +461,6 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 write!(self, "<table")?;
                 self.prop(node)?;
                 write!(self, ">")?;
-
-                // self.begin("table")
-                //     .id(node)
-                //     .rec(|| -> Result {
-                //         for id in &inner.children {
-                //             self.export_rec(id, parser)?;
-                //         }
-                //     })
-                //     .end();
 
                 for id in &inner.children {
                     self.export_rec(id, parser)?;
