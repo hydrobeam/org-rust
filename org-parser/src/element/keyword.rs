@@ -92,7 +92,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                             val: val_obj.trim(),
                         });
                     }
-                    _ => cursor.skip_ws(),
+                    _ => cursor.next(),
                 }
             }
             let val = cursor.clamp_backwards(val_start_ind);
