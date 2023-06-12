@@ -46,6 +46,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         if cursor.word("attr_").is_ok() {
             let backend = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
             cursor.index = backend.end;
+            cursor.word(":")?;
             let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
             cursor.index = val.end;
             cursor.next();

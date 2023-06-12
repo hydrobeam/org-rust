@@ -1,5 +1,6 @@
 use core::fmt;
 
+use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
 
@@ -15,19 +16,11 @@ use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
 use org_parser::types::{Expr, Parser};
 
-// static ORG_AFFILIATED_KEYWORDS: phf::Set<&str> = phf::phf_set! {
-//     "attr_html",
-//     "caption",
-//     "data",
-//     "header",
-//     "name",
-//     "plot",
-//     "results",
-// };
-
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
-    // affiliated_keyword: todo!()
+    // HACK: When we export a caption, insert the child id here to make sure
+    // it's not double exported
+    nox: HashSet<NodeID>,// no-export
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
@@ -69,7 +62,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let parsed = parse_org(input);
-        let mut obj = Html { buf: &mut buf };
+        let mut obj = Html {
+            buf: &mut buf,
+            nox: HashSet::new(),
+        };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
@@ -80,13 +76,19 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = parse_org(input);
-        let mut obj = Html { buf };
+        let mut obj = Html {
+            buf,
+            nox: HashSet::new(),
+        };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+        if self.nox.contains(node_id) {
+            return Ok(());
+        }
         let node = &parser.pool[*node_id];
         match &node.obj {
             Expr::Root(inner) => {
@@ -122,6 +124,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
 
                 write!(self, "<h{heading_number}",)?;
                 self.prop(node)?;
+                write!(self, ">")?;
 
                 if let Some(title) = &inner.title {
                     for id in &title.1 {
@@ -460,7 +463,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::Table(inner) => {
                 write!(self, "<table")?;
                 self.prop(node)?;
-                write!(self, ">")?;
+                writeln!(self, ">")?;
 
                 for id in &inner.children {
                     self.export_rec(id, parser)?;
@@ -473,7 +476,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        write!(self, "<tr>")?;
+                        writeln!(self, "<tr>")?;
                         for id in stands.iter() {
                             self.export_rec(id, parser)?;
                         }
@@ -545,7 +548,15 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             }
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(id) => {}
-                Affiliated::Caption(id, contents) => todo!(),
+                Affiliated::Caption(id, contents) => {
+                    if let Some(caption_id) = id {
+                        writeln!(self, "<figure>")?;
+                        writeln!(self, "<figcaption>{contents}</figcaption>")?;
+                        self.export_rec(caption_id, parser)?;
+                        writeln!(self, "</figure>")?;
+                        self.nox.insert(*caption_id);
+                    }
+                }
                 Affiliated::Attr {
                     child_id,
                     backend,
