@@ -82,7 +82,9 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 }
             }
             let val = cursor.clamp_backwards(val_start_ind);
-            let end = cursor.index + 1;
+            // skip past newline
+            cursor.next();
+            let end = cursor.index;
 
             let child_id = loop {
                 if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
@@ -288,7 +290,10 @@ impl<'a> MacroDef<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::{
+        parse_org,
+        types::{Attr, Expr},
+    };
 
     #[test]
     fn basic_keyword() {
@@ -320,12 +325,44 @@ mod tests {
     }
 
     #[test]
-    fn affiliated() {
+    fn attr_backend_affiliated_keyword() {
+        // check for spaces, whitespace between val, black vals and multiple attrs
         let input = r"
-#+attr_html: :black yes :class :attr :attr1
+#+attr_html: :black yes        :class :words    multiple spaces accepted
 |table
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        let table = &pool
+            .pool
+            .iter()
+            .find_map(|a| {
+                if let Expr::Table(table) = &a.obj {
+                    Some(a)
+                } else {
+                    None
+                }
+            })
+            .unwrap()
+            .attrs
+            .as_ref()
+            .unwrap()["html"];
+
+        assert_eq!(
+            table,
+            &vec![
+                Attr {
+                    key: "black",
+                    val: "yes"
+                },
+                Attr {
+                    key: "class",
+                    val: ""
+                },
+                Attr {
+                    key: "words",
+                    val: "multiple spaces accepted"
+                },
+            ]
+        );
     }
 }

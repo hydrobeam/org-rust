@@ -21,7 +21,7 @@ pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 pub type NodeCache = HashMap<usize, NodeID>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Attr<'a> {
     pub key: &'a str,
     pub val: &'a str,
