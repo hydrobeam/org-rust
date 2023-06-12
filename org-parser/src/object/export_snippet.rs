@@ -76,7 +76,6 @@ mod tests {
                 contents: ""
             }
         );
-
     }
 
     #[test]

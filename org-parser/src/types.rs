@@ -21,6 +21,12 @@ pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 pub type NodeCache = HashMap<usize, NodeID>;
 
+#[derive(Debug, Clone, Copy)]
+pub struct Attr<'a> {
+    pub key: &'a str,
+    pub val: &'a str,
+}
+
 #[derive(Debug)]
 pub struct Parser<'a> {
     pub pool: NodePool<'a>,
@@ -287,6 +293,8 @@ pub struct Node<'a> {
     pub end: usize,
     pub parent: Option<NodeID>,
     pub id_target: Option<Rc<str>>,
+    pub attrs: Option<HashMap<&'a str, Vec<Attr<'a>>>>,
+    // pub keywords:
 }
 
 impl<'a> Default for Node<'a> {
@@ -297,6 +305,7 @@ impl<'a> Default for Node<'a> {
             end: Default::default(),
             parent: Option::default(),
             id_target: None,
+            attrs: None,
         }
     }
 }
@@ -312,6 +321,7 @@ impl<'a> Node<'a> {
             end,
             parent,
             id_target: None,
+            attrs: None,
         }
     }
 

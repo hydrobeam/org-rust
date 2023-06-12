@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use crate::constants::{COLON, DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{Attr, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Keyword<'a> {
     key: &'a str,
     val: &'a str,
@@ -47,13 +49,43 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
             cursor.index = val.end;
             cursor.next();
+            let mut new_attrs: Vec<Attr> = Vec::new();
 
-            let (child_id, end) =
-                if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
-                    (Some(child_id), parser.pool[child_id].end)
+            // val is in the form
+            // :key val :key val :key val
+            let mut q = val.obj.trim().split(' ');
+            loop {
+                if let Some(key) = q.next() {
+                    new_attrs.push(Attr {
+                        // skip the starting colon
+                        key: &key[1..],
+                        val: q.next().unwrap(), // blow up if not a multiple of two
+                    });
                 } else {
-                    (None, cursor.index)
+                    break;
+                }
+            }
+
+            let child_id = loop {
+                if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
+                    let node = &mut parser.pool[child_id];
+                    if let Expr::Affiliated(aff) = &node.obj {
+                        // skip affiliated objects
+                        cursor.index = node.end;
+                    } else {
+                        if let Some(attrs) = &mut node.attrs {
+                            attrs
+                                .entry(backend.obj)
+                                .and_modify(|attr_vec| attr_vec.append(&mut new_attrs));
+                        } else {
+                            node.attrs = Some(HashMap::from([(backend.obj, new_attrs)]));
+                        }
+                        break Some(child_id);
+                    }
+                } else {
+                    break None;
                 };
+            };
 
             return Ok(parser.alloc(
                 Affiliated::Attr {
@@ -62,7 +94,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                     val: val.obj.trim(),
                 },
                 start,
-                end,
+                val.end + 1,
                 parent,
             ));
         }
@@ -88,33 +120,49 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
                 cursor.index = val.end;
                 cursor.next();
-                let (child_id, end) =
+
+                let child_id = loop {
                     if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
-                        (Some(child_id), parser.pool[child_id].end)
+                        let node = &mut parser.pool[child_id];
+                        if let Expr::Affiliated(aff) = &node.obj {
+                            // skip affiliated objects
+                            cursor.index = node.end;
+                        } else {
+                            parser.pool[child_id].id_target =
+                                Some(parser.generate_target(val.obj.trim()));
+                            break Some(child_id);
+                        }
                     } else {
-                        (None, cursor.index)
+                        break None;
                     };
+                };
+                let ret_id = parser.alloc(Affiliated::Name(child_id), start, val.end + 1, parent);
 
-                let ret_id = parser.alloc(Affiliated::Name(child_id), start, end, parent);
-
-                parser.pool[ret_id].id_target = Some(parser.generate_target(val.obj.trim()));
                 return Ok(ret_id);
             }
             "caption" => {
                 let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
                 cursor.index = val.end;
                 cursor.next();
-                let (child_id, end) =
+
+                let child_id = loop {
                     if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
-                        (Some(child_id), parser.pool[child_id].end)
+                        let node = &mut parser.pool[child_id];
+                        if let Expr::Affiliated(aff) = &node.obj {
+                            // skip affiliated objects
+                            cursor.index = node.end;
+                        } else {
+                            break Some(child_id);
+                        }
                     } else {
-                        (None, cursor.index)
+                        break None;
                     };
+                };
 
                 return Ok(parser.alloc(
                     Affiliated::Caption(child_id, val.obj.trim()),
                     start,
-                    end,
+                    val.end + 1,
                     parent,
                 ));
             }

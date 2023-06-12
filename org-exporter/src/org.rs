@@ -526,8 +526,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                     write!(self, "{}", inner.contents)?;
                 }
             }
-            Expr::Affiliated(_) => {},
-            Expr::MacroDef(_) => {},
+            Expr::Affiliated(_) => {}
+            Expr::MacroDef(_) => {}
         }
 
         Ok(())
