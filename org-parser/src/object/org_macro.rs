@@ -1,8 +1,7 @@
-use crate::constants::{COMMA, DOLLAR, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, UNDERSCORE};
+use crate::constants::{COMMA, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::Match;
 
 #[derive(Debug, Clone)]
 pub struct MacroCall<'a> {

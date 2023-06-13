@@ -5,15 +5,9 @@ use std::ops::Index;
 use std::rc::Rc;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
-use crate::element::{
-    Affiliated, Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, MacroDef, Paragraph,
-    PlainList, Table, TableCell, TableRow,
-};
+use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
-use crate::object::{
-    Bold, Code, Emoji, Entity, ExportSnippet, InlineSrc, Italic, LatexFragment, MacroCall,
-    PlainLink, RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
-};
+use crate::object::*;
 use crate::utils::{bytes_to_str, id_escape, Match};
 use bitflags::bitflags;
 
@@ -42,6 +36,9 @@ pub struct Parser<'a> {
 
     // basic keywords, key: val
     pub keywords: HashMap<&'a str, &'a str>,
+
+    // footnote label to footnote definition
+    pub footnotes: HashMap<&'a str, NodeID>,
 }
 
 impl<'a> Parser<'a> {
@@ -352,6 +349,8 @@ pub enum Expr<'a> {
     Subscript(Subscript<'a>),
     Drawer(Drawer<'a>),
     Affiliated(Affiliated<'a>),
+    FootnoteDef(FootnoteDef<'a>),
+    FootnoteRef(FootnoteRef<'a>),
 
     // Leaf
     BlankLine,
@@ -412,6 +411,7 @@ bitflags! {
         const Link          = 1 << 6;
         const Table         = 1 << 7;
         const SupSub        = 1 << 8;
+        const FootnoteRef   = 1 << 9;
     }
 }
 
@@ -435,29 +435,12 @@ impl MarkupKind {
             SLASH => self.contains(MarkupKind::Italic),
             UNDERSCORE => self.contains(MarkupKind::Underline),
             PLUS => self.contains(MarkupKind::StrikeThrough),
-            RBRACK => self.contains(MarkupKind::Link),
+            RBRACK => self.contains(MarkupKind::Link) || self.contains(MarkupKind::Link),
             TILDE => self.contains(MarkupKind::Code),
             EQUAL => self.contains(MarkupKind::Verbatim),
             VBAR => self.contains(MarkupKind::Table),
             RBRACE => self.contains(MarkupKind::SupSub),
             _ => false,
-        }
-    }
-}
-
-impl From<u8> for MarkupKind {
-    fn from(value: u8) -> Self {
-        match value {
-            STAR => MarkupKind::Bold,
-            SLASH => MarkupKind::Italic,
-            UNDERSCORE => MarkupKind::Underline,
-            PLUS => MarkupKind::StrikeThrough,
-            RBRACK => MarkupKind::Link,
-            TILDE => MarkupKind::Code,
-            EQUAL => MarkupKind::Verbatim,
-            VBAR => MarkupKind::Table,
-            RBRACE => MarkupKind::SupSub,
-            _ => unreachable!(),
         }
     }
 }
@@ -652,6 +635,8 @@ impl<'a> Expr<'a> {
             Expr::ExportSnippet(inner) => print!("{inner:#?}"),
             Expr::Affiliated(inner) => print!("{inner:#?}"),
             Expr::MacroDef(inner) => print!("{inner:#?}"),
+            Expr::FootnoteDef(inner) => print!("{inner:#?}"),
+            Expr::FootnoteRef(inner) => print!("{inner:#?}"),
         }
     }
 }
@@ -705,6 +690,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::ExportSnippet(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::Affiliated(inner) => f.write_fmt(format_args!("{inner:#?}")),
                 Expr::MacroDef(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::FootnoteDef(inner) => f.write_fmt(format_args!("{inner:#?}")),
+                Expr::FootnoteRef(inner) => f.write_fmt(format_args!("{inner:#?}")),
             }
         } else {
             match self {
@@ -722,6 +709,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
                 Expr::StrikeThrough(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::Underline(inner) => f.write_fmt(format_args!("{inner:?}")),
                 Expr::PlainList(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::FootnoteDef(inner) => f.write_fmt(format_args!("{inner:?}")),
+                Expr::FootnoteRef(inner) => f.write_fmt(format_args!("{inner:?}")),
 
                 Expr::BlankLine => f.write_str("BlankLine"),
                 Expr::SoftBreak => f.write_str("SoftBreak"),

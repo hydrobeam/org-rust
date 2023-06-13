@@ -5,11 +5,12 @@ use crate::constants::{
 use crate::node_pool::NodeID;
 
 use crate::element::{
-    Block, Comment, Drawer, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList, Table,
+    Block, Comment, Drawer, FootnoteDef, Heading, Item, Keyword, LatexEnv, Paragraph, PlainList,
+    Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Emoji, ExportSnippet, InlineSrc, Italic,
-    LatexFragment, MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target,
+    parse_angle_link, parse_plain_link, Bold, Code, Emoji, ExportSnippet, FootnoteRef, InlineSrc,
+    Italic, LatexFragment, MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target,
     Underline, Verbatim,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
@@ -150,6 +151,13 @@ pub(crate) fn parse_element<'a>(
                 return ret;
             }
         }
+        LBRACK => {
+            if indentation_level == 0 {
+                if let ret @ Ok(_) = FootnoteDef::parse(parser, cursor, parent, no_para_opts) {
+                    return ret;
+                }
+            }
+        }
         _ => {}
     }
 
@@ -216,6 +224,8 @@ pub(crate) fn parse_object<'a>(
         LBRACK => {
             if let ret @ Ok(_) = RegularLink::parse(parser, cursor, parent, parse_opts) {
                 return ret;
+            } else if let ret @ Ok(_) = FootnoteRef::parse(parser, cursor, parent, parse_opts) {
+                return ret;
             }
         }
         RBRACK => {
@@ -228,6 +238,8 @@ pub(crate) fn parse_object<'a>(
                         return Err(MatchError::MarkupEnd(MarkupKind::Link));
                     }
                 }
+            } else if parse_opts.markup.contains(MarkupKind::FootnoteRef) {
+                return Err(MatchError::MarkupEnd(MarkupKind::FootnoteRef));
             }
         }
         BACKSLASH => {

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::constants::{COLON, DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;

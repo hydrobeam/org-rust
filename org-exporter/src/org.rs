@@ -528,6 +528,26 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             }
             Expr::Affiliated(_) => {}
             Expr::MacroDef(_) => {}
+            Expr::FootnoteDef(inner) => {
+                write!(self, r"[fn:{}]", inner.label)?;
+                write!(self, ":")?;
+                for id in &inner.children {
+                    self.export_rec(id, parser)?;
+                }
+            }
+            Expr::FootnoteRef(inner) => {
+                write!(self, r"[fn:")?;
+                if let Some(label) = inner.label {
+                    write!(self, "{label}")?;
+                }
+                write!(self, ":")?;
+                if let Some(descr) = &inner.definition {
+                    for id in descr {
+                        self.export_rec(id, parser)?;
+                    }
+                }
+                write!(self, "]")?;
+            }
         }
 
         Ok(())

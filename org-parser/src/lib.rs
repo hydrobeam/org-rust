@@ -67,6 +67,7 @@ pub fn parse_org(input: &str) -> Parser<'_> {
         macros: HashMap::new(),
         keywords: HashMap::new(),
         target_occurences: HashMap::new(),
+        footnotes: HashMap::new(),
     };
     while let Ok(id) = parse_element(&mut parser, cursor, Some(parent), parse_opts) {
         content_vec.push(id);

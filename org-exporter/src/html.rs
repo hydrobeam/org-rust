@@ -1,5 +1,7 @@
 use core::fmt;
 
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
@@ -23,6 +25,8 @@ pub struct Html<'buf> {
     // HACK: When we export a caption, insert the child id here to make sure
     // it's not double exported
     nox: HashSet<NodeID>, // no-export
+    // used footnotes
+    footnotes: BTreeMap<NodeID, usize>,
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
@@ -67,6 +71,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let mut obj = Html {
             buf: &mut buf,
             nox: HashSet::new(),
+            footnotes: BTreeMap::new(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -81,6 +86,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
+            footnotes: BTreeMap::new(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -110,6 +116,50 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 //                 )?;
                 for id in inner {
                     self.export_rec(id, parser)?;
+                }
+                if !self.footnotes.is_empty() {
+                    write!(
+                        self,
+                        r#"
+<div id="footnotes">
+    <style>
+    .footdef p {{
+    display:inline;
+    }}
+    </style>
+    <h2 class="footnotes">Footnotes</h2>
+    <div id="text-footnotes">
+"#
+                    )?;
+
+                    let man = self.footnotes.clone();
+                    for (def_id, pos) in man.iter() {
+                        write!(
+                            self,
+                            r##"
+
+<div class="footdef">
+<sup>
+    <a id="fn.{pos}" href= "#fnr.{pos}" role="doc-backlink">{pos}</a>
+</sup>
+"##
+                        )?;
+                        match &parser.pool[*def_id].obj {
+                            Expr::FootnoteDef(fn_def) => {
+                                for child_id in &fn_def.children {
+                                    self.export_rec(child_id, parser)?;
+                                }
+                            }
+                            Expr::FootnoteRef(fn_ref) => {
+                                for child_id in fn_ref.definition.as_ref().unwrap() {
+                                    self.export_rec(child_id, parser)?;
+                                }
+                            }
+                            _ => (),
+                        }
+                        write!(self, r#"</div>"#)?;
+                    }
+                    write!(self, "\n  </div>\n</div>")?;
                 }
 
                 //                 self.write(
@@ -566,6 +616,46 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 } => {}
             },
             Expr::MacroDef(_) => {}
+            Expr::FootnoteDef(inner) => {
+                // handled after root
+            }
+            Expr::FootnoteRef(inner) => {
+                if let Some(label) = inner.label {
+                    let foot_len = self.footnotes.len();
+                    if let Some(def_id) = parser.footnotes.get(label) {
+                        let index = *self.footnotes.entry(*def_id).or_insert(foot_len + 1);
+
+                        // prevent duplicate ids:
+                        // node ids are guaranteed to be unique
+                        let fn_id = if index != foot_len + 1 {
+                            format!("{}.{}", index, node_id)
+                        } else {
+                            format!("{index}")
+                        };
+
+                        write!(
+                            self,
+                            // currently duplicates ids
+                            r##"<sup>
+    <a id="fnr.{0}" href="#fn.{1}" class="footref" role="doc-backlink">{1}</a>
+</sup>"##,
+                            fn_id, index,
+                        )?;
+                    } else if inner.definition.is_some() {
+                        let index = *self.footnotes.entry(*node_id).or_insert(foot_len + 1);
+                        write!(
+                            self,
+                            // currently duplicates ids
+                            r##"<sup>
+    <a id="fnr.{0}" href="#fn.{0}" class="footref" role="doc-backlink">{0}</a>
+</sup>"##,
+                            index,
+                        )?;
+                    }
+                } else {
+                    // make a new one.?
+                }
+            }
         }
 
         Ok(())
@@ -760,13 +850,48 @@ a é😳
 
         assert_eq!(
             a,
-            r"<ol>
-<li value=4><p>
+            r#"<ol>
+<li value="4"><p>
 wordsss??
 </p>
 </li>
 </ol>
-"
+"#
+        );
+        Ok(())
+    }
+    #[test]
+    fn anon_keyword() -> Result {
+        let a = Html::export(
+            r"
+hi [fn:next:coolio]
+",
+        )?;
+        // just codifying what the output is here, not supposed to be set in stone
+        assert_eq!(a,
+                   r##"<p>
+hi <sup>
+    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup>
+</p>
+
+<div id="footnotes">
+    <style>
+    .footdef p {
+    display:inline;
+    }
+    </style>
+    <h2 class="footnotes">Footnotes</h2>
+    <div id="text-footnotes">
+
+
+<div class="footdef">
+<sup>
+    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+</sup>
+coolio</div>
+  </div>
+</div>"##
         );
         Ok(())
     }

@@ -1,10 +1,16 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::ops::{Index, IndexMut};
 
 use crate::types::{Expr, Node};
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
 pub struct NodeID(u32);
+
+impl Display for NodeID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
+}
 
 impl std::fmt::Debug for NodeID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

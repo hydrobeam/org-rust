@@ -30,7 +30,7 @@ macro_rules! recursive_markup {
                 loop {
                     match parse_object(parser, cursor, parent, parse_opts) {
                         Ok(id) => {
-                            cursor.index = (parser.pool[id].end);
+                            cursor.index = parser.pool[id].end;
                             content_vec.push(id);
                         }
                         Err(MatchError::MarkupEnd(kind)) => {
@@ -102,7 +102,7 @@ macro_rules! plain_markup {
                                 // [[___][~abc ] amc~ ]]
                                 // won't make one cohesive code object, the rbrack will
                                 // kill it
-                                return Err(MatchError::MarkupEnd(chr.into()));
+                                return Err(MatchError::MarkupEnd(parse_opts.markup));
                             }
                         }
                         NEWLINE => {
