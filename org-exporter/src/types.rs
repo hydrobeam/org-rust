@@ -9,5 +9,9 @@ pub trait Exporter<'a, 'buf> {
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error>;
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+    ) -> core::result::Result<&'buf mut T, fmt::Error>;
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> fmt::Result;
 }

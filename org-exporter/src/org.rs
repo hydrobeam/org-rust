@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Result;
 
@@ -45,6 +46,21 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
         };
 
         obj.export_rec(&porg.pool.root_id(), &porg)?;
+        Ok(buf)
+    }
+
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+    ) -> core::result::Result<&'buf mut T, fmt::Error> {
+        let parsed = org_parser::parse_macro_call(input);
+        let mut obj = Org {
+            buf,
+            indentation_level: 0,
+            on_newline: false,
+        };
+
+        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         Ok(buf)
     }
 
@@ -512,7 +528,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 write!(self, "<<{}>>", inner.0)?;
             }
             Expr::Macro(macro_call) => {
-                macro_handle(parser, macro_call, self)?;
+                if let Ok(macro_contents) = macro_handle(parser, macro_call, self) {
+                    match macro_contents {
+                        Cow::Owned(p) => {
+                            Org::export_macro_buf(&p, self)?;
+                        }
+                        Cow::Borrowed(r) => {
+                            write!(self, "{r}")?;
+                        }
+                    }
+                }
             }
             Expr::Drawer(inner) => {
                 writeln!(self, ":{}:", inner.name)?;

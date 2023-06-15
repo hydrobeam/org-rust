@@ -7,6 +7,7 @@ use node_pool::{NodeID, NodePool};
 use types::{Cursor, Expr, NodeCache, ParseOpts, Parser};
 
 use crate::parse::parse_element;
+use crate::parse::parse_object;
 
 pub mod element;
 pub mod node_pool;
@@ -70,6 +71,32 @@ pub fn parse_org(input: &str) -> Parser<'_> {
         footnotes: HashMap::new(),
     };
     while let Ok(id) = parse_element(&mut parser, cursor, Some(parent), parse_opts) {
+        content_vec.push(id);
+        cursor.move_to(parser.pool[id].end);
+    }
+    parser.alloc_with_id(Expr::Root(content_vec), 0, cursor.index, None, parent);
+
+    parser
+}
+
+pub fn parse_macro_call(input: &str) -> Parser {
+    let mut cursor = Cursor::new(input.as_bytes());
+    let parse_opts = ParseOpts::default();
+    let mut pool = NodePool::new();
+    let parent = pool.reserve_id();
+    let mut content_vec: Vec<NodeID> = Vec::new();
+
+    let cache = NodeCache::new();
+    let mut parser = Parser {
+        pool,
+        cache,
+        targets: HashMap::new(),
+        macros: HashMap::new(),
+        keywords: HashMap::new(),
+        target_occurences: HashMap::new(),
+        footnotes: HashMap::new(),
+    };
+    while let Ok(id) = parse_object(&mut parser, cursor, Some(parent), parse_opts) {
         content_vec.push(id);
         cursor.move_to(parser.pool[id].end);
     }

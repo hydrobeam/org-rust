@@ -1,7 +1,7 @@
 use core::fmt;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::fmt::Result;
 use std::fmt::Write;
@@ -9,6 +9,7 @@ use std::fmt::Write;
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
 use org_parser::element::{Affiliated, Block, CheckBox, Keyword, ListKind, TableRow};
+use org_parser::parse_macro_call;
 use org_parser::types::Node;
 
 use crate::org_macros::macro_handle;
@@ -67,7 +68,7 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
 impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
-        let parsed = parse_org(input);
+        let mut parsed = parse_org(input);
         let mut obj = Html {
             buf: &mut buf,
             nox: HashSet::new(),
@@ -83,6 +84,21 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = parse_org(input);
+        let mut obj = Html {
+            buf,
+            nox: HashSet::new(),
+            footnotes: BTreeMap::new(),
+        };
+
+        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
+        Ok(buf)
+    }
+
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+    ) -> core::result::Result<&'buf mut T, fmt::Error> {
+        let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -431,7 +447,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    write!(pot_cont, r#"\{name}"#)?;
+                    write!(pot_cont, r#"{name}"#)?;
                     if let Some(command_cont) = contents {
                         write!(pot_cont, "{{{command_cont}}}")?;
                     }
@@ -586,7 +602,16 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 )?;
             }
             Expr::Macro(macro_call) => {
-                macro_handle(parser, macro_call, self)?;
+                if let Ok(macro_contents) = macro_handle(parser, macro_call, self) {
+                    match macro_contents {
+                        Cow::Owned(p) => {
+                            Html::export_macro_buf(&p, self)?;
+                        }
+                        Cow::Borrowed(r) => {
+                            write!(self, "{}", HtmlEscape(r))?;
+                        }
+                    }
+                }
             }
             Expr::Drawer(inner) => {
                 for id in &inner.children {
@@ -868,8 +893,9 @@ hi [fn:next:coolio]
 ",
         )?;
         // just codifying what the output is here, not supposed to be set in stone
-        assert_eq!(a,
-                   r##"<p>
+        assert_eq!(
+            a,
+            r##"<p>
 hi <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
 </sup>
