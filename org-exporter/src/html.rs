@@ -1,23 +1,19 @@
 use core::fmt;
-
 use std::borrow::Cow;
-use std::collections::BTreeMap;
-use std::collections::HashSet;
-use std::fmt::Result;
-use std::fmt::Write;
+use std::collections::{BTreeMap, HashSet};
+use std::fmt::{Result, Write};
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
-use org_parser::element::{Affiliated, Block, CheckBox, Keyword, ListKind, TableRow};
+use org_parser::element::{Affiliated, Block, CheckBox, HeadingLevel, ListKind, TableRow};
 use org_parser::parse_macro_call;
-use org_parser::types::Node;
+use org_parser::types::{Expr, Node, Parser};
 
 use crate::org_macros::macro_handle;
 use crate::types::Exporter;
 use org_parser::node_pool::NodeID;
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
-use org_parser::types::{Expr, Parser};
 
 const BACKEND_NAME: &str = "html";
 
@@ -65,6 +61,7 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
         write!(f, "{}", &self.0[prev_pos..])
     }
 }
+
 impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
@@ -76,6 +73,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
+        obj.exp_footnotes(&mut parsed)?;
         Ok(buf)
     }
 
@@ -83,7 +81,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
-        let parsed = parse_org(input);
+        let mut parsed = parse_org(input);
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -91,6 +89,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
+        obj.exp_footnotes(&mut parsed)?;
         Ok(buf)
     }
 
@@ -116,76 +115,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let node = &parser.pool[*node_id];
         match &node.obj {
             Expr::Root(inner) => {
-                //                 self.write(
-                //                     buf,
-                //                     r#"
-                // <!doctype html>
-                // <html lang="en">
-
-                // <head>
-                //     <meta charset="UTF-8" />
-                //     <title>Document</title>
-                // </head>
-
-                // <body>
-                // "#,
-                //                 )?;
                 for id in inner {
                     self.export_rec(id, parser)?;
                 }
-                if !self.footnotes.is_empty() {
-                    write!(
-                        self,
-                        r#"
-<div id="footnotes">
-    <style>
-    .footdef p {{
-    display:inline;
-    }}
-    </style>
-    <h2 class="footnotes">Footnotes</h2>
-    <div id="text-footnotes">
-"#
-                    )?;
-
-                    let man = self.footnotes.clone();
-                    for (def_id, pos) in man.iter() {
-                        write!(
-                            self,
-                            r##"
-
-<div class="footdef">
-<sup>
-    <a id="fn.{pos}" href= "#fnr.{pos}" role="doc-backlink">{pos}</a>
-</sup>
-"##
-                        )?;
-                        match &parser.pool[*def_id].obj {
-                            Expr::FootnoteDef(fn_def) => {
-                                for child_id in &fn_def.children {
-                                    self.export_rec(child_id, parser)?;
-                                }
-                            }
-                            Expr::FootnoteRef(fn_ref) => {
-                                for child_id in fn_ref.children.as_ref().unwrap() {
-                                    self.export_rec(child_id, parser)?;
-                                }
-                            }
-                            _ => (),
-                        }
-                        write!(self, r#"</div>"#)?;
-                    }
-                    write!(self, "\n  </div>\n</div>")?;
-                }
-
-                //                 self.write(
-                //                     buf,
-                //                     r"
-                // </body>
-
-                // </html>
-                // ",
-                //                 )?;
             }
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
@@ -709,6 +641,79 @@ impl<'buf> Html<'buf> {
     fn attr(&mut self, key: &str, val: &str) -> Result {
         write!(self, r#" {}="{}""#, key, HtmlEscape(val))
     }
+
+    fn exp_footnotes(&mut self, parser: &Parser) -> Result {
+        if self.footnotes.is_empty() {
+            return Ok(());
+        }
+
+        // get last heading, and check if its title is Footnotes,
+        // if so, destroy it
+        let heading_query = parser.pool.iter().rev().find(|node| {
+            if let Expr::Heading(head) = &node.obj {
+                if head.heading_level == HeadingLevel::One
+                    || head.heading_level == HeadingLevel::Two
+                {
+                    if let Some(title) = &head.title {
+                        if title.0 == "Footnotes" {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        });
+
+        writeln!(
+            self,
+            r#"
+<div id="footnotes">
+    <style>
+    .footdef p {{
+    display:inline;
+    }}
+    </style>"#
+        )?;
+
+        if heading_query.is_none() {
+            writeln!(self, r#"    <h2 class="footnotes">Footnotes</h2>"#)?;
+        }
+
+        writeln!(self, r#"    <div id="text-footnotes">"#)?;
+
+        // FIXME
+        // lifetime shenanigans making me do this.. can't figure em out
+        // would liek to self.footnotes.iter(), but we get multiple
+        // immutable borrows, so self.footnotes.copied.iter(), but still no go
+        let man = self.footnotes.clone();
+        for (def_id, pos) in man.iter() {
+            write!(
+                self,
+                r##"
+
+<div class="footdef">
+<sup>
+    <a id="fn.{pos}" href= "#fnr.{pos}" role="doc-backlink">{pos}</a>
+</sup>
+"##
+            )?;
+            match &parser.pool[*def_id].obj {
+                Expr::FootnoteDef(fn_def) => {
+                    for child_id in &fn_def.children {
+                        self.export_rec(child_id, parser)?;
+                    }
+                }
+                Expr::FootnoteRef(fn_ref) => {
+                    for child_id in fn_ref.children.as_ref().unwrap() {
+                        self.export_rec(child_id, parser)?;
+                    }
+                }
+                _ => (),
+            }
+            write!(self, r#"</div>"#)?;
+        }
+        write!(self, "\n  </div>\n</div>")
+    }
 }
 
 impl<'buf> fmt::Write for Html<'_> {
@@ -717,8 +722,11 @@ impl<'buf> fmt::Write for Html<'_> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
+    // use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn combined_macros() -> fmt::Result {
@@ -886,7 +894,7 @@ wordsss??
         Ok(())
     }
     #[test]
-    fn anon_keyword() -> Result {
+    fn anon_footnote() -> Result {
         let a = Html::export(
             r"
 hi [fn:next:coolio]
@@ -916,6 +924,52 @@ hi <sup>
     <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
 </sup>
 coolio</div>
+  </div>
+</div>"##
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn footnote_heading() -> Result {
+        let a = Html::export(
+            r"
+hello [fn:1]
+
+* Footnotes
+
+[fn:1] world
+",
+        )?;
+
+        // just codifying what the output is here, not supposed to be set in stone
+        assert_eq!(
+            a,
+            r##"<p>
+hello <sup>
+    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup>
+</p>
+<h1 id="footnotes">Footnotes</h1>
+
+<div id="footnotes">
+    <style>
+    .footdef p {
+    display:inline;
+    }
+    </style>
+    <h2 class="footnotes">Footnotes</h2>
+    <div id="text-footnotes">
+
+
+<div class="footdef">
+<sup>
+    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+</sup>
+<p>
+world
+</p>
+</div>
   </div>
 </div>"##
         );

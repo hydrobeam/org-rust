@@ -35,7 +35,7 @@ pub enum Tag<'a> {
     Loc(NodeID), // Loc refers to the parent headline
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HeadingLevel {
     One,
     Two,
