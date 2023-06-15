@@ -167,7 +167,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                                 }
                             }
                             Expr::FootnoteRef(fn_ref) => {
-                                for child_id in fn_ref.definition.as_ref().unwrap() {
+                                for child_id in fn_ref.children.as_ref().unwrap() {
                                     self.export_rec(child_id, parser)?;
                                 }
                             }
@@ -666,7 +666,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
 </sup>"##,
                             fn_id, index,
                         )?;
-                    } else if inner.definition.is_some() {
+                    } else if inner.children.is_some() {
                         let index = *self.footnotes.entry(*node_id).or_insert(foot_len + 1);
                         write!(
                             self,

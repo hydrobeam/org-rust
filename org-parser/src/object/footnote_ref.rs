@@ -9,7 +9,7 @@ use crate::types::{Cursor, MarkupKind, MatchError, ParseOpts, Parseable, Parser,
 #[derive(Debug, Clone)]
 pub struct FootnoteRef<'a> {
     pub label: Option<&'a str>,
-    pub definition: Option<Vec<NodeID>>,
+    pub children: Option<Vec<NodeID>>,
 }
 
 impl<'a> Parseable<'a> for FootnoteRef<'a> {
@@ -30,7 +30,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                 return Ok(parser.alloc(
                     Self {
                         label: Some(label_match.obj),
-                        definition: None,
+                        children: None,
                     },
                     start,
                     cursor.index + 1,
@@ -70,7 +70,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                                     } else {
                                         Some(label_match.obj)
                                     },
-                                    definition: Some(content_vec),
+                                    children: Some(content_vec),
                                 },
                                 start,
                                 cursor.index + 1,

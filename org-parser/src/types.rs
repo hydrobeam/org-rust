@@ -291,7 +291,6 @@ pub struct Node<'a> {
     pub parent: Option<NodeID>,
     pub id_target: Option<Rc<str>>,
     pub attrs: HashMap<String, Vec<Attr<'a>>>,
-    // pub keywords:
 }
 
 impl<'a> Default for Node<'a> {
@@ -464,6 +463,46 @@ pub(crate) trait Parseable<'a> {
 // TODO: this sucks because implementing Debug to pull data from elsewhere
 // is either hard or not possible
 impl<'a> Expr<'a> {
+    fn children(&self) -> Option<&Vec<NodeID>> {
+        match &self {
+            Expr::Root(root) => Some(root),
+            Expr::Heading(heading) => heading.children.as_ref(),
+            Expr::Block(block) => match block {
+                Block::Center { contents, .. }
+                | Block::Quote { contents, .. }
+                | Block::Special { contents, .. } => Some(contents),
+                _ => None,
+            },
+
+            Expr::RegularLink(link) => link.description.as_ref(),
+            Expr::Paragraph(par) => Some(&par.0),
+            Expr::Italic(it) => Some(&it.0),
+            Expr::Bold(bo) => Some(&bo.0),
+            Expr::StrikeThrough(st) => Some(&st.0),
+            Expr::Underline(un) => Some(&un.0),
+            Expr::PlainList(pl) => Some(&pl.children),
+            Expr::Item(item) => Some(&item.children),
+            Expr::Table(inner) => Some(&inner.children),
+            Expr::TableRow(inner) => match &inner {
+                TableRow::Rule => None,
+                TableRow::Standard(stan) => Some(stan),
+            },
+            Expr::TableCell(inner) => Some(&inner.0),
+            Expr::Superscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(_) => None,
+                PlainOrRec::Rec(rec) => Some(rec),
+            },
+            Expr::Subscript(inner) => match &inner.0 {
+                PlainOrRec::Plain(_) => None,
+                PlainOrRec::Rec(rec) => Some(rec),
+            },
+            Expr::Drawer(inner) => Some(&inner.children),
+            Expr::FootnoteDef(inner) => Some(&inner.children),
+            Expr::FootnoteRef(inner) => inner.children.as_ref(),
+            _ => None,
+        }
+    }
+
     fn print_tree(&self, pool: &NodePool) {
         match self {
             Expr::LatexFragment(inner) => print!("{inner:#?}"),

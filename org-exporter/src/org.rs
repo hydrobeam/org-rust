@@ -566,7 +566,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                     write!(self, "{label}")?;
                 }
                 write!(self, ":")?;
-                if let Some(descr) = &inner.definition {
+                if let Some(descr) = &inner.children {
                     for id in descr {
                         self.export_rec(id, parser)?;
                     }
