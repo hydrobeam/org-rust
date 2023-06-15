@@ -463,7 +463,47 @@ pub(crate) trait Parseable<'a> {
 // TODO: this sucks because implementing Debug to pull data from elsewhere
 // is either hard or not possible
 impl<'a> Expr<'a> {
-    fn children(&self) -> Option<&Vec<NodeID>> {
+    pub fn children_mut(&mut self) -> Option<&mut Vec<NodeID>> {
+        match self {
+            Expr::Root(root) => Some(root),
+            Expr::Heading(heading) => heading.children.as_mut(),
+            Expr::Block(block) => match block {
+                Block::Center { contents, .. }
+                | Block::Quote { contents, .. }
+                | Block::Special { contents, .. } => Some(contents),
+                _ => None,
+            },
+
+            Expr::RegularLink(link) => link.description.as_mut(),
+            Expr::Paragraph(par) => Some(&mut par.0),
+            Expr::Italic(it) => Some(&mut it.0),
+            Expr::Bold(bo) => Some(&mut bo.0),
+            Expr::StrikeThrough(st) => Some(&mut st.0),
+            Expr::Underline(un) => Some(&mut un.0),
+            Expr::PlainList(pl) => Some(&mut pl.children),
+            Expr::Item(item) => Some(&mut item.children),
+            Expr::Table(inner) => Some(&mut inner.children),
+            Expr::TableRow(ref mut inner) => match inner {
+                TableRow::Rule => None,
+                TableRow::Standard(stan) => Some(stan),
+            },
+            Expr::TableCell(inner) => Some(&mut inner.0),
+            Expr::Superscript(inner) => match &mut inner.0 {
+                PlainOrRec::Plain(_) => None,
+                PlainOrRec::Rec(rec) => Some(rec),
+            },
+            Expr::Subscript(inner) => match &mut inner.0 {
+                PlainOrRec::Plain(_) => None,
+                PlainOrRec::Rec(rec) => Some(rec),
+            },
+            Expr::Drawer(inner) => Some(&mut inner.children),
+            Expr::FootnoteDef(inner) => Some(&mut inner.children),
+            Expr::FootnoteRef(inner) => inner.children.as_mut(),
+            _ => None,
+        }
+    }
+
+    pub fn children(&self) -> Option<&Vec<NodeID>> {
         match &self {
             Expr::Root(root) => Some(root),
             Expr::Heading(heading) => heading.children.as_ref(),

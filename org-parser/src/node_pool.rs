@@ -96,12 +96,14 @@ impl<'a> NodePool<'a> {
         NodeID(old_counter)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> {
-        IntoIterator::into_iter(&self.inner_vec)
+    pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> + DoubleEndedIterator<Item = &Node<'a>> {
+        self.inner_vec.iter()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Node<'a>> {
-        IntoIterator::into_iter(&mut self.inner_vec)
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Node<'a>> + DoubleEndedIterator<Item = &mut Node<'a>> {
+        self.inner_vec.iter_mut()
     }
 
     pub fn root(&self) -> &Node {
@@ -114,6 +116,17 @@ impl<'a> NodePool<'a> {
 
     pub fn root_id(&self) -> NodeID {
         NodeID(0)
+    }
+
+    // removes the node from its parents' "children"
+    // does /not/ actually deallocate or remove the node from the pool
+    pub fn delete_node(&mut self, index_id: u32) {
+        let par_id = self[NodeID(index_id)].parent.unwrap();
+        let par_node = &mut self[par_id];
+
+        let children = par_node.obj.children_mut().unwrap();
+        let index = children.iter().position(|x| x.0 == index_id).unwrap();
+        children.remove(index);
     }
 }
 
