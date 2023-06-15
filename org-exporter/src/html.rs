@@ -1,11 +1,11 @@
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Result, Write};
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
-use org_parser::element::{Affiliated, Block, CheckBox, HeadingLevel, ListKind, TableRow};
+use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
 use org_parser::parse_macro_call;
 use org_parser::types::{Expr, Node, Parser};
 
@@ -23,7 +23,8 @@ pub struct Html<'buf> {
     // it's not double exported
     nox: HashSet<NodeID>, // no-export
     // used footnotes
-    footnotes: BTreeMap<NodeID, usize>,
+    footnotes: Vec<NodeID>,
+    footnote_ids: HashMap<NodeID, usize>,
 }
 
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
@@ -69,7 +70,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let mut obj = Html {
             buf: &mut buf,
             nox: HashSet::new(),
-            footnotes: BTreeMap::new(),
+            footnotes: Vec::new(),
+            footnote_ids: HashMap::new(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -85,7 +87,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
-            footnotes: BTreeMap::new(),
+            footnotes: Vec::new(),
+            footnote_ids: HashMap::new(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -101,7 +104,8 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
-            footnotes: BTreeMap::new(),
+            footnotes: Vec::new(),
+            footnote_ids: HashMap::new(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -580,7 +584,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 if let Some(label) = inner.label {
                     let foot_len = self.footnotes.len();
                     if let Some(def_id) = parser.footnotes.get(label) {
-                        let index = *self.footnotes.entry(*def_id).or_insert(foot_len + 1);
+                        let index = *self.footnote_ids.entry(*def_id).or_insert_with(|| {
+                            self.footnotes.push(*def_id);
+                            foot_len + 1
+                        });
 
                         // prevent duplicate ids:
                         // node ids are guaranteed to be unique
@@ -599,7 +606,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                             fn_id, index,
                         )?;
                     } else if inner.children.is_some() {
-                        let index = *self.footnotes.entry(*node_id).or_insert(foot_len + 1);
+                        let index = *self.footnote_ids.entry(*node_id).or_insert_with(|| {
+                            self.footnotes.push(*node_id);
+                            foot_len + 1
+                        });
                         write!(
                             self,
                             // currently duplicates ids
@@ -651,13 +661,9 @@ impl<'buf> Html<'buf> {
         // if so, destroy it
         let heading_query = parser.pool.iter().rev().find(|node| {
             if let Expr::Heading(head) = &node.obj {
-                if head.heading_level == HeadingLevel::One
-                    || head.heading_level == HeadingLevel::Two
-                {
-                    if let Some(title) = &head.title {
-                        if title.0 == "Footnotes" {
-                            return true;
-                        }
+                if let Some(title) = &head.title {
+                    if title.0 == "Footnotes\n" {
+                        return true;
                     }
                 }
             }
@@ -686,7 +692,8 @@ impl<'buf> Html<'buf> {
         // would liek to self.footnotes.iter(), but we get multiple
         // immutable borrows, so self.footnotes.copied.iter(), but still no go
         let man = self.footnotes.clone();
-        for (def_id, pos) in man.iter() {
+        for (mut pos, def_id) in man.iter().enumerate() {
+            pos += 1;
             write!(
                 self,
                 r##"
@@ -958,7 +965,6 @@ hello <sup>
     display:inline;
     }
     </style>
-    <h2 class="footnotes">Footnotes</h2>
     <div id="text-footnotes">
 
 
@@ -970,6 +976,94 @@ hello <sup>
 world
 </p>
 </div>
+  </div>
+</div>"##
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn footnote_order() -> Result {
+        let a = Html::export(
+            r#"
+hi [fn:dupe] cool test [fn:coolnote]  [fn:dupe:inlinefootnote]
+coolest [fn:1]
+
+novel [fn:next:coolio]
+
+
+** Footnotes
+
+[fn:1] hi
+[fn:dupe] abcdef
+[fn:coolnote] words babby
+
+"#,
+        )?;
+
+        // REVIEW; investigate different nodeids with export_buf and export
+        // had to change 1.7 to 1.8 to pass the test
+        assert_eq!(
+            a,
+            r##"<p>
+hi <sup>
+    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup> cool test <sup>
+    <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
+</sup>  <sup>
+    <a id="fnr.1.8" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup> coolest <sup>
+    <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
+</sup>
+</p>
+<p>
+novel <sup>
+    <a id="fnr.4" href="#fn.4" class="footref" role="doc-backlink">4</a>
+</sup>
+</p>
+<h2 id="footnotes">Footnotes</h2>
+
+<div id="footnotes">
+    <style>
+    .footdef p {
+    display:inline;
+    }
+    </style>
+    <div id="text-footnotes">
+
+
+<div class="footdef">
+<sup>
+    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+</sup>
+<p>
+abcdef
+</p>
+</div>
+
+<div class="footdef">
+<sup>
+    <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
+</sup>
+<p>
+words babby
+</p>
+</div>
+
+<div class="footdef">
+<sup>
+    <a id="fn.3" href= "#fnr.3" role="doc-backlink">3</a>
+</sup>
+<p>
+hi
+</p>
+</div>
+
+<div class="footdef">
+<sup>
+    <a id="fn.4" href= "#fnr.4" role="doc-backlink">4</a>
+</sup>
+coolio</div>
   </div>
 </div>"##
         );
