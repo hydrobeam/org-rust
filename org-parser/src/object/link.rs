@@ -95,18 +95,13 @@ impl<'a> PathReg<'a> {
     }
 
     fn parse_id(mut cursor: Cursor<'a>) -> Result<&'a str> {
-        if cursor.peek(1)? != b'd' && cursor.peek(2)? != COLON {
-            return Err(MatchError::InvalidLogic);
-        }
-
-        cursor.advance(3);
+        cursor.word("id:")?;
         let begin_id = cursor.index;
 
         while let Ok(num) = cursor.try_curr() {
             if !num.is_ascii_hexdigit() || num == HYPHEN {
                 return Err(MatchError::InvalidLogic);
             }
-
             cursor.next();
         }
 

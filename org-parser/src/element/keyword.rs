@@ -130,11 +130,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         }
         let key_word = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
         cursor.index = key_word.end;
-        if cursor.curr() != COLON {
-            return Err(MatchError::InvalidLogic)?;
-        }
-
-        cursor.next();
+        cursor.word(":")?;
 
         // keywords are pure ascii so use the cheaper option
         match key_word.obj.to_ascii_lowercase().as_str() {
@@ -308,8 +304,6 @@ mod tests {
     #[test]
     fn basic_keyword() {
         let inp = "#+key:val\n";
-
-        dbg!("haiii");
         dbg!(parse_org(inp));
     }
 

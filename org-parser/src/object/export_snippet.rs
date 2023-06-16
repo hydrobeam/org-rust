@@ -21,8 +21,8 @@ impl<'a> Parseable<'a> for ExportSnippet<'a> {
             .fn_until(|chr| chr == COLON || !(chr.is_ascii_alphanumeric() || chr == HYPHEN))?;
 
         cursor.index = backend_match.end;
-
         cursor.word(":")?;
+
         let start_contents = cursor.index;
         loop {
             let pot_match = cursor.fn_until(|chr| chr == b'@' || chr == NEWLINE)?;

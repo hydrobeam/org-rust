@@ -1885,16 +1885,12 @@ impl<'a> Parseable<'a> for Emoji<'a> {
         }
 
         let ret_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
+        cursor.word(":")?;
 
-        match cursor[ret_match.end] {
-            COLON => {
-                if let Ok(moji) = parse_emoji(ret_match.obj) {
-                    Ok(parser.alloc(moji, start, ret_match.end + 1, parent))
-                } else {
-                    Err(MatchError::InvalidLogic)
-                }
-            }
-            _ => Err(MatchError::InvalidLogic),
+        if let Ok(moji) = parse_emoji(ret_match.obj) {
+            Ok(parser.alloc(moji, start, ret_match.end + 1, parent))
+        } else {
+            Err(MatchError::InvalidLogic)
         }
     }
 }

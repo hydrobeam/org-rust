@@ -253,38 +253,31 @@ impl<'a> Heading<'a> {
     fn parse_priority(mut cursor: Cursor) -> Result<Match<Priority>> {
         let start = cursor.index;
         cursor.skip_ws();
+        // TODO: check if this is true
         // FIXME breaks in * [#A]EOF
         // one digit: then idx + 4 points to a newline, this must exist
         // two digit: idx + 4 points to RBRACK, also must exist.
-        if cursor.len() <= cursor.index + 4
-            && !(cursor.curr() == LBRACK && cursor[cursor.index + 1] == POUND)
-        {
-            return Err(MatchError::EofError);
-        }
-
-        assert!(cursor.index + 4 < cursor.len());
 
         let end_idx;
         let ret_prio: Priority;
+        cursor.word("[#")?;
 
-        if cursor[cursor.index + 2].is_ascii_alphanumeric() && cursor[cursor.index + 3] == RBRACK {
-            end_idx = cursor.index + 4;
-            ret_prio = match cursor[cursor.index + 2] {
+        if cursor.try_curr()?.is_ascii_alphanumeric() && cursor.peek(1)? == RBRACK {
+            end_idx = cursor.index + 2;
+            ret_prio = match cursor.curr() {
                 b'A' => Priority::A,
                 b'B' => Priority::B,
                 b'C' => Priority::C,
                 num => Priority::Num(num - 48),
             };
-        } else if cursor[cursor.index + 2].is_ascii_digit()
-            && cursor[cursor.index + 3].is_ascii_digit()
-            && cursor[cursor.index + 4] == RBRACK
+        } else if cursor.curr().is_ascii_digit()
+            && cursor.peek(1)?.is_ascii_digit()
+            && cursor.peek(2)? == RBRACK
         {
-            end_idx = cursor.index + 5;
+            end_idx = cursor.index + 3;
             // convert digits from their ascii rep, then add.
             // NOTE: all two digit numbers are valid u8, cannot overflow
-            ret_prio = Priority::Num(
-                10 * (cursor[cursor.index + 2] - 48) + (cursor[cursor.index + 3] - 48),
-            );
+            ret_prio = Priority::Num(10 * (cursor.curr() - 48) + (cursor.peek(1)? - 48));
         } else {
             return Err(MatchError::InvalidLogic);
         }

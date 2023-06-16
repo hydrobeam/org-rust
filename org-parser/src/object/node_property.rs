@@ -24,13 +24,7 @@ pub(crate) fn parse_node_property<'a>(
     let name_match = cursor.fn_until(|chr| chr == COLON || chr.is_ascii_whitespace())?;
     let name = name_match.obj;
     cursor.index = name_match.end;
-    if cursor.curr() != COLON {
-        return Err(MatchError::InvalidLogic);
-    }
-
-    cursor.index = name_match.end;
-    // skip past the colon
-    cursor.next();
+    cursor.word(":")?;
 
     let val_match = cursor.fn_until(|chr: u8| chr == b'\n')?;
     let val = val_match.obj.trim();

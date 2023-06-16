@@ -23,20 +23,9 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
             !chr.is_ascii_alphanumeric() && chr != STAR || (chr == NEWLINE || chr == RBRACE)
         })?;
 
-        #[rustfmt::skip]
-        let name = if cursor[name_match.end] == RBRACE
-            && name_match.end != cursor.index // \begin{} case
-        {
-            name_match.obj
-        } else {
-            return Err(MatchError::InvalidLogic);
-        };
-
-        cursor.move_to(name_match.end + 1);
-
-        if cursor.curr() != NEWLINE {
-            return Err(MatchError::InvalidLogic);
-        }
+        cursor.index = name_match.end;
+        cursor.word("}\n")?;
+        let name = name_match.obj;
 
         // \end{name}
         let alloc_str = format!("\\end{{{name}}}\n");

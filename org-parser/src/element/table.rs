@@ -1,4 +1,4 @@
-use crate::constants::{HYPHEN, NEWLINE, VBAR};
+use crate::constants::{HYPHEN, NEWLINE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_object;
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
@@ -74,13 +74,11 @@ impl<'a> Parseable<'a> for TableRow {
         // but shouldn't break otherwise
         cursor.is_index_valid()?;
         cursor.skip_ws();
-        if cursor.try_curr()? != VBAR {
-            return Err(MatchError::InvalidLogic)?;
-        }
+        cursor.word("|")?;
 
         // implies horizontal rule
         // |-
-        if cursor.peek(1)? == HYPHEN {
+        if cursor.try_curr()? == HYPHEN {
             // adv_till_byte handles eof
             cursor.adv_till_byte(b'\n');
             // cursor.index + 1 to start at the next | on the next line
@@ -88,9 +86,6 @@ impl<'a> Parseable<'a> for TableRow {
                 .pool
                 .alloc(Self::Rule, start, cursor.index + 1, parent));
         }
-
-        // skip VBAR
-        cursor.next();
 
         let mut children: Vec<NodeID> = Vec::new();
         while let Ok(table_cell_id) = TableCell::parse(parser, cursor, parent, parse_opts) {
