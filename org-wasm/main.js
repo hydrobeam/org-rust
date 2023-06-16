@@ -1,5 +1,6 @@
 import init, { WasmExport } from './pkg/org_wasm.js';
 
+
 // load the wasm module
 async function run() {
   await init();
@@ -23,10 +24,44 @@ let view_dict = {
   "rendered": document.getElementById("rendered"),
 }
 
+
+// handle the dropdown selector
+let affiliated_string = await (await fetch("./files/affiliated.org")).text();
+let default_string = await (await fetch("./files/default.org")).text();
+let footnotes_string = await (await fetch("./files/footnotes.org")).text();
+
 // key items in the file
 let textbox = document.getElementById("textbox");
 let views = document.querySelectorAll(".tabcontent");
 let switch_buttons = document.querySelectorAll(".tablinks");
+let display_select = document.getElementById("display-select");
+
+// set it like so the textbox maintains the previous selection
+// the selectbox doesn't reset to "default" on refresh
+select_func(display_select.value);
+
+function select_func(val) {
+  switch (val) {
+    case "affiliated": {
+      textbox.value = affiliated_string;
+      break;
+    }
+    case "default": {
+      textbox.value = default_string;
+      break;
+    }
+    case "footnotes": {
+      textbox.value = footnotes_string;
+      break;
+    }
+  }
+}
+
+display_select.addEventListener('change', async (e) => {
+  select_func(e.target.value);
+  reparse();
+});
+
 
 let currElem = view_dict["rendered"];
 
@@ -117,3 +152,4 @@ textbox.addEventListener('input', throttled_reparse);
 
 toggleView("rendered", "rendered-parse");
 reparse();
+

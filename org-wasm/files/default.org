@@ -1,0 +1,50 @@
+#+macro: greet Hello /$1/, nice typing... *$1*.
+* Basic Heading
+
+{{{greet(user)}}}
+
+** Child Heading
+
+1. https://plain_links.com.
+  - <mailto:okiedokie@cool.com>
+    * src_python{(technically) inline_src}
+
+|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
+|||||||||table
+
+2. [@2] [[Child Heading]]
+  - \aleph \leftarrow entities
+
+#+begin_export html
+<style type="text/css" media="screen">
+table, th, td {
+  border: 1px solid;
+}
+</style>
+#+end_export
+
+
+- +does+
+- *it*
+- /all/
+- ~code~
+- =code, again..=
+- /so _nested_, *t^o_o*./
+
+emojis :flushed: :tada: :sunglasses:
+
+\begin{align}
+x &+ 4\\
+abc &+ 10\\
+\end{align}
+outputs MathML, little janky atm (might switch to katex..?)
+
+Target here: <<targets>>\\
+
+
+# doesn't look the best, imo
+-----
+
+#+begin_src rust
+nothing styled for source blocks yet, too.
+#+end_src

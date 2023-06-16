@@ -13,58 +13,13 @@
             <h1>Org Mode Parser</h1>
         </header>
         <div class="input-area">
-            <textarea id="textbox">
-#+macro: greet Hello $1, nice typing... $1.
-* Basic Heading
-
-{{{greet(user)}}}
-
-** Child Heading
-
-1. https://plain_links.com.
-  - &lt;mailto:okiedokie@cool.com&gt;
-    * src_python{(technically) inline_src}
-
-|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
-|||||||||table
-
-2. [@2] [[Child Heading]]
-  - \aleph \leftarrow entities
-
-#+begin_export html
-&lt;style type=&quot;text/css&quot; media=&quot;screen&quot;&gt;
-table, th, td {
-  border: 1px solid;
-}
-&lt;/style&gt;
-#+end_export
-
-
-- +does+
-- *it*
-- /all/
-- ~code~
-- =code, again..=
-- /so _nested_, *t^o_o*./
-
-emojis :flushed: :tada: :sunglasses:
-
-\begin{align}
-x &amp;+ 4\\
-abc &amp;+ 10\\
-\end{align}
-outputs MathML, little janky atm (might switch to katex..?)
-
-Target here: &lt;&lt;targets&gt;&gt;\\
-
-
-# doesn't look the best, imo
------
-
-#+begin_src rust
-nothing styled for source blocks yet, too.
-#+end_src
-</textarea>
+            <select id="display-select">
+                <option selected="selected" value="default">Default</option>
+                <option value="footnotes">Footnotes</option>
+                <option value="affiliated">Affiliated Keywords</option>
+            </select>
+            <!-- will be replaced via js -->
+            <textarea id="textbox"></textarea>
 
         </div>
         <div class="view">

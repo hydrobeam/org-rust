@@ -1,0 +1,35 @@
+* Affiliated Keywords
+
+Can use ~attr_BACKEND~ to set attributes within your document,
+
+#+CAPTION: Pick your caption!
+#+NAME: rad
+#+attr_html: :black :cool red
+#+attr_html: :style border:2px solid green
+| table | on         | a |
+| cool  | background |   |
+
+
+~#+NAME:~ will also allow linking to the affiliated element:
+
+#+CAPTION: demonstration:
+Look at the this [[rad]] table
+
+
+
+
+#+begin_export html
+<style>
+[black] {
+    background-color: black;
+}
+
+[cool="red"] {
+    color: red;
+}
+
+figcaption {
+   text-align: center;
+}
+</style>
+#+end_export

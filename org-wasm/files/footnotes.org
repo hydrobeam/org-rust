@@ -1,0 +1,18 @@
+~org-rust~ will generate an ordered footnote section at the end of the document [fn:1] for you if it doesn't already exist [fn:proof].
+
+Also supports inline footnotes [fn:cool:so inline!] and anonymous ones! [fn::mysterious]
+
+Footnotes! 🎉 [fn:table]
+
+
+
+[fn:proof] the proof is in the pudding
+[fn:1] it's true
+[fn:table] can contain arbitrary elements --
+
+|||draw a table|
+
+#+begin_example
+or anything else
+#+end_example
+-----

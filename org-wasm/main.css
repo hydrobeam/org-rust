@@ -71,8 +71,11 @@ pre.tabcontent {
 }
 
 .input-area {
+  display: flex;
+  flex-direction: column;
   grid-area: inputs;
 }
+
 
 header {
   grid-area: header;
