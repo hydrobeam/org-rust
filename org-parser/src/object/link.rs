@@ -122,11 +122,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
         mut parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
-
-        if cursor.curr() != LBRACK || cursor.peek(1)? != LBRACK {
-            return Err(MatchError::InvalidLogic);
-        }
-        cursor.advance(2);
+        cursor.word("[[")?;
 
         // find backslash
         loop {
@@ -140,11 +136,17 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                     }
                 }
                 RBRACK => {
+                    // handles the  [[][]]  case, would panic without this check
+                    if cursor.index == start + 2 {
+                        return Err(MatchError::InvalidLogic);
+                    }
+
                     if LBRACK == cursor.peek(1)? {
                         let path_reg_end = cursor.index;
 
                         // skip ][
                         cursor.advance(2);
+                        parse_opts.from_object = false;
                         parse_opts.markup.insert(MarkupKind::Link);
 
                         let mut content_vec: Vec<NodeID> = Vec::new();
@@ -186,12 +188,6 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                         }
                     } else if RBRACK == cursor.peek(1)? {
                         // close object;
-
-                        // handles the  [[]]  case, would panic without this check
-
-                        if cursor.index == start + 2 {
-                            return Err(MatchError::InvalidLogic);
-                        }
 
                         let pathreg = PathReg::new(cursor.clamp_off(start + 2, cursor.index));
                         return Ok(parser.alloc(
