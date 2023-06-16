@@ -59,12 +59,8 @@ pre.tabcontent {
 }
 
 .view {
-  /* display: grid; */
-
-  /* height: 80%; */
   display: grid;
   grid-auto-rows: min-content 1fr;
-  /* overflow: scroll; */
   max-height: inherit;
   grid-area: view-box;
   padding: 0;
