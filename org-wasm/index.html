@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Org-rust</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="main.css" type="text/css" />
+</head>
+
+<body>
+    <script type="module" src="main.js"></script>
+
+    <main>
+        <header>
+            <h1>Org Mode Parser</h1>
+        </header>
+        <div class="input-area">
+            <textarea id="textbox">
+#+macro: greet Hello $1, nice typing... $1.
+* Basic Heading
+
+{{{greet(user)}}}
+
+** Child Heading
+
+1. https://plain_links.com.
+  - &lt;mailto:okiedokie@cool.com&gt;
+    * src_python{(technically) inline_src}
+
+|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
+|||||||||table
+
+2. [@2] [[Child Heading]]
+  - \aleph \leftarrow entities
+
+#+begin_export html
+&lt;style type=&quot;text/css&quot; media=&quot;screen&quot;&gt;
+table, th, td {
+  border: 1px solid;
+}
+&lt;/style&gt;
+#+end_export
+
+
+- +does+
+- *it*
+- /all/
+- ~code~
+- =code, again..=
+- /so _nested_, *t^o_o*./
+
+emojis :flushed: :tada: :sunglasses:
+
+\begin{align}
+x &amp;+ 4\\
+abc &amp;+ 10\\
+\end{align}
+outputs MathML, little janky atm (might switch to katex..?)
+
+Target here: &lt;&lt;targets&gt;&gt;\\
+
+
+# doesn't look the best, imo
+-----
+
+#+begin_src rust
+nothing styled for source blocks yet, too.
+#+end_src
+</textarea>
+
+        </div>
+        <div class="view">
+            <div class="tab">
+                <button class="tablinks" id="org-parse">Org</button>
+                <button class="tablinks" id="rendered-parse">Rendered HTML</button>
+                <button class="tablinks" id="raw-parse">Raw HTML</button>
+            </div>
+
+            <iframe src="iframe.html" id="rendered" class="tabcontent"></iframe>
+            <pre id="org" class="tabcontent"></pre>
+            <pre id="raw" class="tabcontent"></pre>
+        </div>
+
+        <div class="parse_info"> </div>
+        <footer></footer>
+    </main>
+
+</body>
+
+</html>
