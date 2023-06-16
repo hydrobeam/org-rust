@@ -201,7 +201,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         write!(self, "<pre")?;
                         self.class("example")?;
                         self.prop(node)?;
-                        writeln!(self, "\n{}</pre>", HtmlEscape(contents))?;
+                        writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Export {
                         parameters,
@@ -221,7 +221,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         write!(self, "<pre")?;
                         self.class("src")?;
                         self.prop(node)?;
-                        writeln!(self, "\n{}</pre>", HtmlEscape(contents))?;
+                        writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
                         parameters,
@@ -231,7 +231,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         write!(self, "<p")?;
                         self.class("verse")?;
                         self.prop(node)?;
-                        writeln!(self, "\n{}</p>", HtmlEscape(contents))?;
+                        writeln!(self, ">\n{}</p>", HtmlEscape(contents))?;
                     }
                 }
             }
