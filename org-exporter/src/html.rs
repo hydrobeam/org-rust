@@ -581,47 +581,37 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 // handled after root
             }
             Expr::FootnoteRef(inner) => {
-                if let Some(label) = inner.label {
-                    let foot_len = self.footnotes.len();
+                let foot_len = self.footnotes.len();
+                let target_id = if let Some(label) = inner.label {
                     if let Some(def_id) = parser.footnotes.get(label) {
-                        let index = *self.footnote_ids.entry(*def_id).or_insert_with(|| {
-                            self.footnotes.push(*def_id);
-                            foot_len + 1
-                        });
-
-                        // prevent duplicate ids:
-                        // node ids are guaranteed to be unique
-                        let fn_id = if index != foot_len + 1 {
-                            format!("{}.{}", index, node_id)
-                        } else {
-                            format!("{index}")
-                        };
-
-                        write!(
-                            self,
-                            // currently duplicates ids
-                            r##"<sup>
-    <a id="fnr.{0}" href="#fn.{1}" class="footref" role="doc-backlink">{1}</a>
-</sup>"##,
-                            fn_id, index,
-                        )?;
-                    } else if inner.children.is_some() {
-                        let index = *self.footnote_ids.entry(*node_id).or_insert_with(|| {
-                            self.footnotes.push(*node_id);
-                            foot_len + 1
-                        });
-                        write!(
-                            self,
-                            // currently duplicates ids
-                            r##"<sup>
-    <a id="fnr.{0}" href="#fn.{0}" class="footref" role="doc-backlink">{0}</a>
-</sup>"##,
-                            index,
-                        )?;
+                        *def_id
+                    } else {
+                        *node_id
                     }
                 } else {
-                    // make a new one.?
-                }
+                    *node_id
+                };
+
+                let index = *self.footnote_ids.entry(target_id).or_insert_with(|| {
+                    self.footnotes.push(target_id);
+                    foot_len + 1
+                });
+
+                // prevent duplicate ids:
+                // node ids are guaranteed to be unique
+                let fn_id = if index != foot_len + 1 {
+                    format!("{}.{}", index, node_id)
+                } else {
+                    format!("{index}")
+                };
+
+                write!(
+                    self,
+                    r##"<sup>
+    <a id="fnr.{0}" href="#fn.{1}" class="footref" role="doc-backlink">{1}</a>
+</sup>"##,
+                    fn_id, index,
+                )?;
             }
         }
 
@@ -984,10 +974,11 @@ world
 
     #[test]
     fn footnote_order() -> Result {
+        // tests dupes too
         let a = Html::export(
             r#"
 hi [fn:dupe] cool test [fn:coolnote]  [fn:dupe:inlinefootnote]
-coolest [fn:1]
+coolest [fn:1] again [fn:1]
 
 novel [fn:next:coolio]
 
@@ -1014,6 +1005,8 @@ hi <sup>
     <a id="fnr.1.8" href="#fn.1" class="footref" role="doc-backlink">1</a>
 </sup> coolest <sup>
     <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
+</sup> again <sup>
+    <a id="fnr.3.13" href="#fn.3" class="footref" role="doc-backlink">3</a>
 </sup>
 </p>
 <p>
@@ -1067,6 +1060,62 @@ coolio</div>
   </div>
 </div>"##
         );
+        Ok(())
+    }
+
+    #[test]
+    fn esoteric_footnotes() -> Result {
+        let a = Html::export(
+            r"
+And anonymous ones [fn::mysterious]
+
+what [fn::]
+
+bad [fn:]
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r##"<p>
+And anonymous ones <sup>
+    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup>
+</p>
+<p>
+what <sup>
+    <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
+</sup>
+</p>
+<p>
+bad [fn:]
+</p>
+
+<div id="footnotes">
+    <style>
+    .footdef p {
+    display:inline;
+    }
+    </style>
+    <h2 class="footnotes">Footnotes</h2>
+    <div id="text-footnotes">
+
+
+<div class="footdef">
+<sup>
+    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+</sup>
+mysterious</div>
+
+<div class="footdef">
+<sup>
+    <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
+</sup>
+</div>
+  </div>
+</div>"##
+        );
+
         Ok(())
     }
 }

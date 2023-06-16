@@ -25,8 +25,14 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
         // TODO: verify contents of label
         let label_match = cursor.fn_until(|chr| matches!(chr, NEWLINE | COLON | RBRACK | SPACE))?;
         cursor.index = label_match.end;
+
         match cursor.curr() {
             RBRACK => {
+                // [fn:] is not valid
+                if label_match.obj.is_empty() {
+                    return Err(MatchError::InvalidLogic);
+                }
+
                 return Ok(parser.alloc(
                     Self {
                         label: Some(label_match.obj),
