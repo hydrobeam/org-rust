@@ -17,18 +17,10 @@ pub(crate) fn macro_handle<'a, T: fmt::Write>(
     buf: &mut T,
 ) -> Result<Cow<'a, str>, ()> {
     match macro_call.name {
-        "keyword" => Ok(keyword_macro(
-            parser,
-            macro_call.args[0],
-            buf,
-        )?),
+        "keyword" => Ok(keyword_macro(parser, macro_call.args[0])?),
         special_keyword @ ("title" | "author" | "email") => {
             if macro_call.args.len() == 0 {
-                Ok(keyword_macro(
-                    parser,
-                    special_keyword,
-                    buf,
-                )?)
+                Ok(keyword_macro(parser, special_keyword)?)
             } else {
                 Err(())
             }
@@ -83,11 +75,7 @@ pub fn apply<'a, T: fmt::Write>(
 /// Looks up keyword name to find its corresponding value
 /// invoked by macro
 /// {{{keyword(NAME)}}}
-pub(crate) fn keyword_macro<'a>(
-    parser: &'a Parser,
-    name: &'a str,
-    buf: &mut dyn fmt::Write,
-) -> Result<Cow<'a, str>, ()> {
+pub(crate) fn keyword_macro<'a>(parser: &'a Parser, name: &'a str) -> Result<Cow<'a, str>, ()> {
     // not finding a keyword doesn't blow up the exporter in org-mode
     //
     // TODO: warning system so invalid macros are caught

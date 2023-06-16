@@ -1,7 +1,4 @@
-use std::borrow::Cow;
-
-use crate::constants::DOLLAR;
-use crate::types::{Cursor, MarkupKind};
+use crate::types::Cursor;
 use phf::phf_set;
 
 // Either a whitespace character, -, ., ,, ;, :, !, ?, ', ), }, [, ", or the end of a line.

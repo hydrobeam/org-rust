@@ -7,5 +7,9 @@ edition = "2021"
 
 [dependencies]
 latex2mathml = "0.2.3"
-org-parser = { path = "../org-parser" }
 memchr = "2.5.0"
+org-parser = { path = "../org-parser" }
+phf = {version = "0.11.1", features = ["macros"]}
+
+[dev-dependencies]
+pretty_assertions = "1.3.0"

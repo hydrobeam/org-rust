@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::constants::{NEWLINE, RBRACK, SPACE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
