@@ -19,7 +19,7 @@
                 <option value="affiliated">Affiliated Keywords</option>
             </select>
             <!-- will be replaced via js -->
-            <textarea id="textbox"></textarea>
+            <div id="textbox"></div>
 
         </div>
         <div class="view">
@@ -35,10 +35,14 @@
         </div>
 
         <div class="parse_info"> </div>
-        <footer></footer>
+        <footer>
+            <input type="checkbox" name="vim" id="vim" />
+            <label for="vim">Vim Mode</label>
+
+        </footer>
     </main>
 
-    <script type="module" src="main.js"></script>
+    <script type="module" src="editor.mjs"></script>
 </body>
 
 </html>
