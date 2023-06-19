@@ -26,9 +26,9 @@ let view_dict = {
 
 // handle the dropdown selector
 // webpack inlines these in the generated js file
-import affiliated_string from "./files/affiliated.org";
-import default_string from "./files/default.org";
-import footnotes_string from "./files/footnotes.org";
+import affiliated_string from "./static/affiliated.org";
+import default_string from "./static/default.org";
+import footnotes_string from "./static/footnotes.org";
 
 let currElem = view_dict["rendered"];
 

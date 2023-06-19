@@ -1,5 +1,5 @@
 {
-  "name": "cm",
+  "name": "org-wasm",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -15,7 +15,7 @@
     "@codemirror/view": "^6.2.1",
     "@replit/codemirror-vim": "^6.0.14",
     "codemirror": "^6.0.1",
-    "org-wasm": "file:./pkg"
+    "org-export": "file:./pkg"
   },
   "devDependencies": {
     "@minify-html/node": "^0.11.1",
