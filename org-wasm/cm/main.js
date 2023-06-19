@@ -4,21 +4,8 @@ import { indentWithTab } from "@codemirror/commands"
 import { vim } from "@replit/codemirror-vim"
 import { basicSetup } from "codemirror";
 
+import { WasmExport } from "./pkg/org_wasm.js"
 
-// import { WasmExport } from '../pkg/';
-
-// import { wasm }  from "../pkg"
-// let exporter;
-// import("../pkg").then((wasm) => {
-//   console.log(wasm);
-//   exporter = new wasm.WasmExport();
-//   // js.greet("WebAssembly with npm");
-// });
-
-import init, { WasmExport } from "./pkg/org_wasm.js"
-import wasm from "./pkg/org_wasm_bg.wasm"
-
-await init(await wasm());
 let exporter = new WasmExport();
 
 let
@@ -37,14 +24,12 @@ let view_dict = {
   "rendered": document.getElementById("rendered"),
 }
 
-// import affiliated_string from "./files/affiliated.org";
-// import default_string from "./files/default.org";
-// import footnotes_string from "./files/footnotes.org";
-
 // handle the dropdown selector
-let affiliated_string = await (await fetch("./files/affiliated.org")).text();
-let default_string = await (await fetch("./files/default.org")).text();
-let footnotes_string = await (await fetch("./files/footnotes.org")).text();
+// webpack inlines these in the generated js file
+import affiliated_string from "./files/affiliated.org";
+import default_string from "./files/default.org";
+import footnotes_string from "./files/footnotes.org";
+
 let currElem = view_dict["rendered"];
 
 // key items in the file
@@ -54,7 +39,6 @@ let switch_buttons = document.querySelectorAll(".tablinks");
 let display_select = document.getElementById("display-select");
 
 let vim_button = document.getElementById("vim");
-
 
 let vim_keymap = new Compartment();
 
