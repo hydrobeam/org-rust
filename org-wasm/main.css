@@ -13,6 +13,14 @@
   font-size: 17px;
 }
 
+#textbox {
+  display: flex;
+  overflow: auto;
+  flex-basis: 100%;
+}
+.cm-editor {
+  flex-grow: 1;
+}
 /* Change background color of buttons on hover */
 .tab button:hover {
   background-color: #ddd;
@@ -75,7 +83,6 @@ pre.tabcontent {
   flex-direction: column;
   grid-area: inputs;
 }
-
 
 header {
   grid-area: header;
