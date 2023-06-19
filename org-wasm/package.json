@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "wp": "webpack"
+    "build": "webpack"
   },
   "type": "module",
   "author": "aquabeam",
