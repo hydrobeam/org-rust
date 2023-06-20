@@ -538,7 +538,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 )?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self) {
+                if let Ok(macro_contents) = macro_handle(parser, macro_call) {
                     match macro_contents {
                         Cow::Owned(p) => {
                             Html::export_macro_buf(&p, self)?;

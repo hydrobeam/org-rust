@@ -528,7 +528,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 write!(self, "<<{}>>", inner.0)?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self) {
+                if let Ok(macro_contents) = macro_handle(parser, macro_call) {
                     match macro_contents {
                         Cow::Owned(p) => {
                             Org::export_macro_buf(&p, self)?;

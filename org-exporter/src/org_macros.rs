@@ -2,19 +2,12 @@ use org_parser::element::{ArgNumOrText, MacroDef};
 use org_parser::object::MacroCall;
 use org_parser::types::{Expr, Parser};
 use std::borrow::Cow;
-use std::fmt;
 
 use crate::utils::keyword_lookup;
 
-// pub(crate) enum RawOrParse<'a> {
-//     Raw(Cow<'a, str>),
-//     Parse(Cow<'a, str>),
-// }
-
-pub(crate) fn macro_handle<'a, T: fmt::Write>(
+pub(crate) fn macro_handle<'a>(
     parser: &'a Parser,
     macro_call: &'a MacroCall,
-    buf: &mut T,
 ) -> Result<Cow<'a, str>, ()> {
     match macro_call.name {
         "keyword" => Ok(keyword_macro(parser, macro_call.args[0])?),
@@ -25,21 +18,20 @@ pub(crate) fn macro_handle<'a, T: fmt::Write>(
                 Err(())
             }
         }
-        _ => Ok(macro_execute(parser, macro_call, buf)?),
+        _ => Ok(macro_execute(parser, macro_call)?),
     }
 }
 
-pub(crate) fn macro_execute<'a, T: fmt::Write>(
+pub(crate) fn macro_execute<'a>(
     parser: &'a Parser,
     macro_call: &MacroCall<'a>,
-    buf: &mut T,
 ) -> Result<Cow<'a, str>, ()> {
     let macid = parser.macros.get(macro_call.name).unwrap();
     // FIXME: pretty janky, but have to do this dance cause of NodeID
 
     if let Expr::MacroDef(mac_def) = &parser.pool[*macid].obj {
         if macro_call.args.len() == mac_def.num_args as usize {
-            return Ok(apply(mac_def, &macro_call.args, buf));
+            return Ok(apply(mac_def, &macro_call.args));
         } else {
             return Err(());
         }
@@ -50,11 +42,7 @@ pub(crate) fn macro_execute<'a, T: fmt::Write>(
 
 // generate the new string and parse/export it into our current buffer.
 // allows for the inclusion of objects within macros
-pub fn apply<'a, T: fmt::Write>(
-    macro_def: &MacroDef,
-    args: &Vec<&'a str>,
-    buf: &mut T,
-) -> Cow<'a, str> {
+pub fn apply<'a>(macro_def: &MacroDef, args: &Vec<&'a str>) -> Cow<'a, str> {
     let mut macro_contents = String::new();
     for either_enum in &macro_def.input {
         match *either_enum {
