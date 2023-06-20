@@ -14,8 +14,19 @@ use crate::types::Exporter;
 use org_parser::node_pool::NodeID;
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::parse_org;
+use phf::phf_set;
 
 const BACKEND_NAME: &str = "html";
+
+// file types we can wrap an `img` around
+static IMAGE_TYPES: phf::Set<&str> = phf_set! {
+    "jpeg",
+    "jpg",
+    "png",
+    "gif",
+    "svg",
+    "webp",
+};
 
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
@@ -236,7 +247,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::RegularLink(inner) => {
-                let path_link: String = match inner.path {
+                let path_link: String = match inner.path.obj {
                     PathReg::PlainLink(a) => a.into(),
                     PathReg::Id(a) => format!("#{}", a),
                     PathReg::CustomId(a) => format!("#{}", a),
@@ -259,22 +270,41 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         self.export_rec(id, parser)?;
                     }
                 } else {
-                    write!(
-                        self,
-                        "{}",
-                        match inner.path {
-                            PathReg::PlainLink(a) => a.into(),
-                            PathReg::Id(a) => format!("{a}"),
-                            PathReg::CustomId(a) => format!("{a}"),
-                            PathReg::Coderef(_) => todo!(),
-                            PathReg::Unspecified(a) => format!("{a}"),
-                        },
-                    )?;
+                    write!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)))?;
                 }
                 write!(self, "</a>")?;
             }
 
             Expr::Paragraph(inner) => {
+                if inner.0.len() == 1 {
+                    if let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj {
+                        let link_source = link.path.to_str(parser.source);
+                        let ending_tag = link_source.split('.').last();
+                        if let Some(extension) = ending_tag {
+                            if IMAGE_TYPES.contains(extension) {
+                                write!(self, "<figure>\n<img")?;
+                                self.prop(node)?;
+                                write!(self, r#" src="{}""#, HtmlEscape(link_source))?;
+                                write!(self, r#" alt=""#)?;
+                                if let Some(children) = &link.description {
+                                    for id in children {
+                                        self.export_rec(id, parser)?;
+                                    }
+                                } else {
+                                    let alt_text =
+                                        if let Some(slashed) = link_source.split('/').last() {
+                                            slashed
+                                        } else {
+                                            link_source
+                                        };
+                                    write!(self, "{}", HtmlEscape(alt_text))?;
+                                }
+                                write!(self, "\">\n</figure>")?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
                 write!(self, "<p")?;
                 self.prop(node)?;
                 writeln!(self, ">")?;
@@ -740,7 +770,6 @@ hiii cool three text
 </p>
 "
         );
-        // println!("{a}");
 
         Ok(())
     }

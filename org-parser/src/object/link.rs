@@ -15,7 +15,7 @@ const ORG_LINK_PARAMETERS: [&str; 9] = [
 #[derive(Debug, Clone)]
 pub struct RegularLink<'a> {
     // actually a pathreg object
-    pub path: PathReg<'a>,
+    pub path: Match<PathReg<'a>>,
     // One or more objects enclosed by square brackets.
     // It can contain the minimal set of objects as well as export snippets,
     // inline babel calls, inline source blocks, macros, and statistics cookies.
@@ -157,8 +157,12 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                                         return Err(MatchError::InvalidLogic);
                                     }
 
-                                    let pathreg =
-                                        PathReg::new(cursor.clamp_off(start + 2, path_reg_end));
+                                    let reg_curs = cursor.clamp_off(start + 2, path_reg_end);
+                                    let pathreg = Match {
+                                        start: start + 2,
+                                        end: path_reg_end,
+                                        obj: PathReg::new(reg_curs),
+                                    };
 
                                     // set parents of children
                                     // TODO: abstract this? stolen from markup.rs
@@ -184,7 +188,13 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                     } else if RBRACK == cursor.peek(1)? {
                         // close object;
 
-                        let pathreg = PathReg::new(cursor.clamp_off(start + 2, cursor.index));
+                        let reg_curs = cursor.clamp_off(start + 2, cursor.index);
+                        let pathreg = Match {
+                            start: start + 2,
+                            end: cursor.index,
+                            obj: PathReg::new(reg_curs),
+                        };
+
                         return Ok(parser.alloc(
                             Self {
                                 path: pathreg,

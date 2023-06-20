@@ -233,7 +233,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
             }
             Expr::RegularLink(inner) => {
                 write!(self, "[")?;
-                write!(self, "[{}]", inner.path)?;
+                write!(self, "[{}]", inner.path.obj)?;
                 if let Some(children) = &inner.description {
                     write!(self, "[")?;
                     for id in children {

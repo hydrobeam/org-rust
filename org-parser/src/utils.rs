@@ -87,8 +87,8 @@ pub struct Match<T> {
 
 impl<'a, T> Match<T> {
     #[inline]
-    pub fn to_str(&self, byte_arr: &'a [u8]) -> &'a str {
-        bytes_to_str(&byte_arr[self.start..self.end])
+    pub fn to_str(&self, source: &'a str) -> &'a str {
+        &source[self.start..self.end]
     }
 
     pub fn len(&self) -> usize {

@@ -29,6 +29,7 @@ let view_dict = {
 import affiliated_string from "./static/affiliated.org";
 import default_string from "./static/default.org";
 import footnotes_string from "./static/footnotes.org";
+import images_string from "./static/images.org";
 
 let currElem = view_dict["rendered"];
 
@@ -84,6 +85,10 @@ function select_func(val) {
     }
     case "footnotes": {
       editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: footnotes_string } });
+      break;
+    }
+    case "images": {
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: images_string } });
       break;
     }
   }

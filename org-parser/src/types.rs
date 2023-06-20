@@ -39,6 +39,8 @@ pub struct Parser<'a> {
 
     // footnote label to footnote definition
     pub footnotes: HashMap<&'a str, NodeID>,
+
+    pub source: &'a str,
 }
 
 impl<'a> Parser<'a> {

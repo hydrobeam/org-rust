@@ -1,0 +1,17 @@
+* Images
+
+#+begin_quote
+A standalone link that ends with an image extension (~.png~, ~.jpg~, etc...) becomes an ~<img>~ element.
+Custom attributes can be applied directly to the image.
+
+#+attr_html: :width 300px :style border:10px solid burlywood; background-color: blanchedalmond;
+[[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
+#+end_quote
+
+#+caption: The alt text is replaced by the description text
+#+attr_html: :width 300px :style background-color:aliceblue
+[[https://fake.png][alt text]]
+
+#+caption: or by the filename, if not specified
+#+attr_html: :width 300px :style background-color:orange
+[[/path/to/dir/fake.png]]
