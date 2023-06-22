@@ -731,8 +731,10 @@ impl<'buf> Html<'buf> {
                     }
                 }
                 Expr::FootnoteRef(fn_ref) => {
-                    for child_id in fn_ref.children.as_ref().unwrap() {
-                        self.export_rec(child_id, parser)?;
+                    if let Some(children) = fn_ref.children.as_ref() {
+                        for child_id in children {
+                            self.export_rec(child_id, parser)?;
+                        }
                     }
                 }
                 _ => (),
