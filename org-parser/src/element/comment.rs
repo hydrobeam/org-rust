@@ -11,13 +11,14 @@ impl<'a> Parseable<'a> for Comment<'a> {
         parent: Option<NodeID>,
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
+        let start = cursor.index;
         if cursor.peek(1)?.is_ascii_whitespace() {
             // skip past "# "
             cursor.advance(2);
             let content = cursor.fn_until(|chr: u8| chr == b'\n')?;
             // TODO: use an fn_until_inclusive to not have to add 1 to the end
             // (we want to eat the ending nl too)
-            Ok(parser.alloc(Self(content.obj), cursor.index, content.end + 1, parent))
+            Ok(parser.alloc(Self(content.obj), start, content.end + 1, parent))
         } else {
             Err(crate::types::MatchError::InvalidLogic)
         }
