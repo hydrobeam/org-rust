@@ -1877,14 +1877,14 @@ impl<'a> Parseable<'a> for Emoji<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
-        // skip past colon
-        cursor.next();
+        cursor.word(":")?;
         // check against ::
         if cursor.try_curr()? == COLON {
             return Err(MatchError::InvalidLogic);
         }
 
         let ret_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
+        cursor.index = ret_match.end;
         cursor.word(":")?;
 
         if let Ok(moji) = parse_emoji(ret_match.obj) {
