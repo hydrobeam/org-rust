@@ -13,6 +13,7 @@ default = ["console_error_panic_hook"]
 [dependencies]
 wasm-bindgen = "0.2.63"
 org-exporter = { path = "../org-exporter" }
+org-parser = { path = "../org-parser" }
 
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -25,6 +26,7 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 # compared to the default allocator's ~10K. It is slower than the default
 # allocator, however.
 wee_alloc = { version = "0.4.5", optional = true }
+js-sys = "0.3.64"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

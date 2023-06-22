@@ -2,7 +2,7 @@
 
 Also supports inline footnotes [fn:cool:so inline!] and anonymous ones! [fn::mysterious]
 
-Footnotes! 🎉 [fn:table]
+Footnotes! :tada: [fn:table]
 
 
 

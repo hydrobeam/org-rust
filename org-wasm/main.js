@@ -4,6 +4,8 @@ import { indentWithTab } from "@codemirror/commands"
 import { vim } from "@replit/codemirror-vim"
 import { basicSetup } from "codemirror";
 
+import { org } from "./editor.ts";
+
 import { WasmExport } from "./pkg/org_wasm.js"
 
 let exporter = new WasmExport();
@@ -45,10 +47,12 @@ let vim_keymap = new Compartment();
 
 let throttled_reparse = throttle(reparse, 35);
 
+console.log(org);
 let editor = new EditorView({
   parent: textbox,
   state: EditorState.create({
     extensions: [
+      org,
       vim_keymap.of([]),
       keymap.of(indentWithTab),
       basicSetup,
