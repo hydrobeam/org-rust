@@ -1,7 +1,7 @@
 #+title: org-rust
 
 This crate aims to provide parsing support for [[https://orgmode.org/][org-mode]] based on [[https://orgmode.org/worg/dev/org-syntax-edited.html][the official spec]].
-The goal is to be mostly spec compliant, and allow for exporting the generated AST to other formats and applying modifications to it.
+The goal is to be mostly spec compliant, and allow for exporting the generated AST to other formats and applying modifications to it. View the demo at https://org-rust.pages.dev/.
 
 
 ** Syntax Progress

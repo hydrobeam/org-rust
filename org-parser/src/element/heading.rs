@@ -1,4 +1,4 @@
-use crate::constants::{COLON, LBRACK, NEWLINE, POUND, RBRACK, SPACE, STAR};
+use crate::constants::{COLON, NEWLINE, RBRACK, SPACE, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};

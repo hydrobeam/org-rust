@@ -2,7 +2,7 @@
 
 This directory shows how the `org-exporter` crate can be used via wasm.
 It sets up an interactive org parsing environment where org source you type on the left is parsed and rendered on the right.
-View it in action here: https://student.cs.uwaterloo.ca/~lbahodi/wasm
+View it in action here: https://org-rust.pages.dev/
 
 This project uses webpack to build and compile the dependencies for the site.
 It's essentially just for [`codemirror`](https://codemirror.net/), which powers the editor.
