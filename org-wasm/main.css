@@ -80,7 +80,7 @@ iframe {
   grid-template-areas: "input view";
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1000px) {
   #editor-view {
     grid-template-columns: 100%;
     grid-template-areas:
@@ -88,4 +88,8 @@ iframe {
       "view";
     grid-template-rows: 50% 50%;
   }
+}
+
+body {
+  font-size: 1.20em;
 }
