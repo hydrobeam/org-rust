@@ -47,7 +47,6 @@ let vim_keymap = new Compartment();
 
 let throttled_reparse = throttle(reparse, 35);
 
-console.log(org);
 let editor = new EditorView({
   parent: textbox,
   state: EditorState.create({

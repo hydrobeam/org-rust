@@ -1,7 +1,3 @@
-/* Style the tab */
-
-/* Style the buttons inside the tab */
-
 .tab button {
   background-color: inherit;
   float: left;
@@ -13,14 +9,6 @@
   font-size: 17px;
 }
 
-#textbox {
-  display: flex;
-  overflow: auto;
-  flex-basis: 100%;
-}
-.cm-editor {
-  flex-grow: 1;
-}
 /* Change background color of buttons on hover */
 .tab button:hover {
   background-color: #ddd;
@@ -31,47 +19,37 @@
   background-color: #ccc;
 }
 
-/* Style the tab content */
-.tabcontent {
-  /* width: 100%;
-    height: 100%; */
-  max-width: inherit;
-  max-height: inherit;
-  display: none;
-  padding: 6px 12px;
-  border: 1px solid #ccc;
-  border-top: none;
-  overflow: scroll;
-  border: 1px solid #ccc;
-}
-
-iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  /* removes the extra blank space around */
-  padding: 0 !important;
-}
-
-/*  we don't want the rendered html to be styled*/
+/* style non-rendered html */
 pre.tabcontent {
   background-color: #faf1f1;
 }
 
+iframe {
+  padding: 0 !important;
+}
+
 .tab {
-  /* grid-area: min-content; */
   max-height: min-content;
   overflow: hidden;
   border: 1px solid #ccc;
   background-color: #f1f1f1;
 }
 
+.tabcontent {
+  flex: 1;
+  display: none;
+  padding: 6px 12px;
+  border-top: none;
+  overflow: scroll;
+  border: 1px solid #ccc;
+}
+
 .view {
-  display: grid;
-  grid-auto-rows: min-content 1fr;
-  max-height: inherit;
-  grid-area: view-box;
+  grid-area: view;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: scroll;
 }
 
 .view * {
@@ -79,32 +57,35 @@ pre.tabcontent {
 }
 
 .input-area {
+  grid-area: input;
   display: flex;
   flex-direction: column;
-  grid-area: inputs;
+  overflow: scroll;
 }
 
-header {
-  grid-area: header;
+#textbox {
+  flex: 1;
+  display: flex;
+  overflow: auto;
 }
 
-footer {
-  grid-area: footer;
+.cm-editor {
+  flex-grow: 1;
 }
 
-textarea {
-  width: 100%;
-  height: 100%;
-  resize: none;
-}
-
-main {
-  height: 98dvh;
+#editor-view {
+  height: 80dvh;
   display: grid;
   grid-template-columns: 50% 50%;
-  grid-template-rows: 10% 80% 10%;
-  grid-template-areas:
-    "header header"
-    "inputs view-box"
-    "footer footer";
+  grid-template-areas: "input view";
+}
+
+@media (max-width: 800px) {
+  #editor-view {
+    grid-template-columns: 100%;
+    grid-template-areas:
+      "input"
+      "view";
+    grid-template-rows: 50% 50%;
+  }
 }

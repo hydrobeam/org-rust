@@ -1,17 +1,15 @@
-<!-- including <!doctype html> breaks the layout... -->
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
+    <meta charset="utf-8" />
     <title>Org-rust</title>
-    <meta charset="UTF-8" />
     <link rel="stylesheet" href="main.css" type="text/css" />
 </head>
-
 <body>
-    <main>
-        <header>
-            <h1>Org Mode Parser</h1>
-        </header>
+    <header>
+        <h1>Org Mode Parser</h1>
+    </header>
+    <div id="editor-view">
         <div class="input-area">
             <select id="display-select">
                 <option selected="selected" value="default">Default</option>
@@ -19,9 +17,8 @@
                 <option value="affiliated">Affiliated Keywords</option>
                 <option value="images">Images</option>
             </select>
-            <!-- will be replaced via js -->
+            <!-- will contain the editor -->
             <div id="textbox"></div>
-
         </div>
         <div class="view">
             <div class="tab">
@@ -34,14 +31,9 @@
             <pre id="org" class="tabcontent"></pre>
             <pre id="raw" class="tabcontent"></pre>
         </div>
-
-        <div class="parse_info"> </div>
-        <footer>
-            <input type="checkbox" name="vim" id="vim" />
-            <label for="vim">Vim Mode</label>
-
-        </footer>
-    </main>
+    </div>
+    <input type="checkbox" name="vim" id="vim" />
+    <label for="vim">Vim Mode</label>
 
     <script type="module" src="main.js"></script>
 </body>
