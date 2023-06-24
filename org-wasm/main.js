@@ -99,26 +99,40 @@ vim_button.addEventListener("click", () => {
   })
 })
 
-// set it like so the textbox maintains the previous selection
+// FIXME: local document storage to not have to worry about this
+// obselete: set it like so the textbox maintains the previous selection
 // the selectbox doesn't reset to "default" on refresh
 select_func("default");
+
+// scroll to the top of the editor, it ends up in the middle for some reason without
+// this
+editor.scrollDOM.scroll(0, 1)
+
 
 function select_func(val) {
   switch (val) {
     case "affiliated": {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: affiliated_string } });
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: affiliated_string },
+      });
       break;
     }
     case "default": {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: default_string } });
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: default_string },
+      });
       break;
     }
     case "footnotes": {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: footnotes_string } });
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: footnotes_string },
+      });
       break;
     }
     case "images": {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: images_string } });
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: images_string },
+      });
       break;
     }
   }
