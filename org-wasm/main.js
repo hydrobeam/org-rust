@@ -53,7 +53,6 @@ const lineHover = getComputedStyle(document.body)
 
 const selection = getComputedStyle(document.body)
   .getPropertyValue('--line-selection');
-console.log(selection);
 
 // kinda greeny
 const theme = EditorView.theme(

@@ -10,11 +10,11 @@
 <body>
     <header>
         <h1>Org-Rust</h1>
+        <p role="doc-subtitle">A parser & document exporter for <a href="https://orgmode.org">Org-Mode</a>.
+            Written in Rust.</p>
     </header>
-    <p>A parser & document exporter for <a href="https://orgmode.org">Org-Mode</a>. Progress
-        is documented at the <a href="https://github.com/hydrobeam/org-rust">
-            <code>Org-Rust</code></a> repository.
-    </p>
+
+
 
     <h2>Editor</h2>
     <p>Try out the live editor below!
@@ -48,11 +48,16 @@
     <ul>
         <li>The editor is powered by Web-Assembly and executes the parser directly from your browser!</li>
         <li>The parser is zero-copy doesn't duplicate the source string in the generated AST.</li>
-        <li>Parsing relies on caching any successful sub-parses to minimize backtracking.</li>
+        <li>Parsing takes advantage of caching any successful sub-parses to minimize backtracking.</li>
         <li>Nodes are stored in an index-based arena (a <code>Vec</code>) for more straightforward
             iteration and lifetime management.</li>
     </ul>
 
+    <p>
+        Progress
+        is documented at the <a href="https://github.com/hydrobeam/org-rust">
+            <code>Org-Rust</code></a> repository.
+    </p>
 
     <script type="module" src="main.js"></script>
 </body>
