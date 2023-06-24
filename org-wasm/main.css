@@ -110,6 +110,7 @@ p {
 header {
   height: 65dvh;
   padding-top: 1em;
+  padding-bottom: 1em;
 }
 
 header h1 {
@@ -155,17 +156,12 @@ h3 {
       "view";
     grid-template-rows: 50% 50%;
   }
+
+  header {
+    height: auto;
+  }
   body {
     margin: 20px;
     margin-top: 0px;
-    font-size: 2em;
-  }
-  header {
-    height: auto;
-    font-size: 1.5em;
-  }
-
-  header {
-    padding-top: 0em;
   }
 }
