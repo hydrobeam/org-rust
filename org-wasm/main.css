@@ -161,7 +161,8 @@ h3 {
     height: auto;
   }
   body {
-    margin: 20px;
+    margin: 5px;
     margin-top: 0px;
+    font-size: 1.125em;
   }
 }
