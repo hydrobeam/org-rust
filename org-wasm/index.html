@@ -1,23 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <title>Org-rust</title>
     <link rel="stylesheet" href="main.css" type="text/css" />
 </head>
+
 <body>
     <header>
-        <h1>Org Mode Parser</h1>
+        <h1>Org-Rust</h1>
     </header>
+    <p>A parser & document exporter for <a href="https://orgmode.org">Org-Mode</a>. Progress
+        is documented at the <a href="https://github.com/hydrobeam/org-rust">
+            <code>Org-Rust</code></a> repository.
+    </p>
+
+    <h2>Editor</h2>
+    <p>Try out the live editor below!
+        The syntax highlighting is generated from the output of the parser ;)</p>
+    <input type="checkbox" name="vim" id="vim" />
+    <label for="vim">Vim Mode</label>
     <div id="editor-view">
         <div class="input-area">
-            <select id="display-select">
-                <option selected="selected" value="default">Default</option>
-                <option value="footnotes">Footnotes</option>
-                <option value="affiliated">Affiliated Keywords</option>
-                <option value="images">Images</option>
-            </select>
-            <!-- will contain the editor -->
+            <div class="tab">
+                <button class="contentlinks" value="default">Default</button>
+                <button class="contentlinks" value="footnotes">Footnotes</button>
+                <button class="contentlinks" value="affiliated">Affiliated Keywords</button>
+                <button class="contentlinks" value="images">Images</button>
+            </div>
             <div id="textbox"></div>
         </div>
         <div class="view">
@@ -32,8 +43,16 @@
             <pre id="raw" class="tabcontent"></pre>
         </div>
     </div>
-    <input type="checkbox" name="vim" id="vim" />
-    <label for="vim">Vim Mode</label>
+
+    <h2>More Info</h2>
+    <ul>
+        <li>The editor is powered by Web-Assembly and executes the parser directly from your browser!</li>
+        <li>The parser is zero-copy doesn't duplicate the source string in the generated AST.</li>
+        <li>Parsing relies on caching any successful sub-parses to minimize backtracking.</li>
+        <li>Nodes are stored in an index-based arena (a <code>Vec</code>) for more straightforward
+            iteration and lifetime management.</li>
+    </ul>
+
 
     <script type="module" src="main.js"></script>
 </body>

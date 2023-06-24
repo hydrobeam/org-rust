@@ -3,9 +3,7 @@ import { EditorView, keymap } from "@codemirror/view"
 import { indentWithTab } from "@codemirror/commands"
 import { vim } from "@replit/codemirror-vim"
 import { basicSetup } from "codemirror";
-
 import { org } from "./editor.ts";
-
 import { WasmExport } from "./pkg/org_wasm.js"
 
 let exporter = new WasmExport();
@@ -39,7 +37,7 @@ let currElem = view_dict["rendered"];
 let textbox = document.getElementById("textbox");
 let views = document.querySelectorAll(".tabcontent");
 let switch_buttons = document.querySelectorAll(".tablinks");
-let display_select = document.getElementById("display-select");
+let contentButtons = document.querySelectorAll(".contentlinks");
 
 let vim_button = document.getElementById("vim");
 
@@ -47,12 +45,42 @@ let vim_keymap = new Compartment();
 
 let throttled_reparse = throttle(reparse, 35);
 
+const gutterColour = getComputedStyle(document.body)
+  .getPropertyValue('--gutter-colour');
+
+const lineHover = getComputedStyle(document.body)
+  .getPropertyValue('--line-hover');
+
+const selection = getComputedStyle(document.body)
+  .getPropertyValue('--line-selection');
+console.log(selection);
+
+// kinda greeny
+const theme = EditorView.theme(
+  {
+    // don't know what this implies, just stolen from the @codemirror/theme-one-dark
+    "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: selection },
+
+    // these are self explanatory
+    '.cm-activeLine': {
+      backgroundColor: lineHover,
+    },
+    '.cm-gutters': {
+      backgroundColor: gutterColour,
+    },
+    '.cm-activeLineGutter': {
+      backgroundColor: lineHover,
+    },
+  });
+
 let editor = new EditorView({
   parent: textbox,
   state: EditorState.create({
     extensions: [
-      org,
+      theme,
+      EditorView.lineWrapping,
       vim_keymap.of([]),
+      org,
       keymap.of(indentWithTab),
       basicSetup,
       EditorView.updateListener.of(function (e) {
@@ -74,7 +102,7 @@ vim_button.addEventListener("click", () => {
 
 // set it like so the textbox maintains the previous selection
 // the selectbox doesn't reset to "default" on refresh
-select_func(display_select.value);
+select_func("default");
 
 function select_func(val) {
   switch (val) {
@@ -97,11 +125,13 @@ function select_func(val) {
   }
 }
 
-display_select.addEventListener('change', async (e) => {
-  select_func(e.target.value);
-  reparse();
-});
 
+contentButtons.forEach((elem) => {
+  elem.addEventListener('click', () => {
+    select_func(elem.value);
+    reparse();
+  })
+})
 
 
 switch_buttons.forEach((elem) => {
@@ -188,4 +218,3 @@ function throttle(cb, delay) {
 
 toggleView("rendered", "rendered-parse");
 reparse();
-
