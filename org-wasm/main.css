@@ -16,9 +16,11 @@ button {
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 8px 8px;
   transition: 0.3s;
-  font-size: 0.85em;
+  font-size: 1vw;
+  white-space: nowrap;
+  flex: 1;
 }
 
 /* Change background color of buttons on hover */
@@ -34,6 +36,8 @@ button {
 /* style non-rendered html */
 pre.tabcontent {
   background-color: #faf1f1;
+  white-space: pre-wrap;
+  font-size: 1rem;
 }
 
 iframe {
@@ -41,6 +45,8 @@ iframe {
 }
 
 .tab {
+  display: flex;
+  flex-wrap: wrap;
   max-height: min-content;
   overflow: hidden;
   border: 1px solid #ccc;
@@ -83,6 +89,7 @@ iframe {
 
 .cm-editor {
   flex-grow: 1;
+  font-size: 1rem;
 }
 
 #editor-view {
@@ -96,15 +103,10 @@ body {
   margin-left: 80px;
   margin-right: 80px;
   margin-top: 40px;
-  max-width: 1250px;
   line-height: 1.4;
   font-size: 1.75em;
   padding: 0 10px;
   background-color: rgb(250, 250, 250);
-}
-
-p {
-  font-size: 1.25em;
 }
 
 header {
@@ -164,5 +166,8 @@ h3 {
     margin: 5px;
     margin-top: 0px;
     font-size: 1.125em;
+  }
+  .tab button {
+    font-size: 0.55em;
   }
 }

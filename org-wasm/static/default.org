@@ -9,8 +9,8 @@
   - <mailto:okiedokie@cool.com>
     * src_python{(technically) inline_src}
 
-|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
-|||||||||table
+|tables!|[[targets][links to output target]]
+|another|row
 
 2. [@2] [[Child Heading]]
   - \aleph \leftarrow entities
