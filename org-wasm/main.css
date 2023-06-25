@@ -16,7 +16,7 @@ button {
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 8px 8px;
+  padding: 6px 6px;
   transition: 0.3s;
   font-size: 1vw;
   white-space: nowrap;
@@ -93,10 +93,11 @@ iframe {
 }
 
 #editor-view {
-  height: 80dvh;
+  height: 85svh;
   display: grid;
   grid-template-columns: 50% 50%;
   grid-template-areas: "input view";
+  border: solid 1px grey;
 }
 
 body {
