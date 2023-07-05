@@ -26,6 +26,6 @@ impl<'a> Parseable<'a> for Target<'a> {
         let ret_id = parser.alloc(Self(inner_target_match.obj), start, cursor.index, parent);
 
         parser.pool[ret_id].id_target = Some(parser.generate_target(inner_target_match.obj));
-        return Ok(ret_id);
+        Ok(ret_id)
     }
 }

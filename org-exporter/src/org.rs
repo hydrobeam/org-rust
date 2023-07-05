@@ -20,7 +20,7 @@ pub struct Org<'buf> {
     on_newline: bool,
 }
 
-impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
+impl<'buf> Exporter<'buf> for Org<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
         let porg = parse_org(input);
@@ -174,7 +174,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         contents,
                         name,
                     } => {
-                        write!(self, "#+begin_{}", name)?;
+                        write!(self, "#+begin_{name}")?;
                         if let Some(params) = parameters {
                             write!(self, " {params}")?;
                         }
@@ -182,7 +182,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         for id in contents {
                             self.export_rec(id, parser)?;
                         }
-                        writeln!(self, "#+end_{}", name)?;
+                        writeln!(self, "#+end_{name}")?;
                     }
 
                     // Lesser blocks
@@ -190,22 +190,22 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         parameters: _,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_comment\n{}#+end_comment", contents)?;
+                        writeln!(self, "#+begin_comment\n{contents}#+end_comment")?;
                     }
                     Block::Example {
                         parameters: _,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_example\n{}#+end_example", contents)?;
+                        writeln!(self, "#+begin_example\n{contents}#+end_example")?;
                     }
                     Block::Export {
                         parameters,
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            writeln!(self, "#+begin_export {}\n{}#+end_export", params, contents)?;
+                            writeln!(self, "#+begin_export {params}\n{contents}#+end_export")?;
                         } else {
-                            writeln!(self, "#+begin_export\n{}#+end_export", contents)?;
+                            writeln!(self, "#+begin_export\n{contents}#+end_export")?;
                         }
                     }
                     Block::Src {
@@ -214,9 +214,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                     } => {
                         dbg!(contents);
                         if let Some(params) = parameters {
-                            writeln!(self, "#+begin_src {}\n{}#+end_src", params, contents)?;
+                            writeln!(self, "#+begin_src {params}\n{contents}#+end_src")?;
                         } else {
-                            writeln!(self, "#+begin_src\n{}#+end_src", contents)?;
+                            writeln!(self, "#+begin_src\n{contents}#+end_src")?;
                         }
                     }
                     Block::Verse {
@@ -224,9 +224,9 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            writeln!(self, "#+begin_verse {}\n{}#+end_verse", params, contents)?;
+                            writeln!(self, "#+begin_verse {params}\n{contents}#+end_verse")?;
                         } else {
-                            writeln!(self, "#+begin_verse\n{}#+end_verse", contents)?;
+                            writeln!(self, "#+begin_verse\n{contents}#+end_verse")?;
                         }
                     }
                 }
@@ -433,22 +433,17 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 let mut col_widths = Vec::with_capacity(inner.cols);
                 for col_ind in 0..inner.cols {
                     let mut curr_max = 0;
-                    for row_ind in 0..inner.rows {
-                        curr_max =
-                            curr_max.max(if let Some(strang) = build_vec[row_ind].get(col_ind) {
-                                strang.len()
-                            } else {
-                                0
-                            });
+                    for row in &build_vec {
+                        curr_max = curr_max.max(row.get(col_ind).map_or_else(|| 0, |v| v.len()));
                     }
                     col_widths.push(curr_max);
                 }
 
-                for row_ind in 0..inner.rows {
+                for row in &build_vec {
                     write!(self, "|")?;
 
                     // is hrule
-                    if build_vec[row_ind].is_empty() {
+                    if row.is_empty() {
                         for (i, val) in col_widths.iter().enumerate() {
                             // + 2 to account for buffer around cells
                             for _ in 0..(*val + 2) {
@@ -462,17 +457,17 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                             }
                         }
                     } else {
-                        for col_ind in 0..inner.cols {
-                            let cell = build_vec[row_ind].get(col_ind);
+                        for (col_ind, col_width) in col_widths.iter().enumerate() {
+                            let cell = row.get(col_ind);
                             let diff;
 
                             // left buffer
                             write!(self, " ")?;
                             if let Some(strang) = cell {
-                                diff = col_widths[col_ind] - strang.len();
+                                diff = col_width - strang.len();
                                 write!(self, "{strang}")?;
                             } else {
-                                diff = col_widths[col_ind];
+                                diff = *col_width;
                             };
 
                             for _ in 0..diff {
@@ -579,7 +574,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
     }
 }
 
-impl<'a, 'buf> fmt::Write for Org<'buf> {
+impl<'buf> fmt::Write for Org<'buf> {
     fn write_str(&mut self, s: &str) -> Result {
         if self.indentation_level > 0 {
             for chunk in s.split_inclusive('\n') {

@@ -25,6 +25,7 @@ extern "C" {
 // We want to avoid creating an entirely new string
 // on every repearse: re-use the same buffer to save on allocations.
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct WasmExport {
     string_buf: String,
 }

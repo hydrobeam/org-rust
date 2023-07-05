@@ -227,7 +227,7 @@ impl BlockKind<'_> {
         )
     }
 
-    fn to_end(&self) -> Option<&str> {
+    fn to_end(self) -> Option<&'static str> {
         match self {
             BlockKind::Center => Some("#+end_center\n"),
             BlockKind::Quote => Some("#+end_quote\n"),

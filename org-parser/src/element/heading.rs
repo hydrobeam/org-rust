@@ -45,7 +45,7 @@ pub enum HeadingLevel {
     Six,
 }
 
-/// Implemented not via TryFrom that MatchError can be private
+/// Implemented not via `TryFrom` that `MatchError` can be private
 /// while keeping the struct Public
 fn try_heading_levelfrom(value: usize) -> Result<HeadingLevel> {
     match value {

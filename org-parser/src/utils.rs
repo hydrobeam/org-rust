@@ -128,7 +128,7 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
     }
 }
 
-pub(crate) fn id_escape<'a>(potential_id: &'a str) -> String {
+pub(crate) fn id_escape(potential_id: &str) -> String {
     // minor over-allocation in some cases, but I expect most
     // id recepients to be light on the shenanigans
     let mut ret = String::with_capacity(potential_id.len());

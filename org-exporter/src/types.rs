@@ -3,7 +3,7 @@ use core::fmt;
 use org_parser::node_pool::NodeID;
 use org_parser::types::Parser;
 
-pub trait Exporter<'a, 'buf> {
+pub trait Exporter<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error>;
     fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,

@@ -206,7 +206,7 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
 
     // TODO: errors on eof
     if cursor.curr() != RBRACK {
-        Err(MatchError::InvalidLogic)?
+        Err(MatchError::InvalidLogic)?;
     }
 
     let counter_kind = if num_match.len() == 1 {

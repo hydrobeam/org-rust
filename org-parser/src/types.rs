@@ -1,7 +1,6 @@
 use derive_more::From;
 use std::collections::HashMap;
 use std::fmt::{Debug, Write};
-use std::ops::Index;
 use std::rc::Rc;
 
 use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
@@ -113,7 +112,7 @@ impl<'a> Parser<'a> {
         }
 
         self.target_occurences.insert(rc_ret.clone(), 0);
-        rc_ret.clone()
+        rc_ret
     }
 }
 
@@ -821,6 +820,7 @@ impl<'a> std::fmt::Debug for Expr<'a> {
     }
 }
 
+#[allow(unused)]
 mod object {
     use bitflags::bitflags;
     bitflags! {

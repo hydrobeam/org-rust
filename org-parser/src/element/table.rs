@@ -139,8 +139,8 @@ impl<'a> Parseable<'a> for TableCell {
         // set parents of children
         // TODO: abstract this? stolen from markup.rs
         let new_id = parser.pool.reserve_id();
-        for id in content_vec.iter_mut() {
-            parser.pool[*id].parent = Some(new_id)
+        for id in &mut content_vec {
+            parser.pool[*id].parent = Some(new_id);
         }
 
         // get rid of alignment spaces, deleting the object if it becomes empty

@@ -12,7 +12,7 @@ pub(crate) fn macro_handle<'a>(
     match macro_call.name {
         "keyword" => Ok(keyword_macro(parser, macro_call.args[0])?),
         special_keyword @ ("title" | "author" | "email") => {
-            if macro_call.args.len() == 0 {
+            if macro_call.args.is_empty() {
                 Ok(keyword_macro(parser, special_keyword)?)
             } else {
                 Err(())
@@ -31,18 +31,18 @@ pub(crate) fn macro_execute<'a>(
 
     if let Expr::MacroDef(mac_def) = &parser.pool[*macid].obj {
         if macro_call.args.len() == mac_def.num_args as usize {
-            return Ok(apply(mac_def, &macro_call.args));
+            Ok(apply(mac_def, &macro_call.args))
         } else {
-            return Err(());
+            Err(())
         }
     } else {
-        return Err(());
+        Err(())
     }
 }
 
 // generate the new string and parse/export it into our current buffer.
 // allows for the inclusion of objects within macros
-pub fn apply<'a>(macro_def: &MacroDef, args: &Vec<&'a str>) -> Cow<'a, str> {
+pub fn apply<'a>(macro_def: &MacroDef, args: &[&'a str]) -> Cow<'a, str> {
     let mut macro_contents = String::new();
     for either_enum in &macro_def.input {
         match *either_enum {

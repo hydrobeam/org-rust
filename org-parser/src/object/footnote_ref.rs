@@ -33,7 +33,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                     return Err(MatchError::InvalidLogic);
                 }
 
-                return Ok(parser.alloc(
+                Ok(parser.alloc(
                     Self {
                         label: Some(label_match.obj),
                         children: None,
@@ -41,7 +41,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                     start,
                     cursor.index + 1,
                     parent,
-                ));
+                ))
             }
             COLON => {
                 cursor.next();
@@ -90,7 +90,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                     }
                 }
             }
-            _ => return Err(MatchError::InvalidLogic),
+            _ => Err(MatchError::InvalidLogic),
         }
     }
 }

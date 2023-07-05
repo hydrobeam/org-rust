@@ -56,9 +56,9 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
         // there are invariants in the parsing (i hope) that should make
         // using memchr3 okay. if not, consider using jetscii for more byte blasting
 
-        let mut escape_bytes = memchr3_iter(b'<', b'&', b'>', self.0.as_bytes());
+        let escape_bytes = memchr3_iter(b'<', b'&', b'>', self.0.as_bytes());
 
-        while let Some(ret) = escape_bytes.next() {
+        for ret in escape_bytes {
             write!(f, "{}", &self.0[prev_pos..ret])?;
 
             match self.0.as_bytes()[ret] {
@@ -74,10 +74,10 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
     }
 }
 
-impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
+impl<'buf> Exporter<'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
-        let mut parsed = parse_org(input);
+        let parsed = parse_org(input);
         let mut obj = Html {
             buf: &mut buf,
             nox: HashSet::new(),
@@ -86,7 +86,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&mut parsed)?;
+        obj.exp_footnotes(&parsed)?;
         Ok(buf)
     }
 
@@ -94,7 +94,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
-        let mut parsed = parse_org(input);
+        let parsed = parse_org(input);
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -103,7 +103,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&mut parsed)?;
+        obj.exp_footnotes(&parsed)?;
         Ok(buf)
     }
 
@@ -203,7 +203,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         parameters: _,
                         contents,
                     } => {
-                        writeln!(self, "<!--{}-->", contents)?;
+                        writeln!(self, "<!--{contents}-->")?;
                     }
                     Block::Example {
                         parameters: _,
@@ -220,7 +220,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                     } => {
                         if let Some(params) = parameters {
                             if params.contains(BACKEND_NAME) {
-                                writeln!(self, "{}", contents)?;
+                                writeln!(self, "{contents}")?;
                             }
                         }
                     }
@@ -249,14 +249,14 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
             Expr::RegularLink(inner) => {
                 let path_link: String = match inner.path.obj {
                     PathReg::PlainLink(a) => a.into(),
-                    PathReg::Id(a) => format!("#{}", a),
-                    PathReg::CustomId(a) => format!("#{}", a),
+                    PathReg::Id(a) => format!("#{a}"),
+                    PathReg::CustomId(a) => format!("#{a}"),
                     PathReg::Coderef(_) => todo!(),
                     PathReg::Unspecified(a) => {
                         let mut rita = String::new();
                         for (match_targ, ret) in parser.targets.iter() {
                             if match_targ.starts_with(a) {
-                                rita = format!("#{}", ret);
+                                rita = format!("#{ret}");
                                 break;
                             }
                         }
@@ -626,7 +626,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 // prevent duplicate ids:
                 // node ids are guaranteed to be unique
                 let fn_id = if index != foot_len + 1 {
-                    format!("{}.{}", index, node_id)
+                    format!("{index}.{node_id}")
                 } else {
                     format!("{index}")
                 };
@@ -661,7 +661,7 @@ impl<'buf> Html<'buf> {
     }
 
     fn class(&mut self, name: &str) -> Result {
-        write!(self, r#" class="{}""#, name)
+        write!(self, r#" class="{name}""#)
     }
 
     fn attr(&mut self, key: &str, val: &str) -> Result {
@@ -741,7 +741,7 @@ impl<'buf> Html<'buf> {
     }
 }
 
-impl<'buf> fmt::Write for Html<'_> {
+impl fmt::Write for Html<'_> {
     fn write_str(&mut self, s: &str) -> Result {
         self.buf.write_str(s)
     }

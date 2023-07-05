@@ -28,7 +28,7 @@ pub(crate) fn parse_node_property<'a>(
 
     let val_match = cursor.fn_until(|chr: u8| chr == b'\n')?;
     let val = val_match.obj.trim();
-    if name.ends_with("+") {
+    if name.ends_with('+') {
         let new_name = name.trim_end_matches('+');
         properties
             .entry(new_name)

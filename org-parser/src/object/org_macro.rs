@@ -85,7 +85,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
             }
             RBRACE => {
                 cursor.word("}}}")?;
-                return Ok(parser.alloc(
+                Ok(parser.alloc(
                     MacroCall {
                         name: name_match.obj,
                         args: Vec::new(),
@@ -93,9 +93,9 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                     start,
                     cursor.index,
                     parent,
-                ));
+                ))
             }
-            _ => return Err(MatchError::InvalidLogic),
+            _ => Err(MatchError::InvalidLogic),
         }
     }
 }
