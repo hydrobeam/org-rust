@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use memchr::memmem::{self, Finder};
+use memchr::memmem;
 
 use crate::constants::{COLON, HYPHEN, NEWLINE, SPACE, UNDERSCORE};
 use crate::node_pool::NodeID;
-use crate::object::{parse_node_property, NodeProperty};
+use crate::object::parse_node_property;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{bytes_to_str, Match};
+use crate::utils::Match;
 
 const END_TOKEN: &str = ":end:\n";
 
@@ -158,8 +158,6 @@ fn find_end(cursor: Cursor) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use crate::parse_org;
-
-    use super::*;
 
     #[test]
     fn basic_drawer() {

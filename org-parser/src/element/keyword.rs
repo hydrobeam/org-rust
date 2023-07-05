@@ -21,16 +21,6 @@ pub enum Affiliated<'a> {
     },
 }
 
-// static ORG_AFFILIATED_KEYWORDS: phf::Set<&str> = phf::phf_set! {
-//     "attr_html",
-//     "caption",
-//     "data",
-//     "header",
-//     "name",
-//     "plot",
-//     "results",
-// };
-
 impl<'a> Parseable<'a> for Keyword<'a> {
     fn parse(
         parser: &mut Parser<'a>,

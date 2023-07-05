@@ -26,7 +26,6 @@ macro_rules! recursive_markup {
                 parse_opts.markup.insert(MarkupKind::$name);
 
                 let mut content_vec: Vec<NodeID> = Vec::new();
-                // if we're being called, that means the first split is the thing
                 loop {
                     match parse_object(parser, cursor, parent, parse_opts) {
                         Ok(id) => {

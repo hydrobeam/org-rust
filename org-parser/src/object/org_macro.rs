@@ -57,7 +57,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                             }
                         }
                         RBRACE => {
-                            if cursor.peek(1)? == RBRACE && cursor.peek(2)? == RBRACE {
+                            if cursor.word("}}}").is_ok() {
                                 return Err(MatchError::InvalidLogic);
                             }
                         }
@@ -103,8 +103,6 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse_org;
-
-    use super::*;
 
     #[test]
     fn basic_macro() {

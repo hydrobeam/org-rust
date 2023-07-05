@@ -23,27 +23,32 @@ pub struct Attr<'a> {
 
 #[derive(Debug)]
 pub struct Parser<'a> {
+    /// The contents of the AST
     pub pool: NodePool<'a>,
+    /// Cache used during the construction of the AST.
     pub(crate) cache: NodeCache,
-    // target names to uuids
+
+    /// target names to uuids
     pub targets: HashMap<&'a str, Rc<str>>,
-    // uuids to number of times they occur, we increment name
-    // like uuid-1 if there are duplicates
-    // used to help ensure no duplicates are being inserted
+
+    /// uuids to number of times they occur
+    /// used to help ensure no duplicates are being inserted
     pub(crate) target_occurences: HashMap<Rc<str>, usize>,
-    // name to macro def
+
+    /// name to macro def
     pub macros: HashMap<&'a str, NodeID>,
 
-    // basic keywords, key: val
+    /// basic keywords, key: val
     pub keywords: HashMap<&'a str, &'a str>,
 
-    // footnote label to footnote definition
+    /// footnote label to footnote definition
     pub footnotes: HashMap<&'a str, NodeID>,
 
     pub source: &'a str,
 }
 
 impl<'a> Parser<'a> {
+    // allocates an obj where obj is an Expr
     pub(crate) fn alloc<T>(
         &mut self,
         obj: T,
@@ -86,10 +91,6 @@ impl<'a> Parser<'a> {
         target_id
     }
 
-    pub fn root(&self) -> &Node {
-        self.pool.root()
-    }
-
     pub fn print_tree(&self) {
         self.pool.print_tree();
     }
@@ -116,6 +117,9 @@ impl<'a> Parser<'a> {
     }
 }
 
+/// A view into the source text's byte representation.
+///
+/// Intended to be cheap to copy and move around.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Cursor<'a> {
     pub byte_arr: &'a [u8],
@@ -146,7 +150,7 @@ impl<'a> Cursor<'a> {
     pub fn peek_rev(&self, diff: usize) -> Result<u8> {
         assert!(diff > 0);
 
-        // handle access this way in case of underflow
+        //used checked_sub in case of underflow
         self.index
             .checked_sub(diff)
             .and_then(|num| self.byte_arr.get(num))
@@ -274,24 +278,21 @@ impl<'a> Cursor<'a> {
     }
 }
 
-impl<'a> Index<usize> for Cursor<'a> {
-    type Output = u8;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.byte_arr[index]
-    }
-}
-
+/// A wrapper struct around an Expr which stores important metadata.
 #[derive(Clone, Debug)]
 pub struct Node<'a> {
+    /// The actual AST node that this Node holds.
     pub obj: Expr<'a>,
     pub start: usize,
-    /// One past the last index in the match, such that
-    /// arr[start..end] returns the matched region
+    // One past the last index in the match, such that
+    // arr[start..end] returns the matched region
     // makes starting the next match more convenient too
     pub end: usize,
     pub parent: Option<NodeID>,
+    /// Whether this node can be targeted (e.g. by a link), and what that target is.
     pub id_target: Option<Rc<str>>,
+    /// Any additional attributes attached to the node
+    /// Typically from Affiliated Keywords.
     pub attrs: HashMap<String, Vec<Attr<'a>>>,
 }
 
@@ -328,6 +329,7 @@ impl<'a> Node<'a> {
     }
 }
 
+/// Enum listing all possible AST nodes
 #[derive(From, Clone)]
 pub enum Expr<'a> {
     // Branch
@@ -458,9 +460,7 @@ pub(crate) trait Parseable<'a> {
 // Custom Debug Impls
 //
 // We don't use the default debug impls becaus the
-// Rc<RefCell<Match<Node::Branch(Branch::Paragraph(...))>>>
-//
-// ... levels of indirection make it impossible to digest the output.
+// levels of indirection make it impossible to digest the output.
 
 // TODO: this sucks because implementing Debug to pull data from elsewhere
 // is either hard or not possible

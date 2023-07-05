@@ -5,6 +5,7 @@ use crate::node_pool::NodeID;
 use crate::types::Parseable;
 use crate::types::{Cursor, MatchError, ParseOpts, Parser, Result};
 
+// Derived from https://cdn.jsdelivr.net/npm/emojibase-data@7.0.1/en/shortcodes/
 static EMOJI_MAP: phf::Map<&'static str, char> = phf_map! {
 "interrobang" => '⁉',
 "tm" => '™',
@@ -1883,12 +1884,12 @@ impl<'a> Parseable<'a> for Emoji<'a> {
             return Err(MatchError::InvalidLogic);
         }
 
-        let ret_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
-        cursor.index = ret_match.end;
+        let moji_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
+        cursor.index = moji_name_match.end;
         cursor.word(":")?;
 
-        if let Ok(moji) = parse_emoji(ret_match.obj) {
-            Ok(parser.alloc(moji, start, ret_match.end + 1, parent))
+        if let Ok(moji) = parse_emoji(moji_name_match.obj) {
+            Ok(parser.alloc(moji, start, cursor.index, parent))
         } else {
             Err(MatchError::InvalidLogic)
         }

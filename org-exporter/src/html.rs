@@ -159,7 +159,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 match inner {
                     // Greater Blocks
                     Block::Center {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         write!(self, "<div")?;
@@ -172,7 +172,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         writeln!(self, "</div>")?;
                     }
                     Block::Quote {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         write!(self, "<blockquote")?;
@@ -184,7 +184,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         writeln!(self, "</blockquote>")?;
                     }
                     Block::Special {
-                        parameters,
+                        parameters: _,
                         contents,
                         name,
                     } => {
@@ -200,13 +200,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
 
                     // Lesser blocks
                     Block::Comment {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         writeln!(self, "<!--{}-->", contents)?;
                     }
                     Block::Example {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         write!(self, "<pre")?;
@@ -225,7 +225,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         }
                     }
                     Block::Src {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         // TODO: work with the language parameter
@@ -235,7 +235,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         // FIXME: apparently verse blocks contain objects...
@@ -384,7 +384,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 // }
                 // write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(inner) => {
+            Expr::Keyword(_) => {
                 // todo!()
                 // match inner {
                 //     Keyword::Basic { key, val } => {
@@ -590,7 +590,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                 }
             }
             Expr::Affiliated(inner) => match inner {
-                Affiliated::Name(id) => {}
+                Affiliated::Name(_id) => {}
                 Affiliated::Caption(id, contents) => {
                     if let Some(caption_id) = id {
                         writeln!(self, "<figure>")?;
@@ -600,14 +600,10 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Html<'buf> {
                         self.nox.insert(*caption_id);
                     }
                 }
-                Affiliated::Attr {
-                    child_id,
-                    backend,
-                    val,
-                } => {}
+                Affiliated::Attr { .. } => {}
             },
             Expr::MacroDef(_) => {}
-            Expr::FootnoteDef(inner) => {
+            Expr::FootnoteDef(_) => {
                 // handled after root
             }
             Expr::FootnoteRef(inner) => {
@@ -709,7 +705,7 @@ impl<'buf> Html<'buf> {
 
         // FIXME
         // lifetime shenanigans making me do this.. can't figure em out
-        // would liek to self.footnotes.iter(), but we get multiple
+        // would like to self.footnotes.iter(), but we get multiple
         // immutable borrows, so self.footnotes.copied.iter(), but still no go
         let man = self.footnotes.clone();
         for (mut pos, def_id) in man.iter().enumerate() {

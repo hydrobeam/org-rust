@@ -267,7 +267,7 @@ fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
     // pretty much never going to overflow
     let post = cursor.peek(3);
 
-    let Ok(inner) = cursor.peek( 1) else {
+    let Ok(inner) = cursor.peek(1) else {
         return false;
     };
 

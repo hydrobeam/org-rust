@@ -78,6 +78,7 @@ pub(crate) fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 
+/// A range around an arbitary item.
 #[derive(Debug, Clone)]
 pub struct Match<T> {
     pub start: usize,
@@ -96,21 +97,18 @@ impl<'a, T> Match<T> {
     }
 }
 
-// pub fn variant_eq(a: Rc<RefCell<Match<Node>>>, b: &Node) -> bool {
+/// Compares variants of an enum for equality
 pub(crate) fn variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
 pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
-    // handle access this way in case of underflow
-    let before = cursor.peek_rev(1);
-
-    // pretty much never going to overflow
+    let before_maybe = cursor.peek_rev(1);
     let after_maybe = cursor.peek(1);
 
     if post {
         // if we're in post, then a character before the markup Must Exist
-        !before.unwrap().is_ascii_whitespace()
+        !before_maybe.unwrap().is_ascii_whitespace()
             && if let Ok(val) = after_maybe {
                 MARKUP_POST.contains(&val)
             } else {
@@ -118,7 +116,7 @@ pub(crate) fn verify_markup(cursor: Cursor, post: bool) -> bool {
             }
     } else if let Ok(after) = after_maybe {
         !after.is_ascii_whitespace()
-            && if let Ok(val) = before {
+            && if let Ok(val) = before_maybe {
                 MARKUP_PRE.contains(&val)
             } else {
                 // bof is always valid

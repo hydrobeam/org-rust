@@ -187,13 +187,13 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
 
                     // Lesser blocks
                     Block::Comment {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         writeln!(self, "#+begin_comment\n{}#+end_comment", contents)?;
                     }
                     Block::Example {
-                        parameters,
+                        parameters: _,
                         contents,
                     } => {
                         writeln!(self, "#+begin_example\n{}#+end_example", contents)?;
@@ -310,7 +310,7 @@ impl<'a, 'buf> Exporter<'a, 'buf> for Org<'buf> {
                 }
                 write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(inner) => {
+            Expr::Keyword(_inner) => {
                 // write!(self, "#+{}: {}", inner.key, inner.val)?;
             }
             Expr::LatexEnv(inner) => {

@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 #![allow(unused_variables)]
 
 use std::collections::HashMap;
@@ -29,12 +29,8 @@ pub(crate) mod constants {
     pub const LBRACE      : u8 = b'{';
     pub const RBRACE      : u8 = b'}';
     pub const COLON       : u8 = b':';
-    pub const X           : u8 = b'X';
     pub const SPACE       : u8 = b' ';
-    pub const TAB         : u8 = b'\t';
-    pub const AT          : u8 = b'@';
     pub const VBAR        : u8 = b'|';
-    pub const PERCENT     : u8 = b'%';
     pub const BACKSLASH   : u8 = b'\\';
     pub const CARET       : u8 = b'^';
     pub const DOLLAR      : u8 = b'$';
@@ -44,15 +40,13 @@ pub(crate) mod constants {
     pub const RANGLE      : u8 = b'>';
     pub const PERIOD      : u8 = b'.';
     pub const COMMA       : u8 = b',';
-    pub const SEMICOLON   : u8 = b';';
-    pub const EXCLAMATION : u8 = b'!';
-    pub const QUESTION    : u8 = b'?';
-    pub const DOUBLEQUOTE : u8 = b'"';
     pub const NEWLINE     : u8 = b'\n';
     pub const LPAREN      : u8 = b'(';
     pub const RPAREN      : u8 = b')';
 }
 
+/// The main entry point to the parser.
+/// Repeatedly parses elements until EOF, then returns a Parser struct.
 pub fn parse_org(input: &str) -> Parser<'_> {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
@@ -71,6 +65,7 @@ pub fn parse_org(input: &str) -> Parser<'_> {
         footnotes: HashMap::new(),
         source: input,
     };
+    // main loop
     while let Ok(id) = parse_element(&mut parser, cursor, Some(parent), parse_opts) {
         content_vec.push(id);
         cursor.move_to(parser.pool[id].end);
@@ -80,6 +75,8 @@ pub fn parse_org(input: &str) -> Parser<'_> {
     parser
 }
 
+/// An alternative entry point to the parser.
+/// Parses objects, not elements.
 pub fn parse_macro_call(input: &str) -> Parser {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
@@ -87,10 +84,9 @@ pub fn parse_macro_call(input: &str) -> Parser {
     let parent = pool.reserve_id();
     let mut content_vec: Vec<NodeID> = Vec::new();
 
-    let cache = NodeCache::new();
     let mut parser = Parser {
         pool,
-        cache,
+        cache: NodeCache::new(),
         targets: HashMap::new(),
         macros: HashMap::new(),
         keywords: HashMap::new(),

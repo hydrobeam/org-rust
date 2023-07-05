@@ -47,7 +47,7 @@ pub(crate) fn parse_element<'a>(
             }
         }
         // every element will explode if there's an indentation level
-        // except for lsits
+        // except for lists
         else {
             break;
         }
@@ -171,8 +171,6 @@ pub(crate) fn parse_element<'a>(
 macro_rules! handle_markup {
     ($name: tt, $parser: ident, $cursor: ident, $parent: ident, $parse_opts: ident) => {
         if $parse_opts.markup.contains(MarkupKind::$name) {
-            // None parent cause this
-            // FIXME: we allocate in the pool for "marker" return types,,
             if verify_markup($cursor, true) {
                 return Err(MatchError::MarkupEnd(MarkupKind::$name));
             } else {
@@ -284,7 +282,7 @@ pub(crate) fn parse_object<'a>(
                 // but we do it to send a signal to `parse_text` to stop collecting:
                 // it keeps collecting while eating InvalidLogic
                 Ok(_) | Err(MatchError::EofError) => return Err(MatchError::EofError),
-                // propogate the error backup
+                // propogate the error back up
                 ret @ Err(_) => return ret,
             }
         }

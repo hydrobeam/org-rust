@@ -1,5 +1,3 @@
-use std::mem::Discriminant;
-
 use org_exporter::Exporter;
 use org_exporter::Html;
 use org_exporter::Org;

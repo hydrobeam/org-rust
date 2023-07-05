@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::constants::COLON;
 use crate::element::PropertyDrawer;
-use crate::types::{Cursor, MatchError, Result};
+use crate::types::{Cursor, Result};
 use std::fmt::Write;
 
 #[derive(Debug, Clone)]

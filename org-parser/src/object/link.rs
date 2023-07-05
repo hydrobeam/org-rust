@@ -14,7 +14,6 @@ const ORG_LINK_PARAMETERS: [&str; 9] = [
 
 #[derive(Debug, Clone)]
 pub struct RegularLink<'a> {
-    // actually a pathreg object
     pub path: Match<PathReg<'a>>,
     // One or more objects enclosed by square brackets.
     // It can contain the minimal set of objects as well as export snippets,
@@ -272,9 +271,8 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
                 // would only get: https://abc.org
                 //
                 // if you do something like https://onea/a/aaaa/,,,,,/
-                // then i think that breaks the definition, cause the slash isn't after a non-punc char..
+                // then i think that breaks the definition, cause the slash isn't after a non-punc char,,
                 // but also if you do that then you're just being difficult.
-                //
 
                 while !cursor.peek_rev(1)?.is_ascii_alphanumeric() && cursor.peek_rev(1)? != SLASH {
                     cursor.prev();
