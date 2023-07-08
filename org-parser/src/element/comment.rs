@@ -27,18 +27,24 @@ impl<'a> Parseable<'a> for Comment<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::types::Expr;
+    use crate::{expr_in_pool, parse_org};
 
     #[test]
     fn basic_comment() {
         let inp = "# this is a comment\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+
+        let l = expr_in_pool!(parsed, Comment).unwrap();
+        assert_eq!(l.0, "this is a comment")
     }
 
     #[test]
     fn basic_comment_not() {
         let inp = "#this is not a comment";
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+        let c = expr_in_pool!(parsed, Comment);
+        assert!(c.is_none());
     }
 }

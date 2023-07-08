@@ -37,7 +37,7 @@ impl Display for PathReg<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlainLink<'a> {
     pub protocol: &'a str,
     pub path: &'a str,
@@ -353,60 +353,118 @@ pub(crate) fn parse_angle_link<'a>(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
+    use crate::expr_in_pool;
+    use crate::object::PlainLink;
     use crate::parse_org;
+    use crate::types::Expr;
 
     #[test]
     fn basic_plain_link() {
         let input = "https://swag.org";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "https",
+                path: "//swag.org"
+            }
+        )
     }
 
     #[test]
     fn plain_link_subprotocol() {
         // http and https are protocols
         let input = "http://swag.org";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "http",
+                path: "//swag.org"
+            }
+        )
     }
 
     #[test]
     fn plain_link_after() {
         let input = "http://swag.com meow";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "http",
+                path: "//swag.com"
+            }
+        )
     }
 
     #[test]
     fn plain_link_ws_end() {
         // http and https are protocols
         let input = "  mailto:swag@cool.com   ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "mailto",
+                path: "swag@cool.com"
+            }
+        )
     }
 
     #[test]
     fn plain_link_word_constituent() {
         // http and https are protocols
         let input = "  https://one_two_three_https______..............~~~!   ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "https",
+                path: "//one_two_three_https"
+            }
+        )
     }
 
     #[test]
     fn plain_link_word_constituent_slash() {
         // http and https are protocols
         let input = "  https://one_two_three_https______/..............~~~!   ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "https",
+                path: "//one_two_three_https______/"
+            }
+        )
     }
 
     #[test]
     fn basic_angle_link() {
         // http and https are protocols
         let input = "  <https://one two  !!@#!OIO DJDFK Jk> ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, PlainLink).unwrap();
+
+        assert_eq!(
+            l,
+            &PlainLink {
+                protocol: "https",
+                path: "//one two  !!@#!OIO DJDFK Jk"
+            }
+        )
     }
 
     #[test]

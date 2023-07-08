@@ -146,3 +146,29 @@ pub(crate) fn id_escape(potential_id: &str) -> String {
     }
     ret
 }
+
+#[macro_export]
+macro_rules! expr_in_pool {
+    ($parsed: ident, $name: ident) => {
+        $parsed.pool.iter().find_map(|x| {
+            if let Expr::$name(i) = &x.obj {
+                Some(i)
+            } else {
+                None
+            }
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! node_in_pool {
+    ($parsed: ident, $name: ident) => {
+        $parsed.pool.iter().find_map(|x| {
+            if let Expr::$name(i) = &x.obj {
+                Some(x)
+            } else {
+                None
+            }
+        })
+    };
+}

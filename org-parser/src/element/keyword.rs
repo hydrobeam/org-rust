@@ -4,13 +4,13 @@ use crate::parse::parse_element;
 use crate::types::{Attr, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Keyword<'a> {
     key: &'a str,
     val: &'a str,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Affiliated<'a> {
     Name(Option<NodeID>),
     Caption(Option<NodeID>, &'a str),
@@ -202,7 +202,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroDef<'a> {
     // Highest ArgNum
     pub num_args: u32,
@@ -210,7 +210,7 @@ pub struct MacroDef<'a> {
     pub name: &'a str,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArgNumOrText<'a> {
     Text(&'a str),
     ArgNum(u32),
@@ -287,35 +287,79 @@ impl<'a> MacroDef<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parse_org,
+        element::Keyword,
+        expr_in_pool, node_in_pool, parse_org,
         types::{Attr, Expr},
     };
 
     #[test]
     fn basic_keyword() {
         let inp = "#+key:val\n";
-        dbg!(parse_org(inp));
-    }
+        let parsed = parse_org(inp);
 
-    #[test]
-    fn keyword_longer() {
-        let inp = "#+intermittent:src_longerlonger\n ending here \n";
+        let k = parsed
+            .pool
+            .iter()
+            .find_map(|x| {
+                if let Expr::Keyword(k) = x.obj {
+                    Some(k)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
 
-        dbg!(parse_org(inp));
+        assert_eq!(
+            k,
+            Keyword {
+                key: "key",
+                val: "val"
+            }
+        )
     }
 
     #[test]
     fn keyword_ignore_space() {
         let inp = "#+key:                \t    \t              val\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+
+        let k = parsed
+            .pool
+            .iter()
+            .find_map(|x| {
+                if let Expr::Keyword(k) = x.obj {
+                    Some(k)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        assert_eq!(
+            k,
+            Keyword {
+                key: "key",
+                val: "val"
+            }
+        )
     }
 
     #[test]
     fn keyword_ignore_space_nl() {
         let inp = "#+key:     \nval\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+
+        let k = expr_in_pool!(parsed, Keyword).unwrap();
+
+        assert_eq!(
+            k,
+            &Keyword {
+                key: "key",
+                val: ""
+            }
+        )
     }
 
     #[test]
@@ -325,19 +369,8 @@ mod tests {
 #+attr_html: :black yes        :class :words    multiple spaces accepted
 |table
 ";
-        let pool = parse_org(input);
-        let table = &pool
-            .pool
-            .iter()
-            .find_map(|a| {
-                if let Expr::Table(table) = &a.obj {
-                    Some(a)
-                } else {
-                    None
-                }
-            })
-            .unwrap()
-            .attrs["html"];
+        let parsed = parse_org(input);
+        let table = &node_in_pool!(parsed, Table).unwrap().attrs["html"];
 
         assert_eq!(
             table,

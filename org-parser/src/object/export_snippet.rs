@@ -51,7 +51,7 @@ impl<'a> Parseable<'a> for ExportSnippet<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_org, types::Expr};
+    use crate::{expr_in_pool, parse_org, types::Expr};
 
     use super::*;
 
@@ -61,16 +61,10 @@ mod tests {
 @@:@@
 ";
 
-        let pool = parse_org(input);
-        let head = pool.pool.iter().find_map(|x| {
-            if let Expr::ExportSnippet(snip) = &x.obj {
-                Some(snip)
-            } else {
-                None
-            }
-        });
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, ExportSnippet).unwrap();
         assert_eq!(
-            head.unwrap(),
+            l,
             &ExportSnippet {
                 backend: "",
                 contents: ""
@@ -83,16 +77,10 @@ mod tests {
         let input = r"
 @@html:valuesss@@
 ";
-        let pool = parse_org(input);
-        let head = pool.pool.iter().find_map(|x| {
-            if let Expr::ExportSnippet(snip) = &x.obj {
-                Some(snip)
-            } else {
-                None
-            }
-        });
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, ExportSnippet).unwrap();
         assert_eq!(
-            head.unwrap(),
+            l,
             &ExportSnippet {
                 backend: "html",
                 contents: "valuesss"
@@ -107,14 +95,9 @@ mod tests {
 sss@@
 ";
         let pool = parse_org(input);
-        let head = pool.pool.iter().find_map(|x| {
-            if let Expr::ExportSnippet(snip) = &x.obj {
-                Some(snip)
-            } else {
-                None
-            }
-        });
-        assert!(head.is_none());
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, ExportSnippet);
+        assert!(l.is_none());
     }
 
     #[test]

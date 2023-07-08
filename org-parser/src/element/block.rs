@@ -4,7 +4,7 @@ use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use memchr::memmem;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block<'a> {
     // Greater Blocks
     Center {
@@ -273,53 +273,95 @@ impl<'a> From<BlockKind<'a>> for &'a str {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::element::Block;
+    use crate::types::Expr;
+    use crate::{expr_in_pool, parse_org};
+
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_basic_block() {
-        let inp = "#+begin_export\n#+end_export\n";
+        let input = "#+begin_export\n#+end_export\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Export {
+                parameters: None,
+                contents: r""
+            }
+        )
     }
     #[test]
     fn test_special_block() {
-        let inp = "#+begin_rainbow\n#+end_rainbow\n";
+        let input = "#+begin_rainbow\n#+end_rainbow\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Special {
+                parameters: None,
+                contents: Vec::new(),
+                name: "rainbow"
+            }
+        )
     }
     #[test]
     fn test_src_block() {
-        let inp = "#+begin_src python\n#+end_src\n";
+        let input = "#+begin_src python\n#+end_src\n";
 
-        dbg!(parse_org(inp));
-    }
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
 
-    #[test]
-    fn test_src_block_params() {
-        let inp = "#+begin_src python yay i love python\n#+end_src\n";
-
-        dbg!(parse_org(inp));
+        assert_eq!(
+            l,
+            &Block::Src {
+                parameters: Some("python"),
+                contents: ""
+            }
+        )
     }
 
     #[test]
     fn test_block_params() {
-        let inp = "#+begin_example gotta love examples\n#+end_example\n";
+        let input = "#+begin_example gotta love examples\n#+end_example\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Example {
+                parameters: Some("gotta love examples"),
+                contents: ""
+            }
+        )
     }
 
     #[test]
     fn test_lesser_block_content() {
-        let inp = "#+begin_example gotta love examples\nsmallexp\n#+end_example\n";
+        let input = "#+begin_example gotta love examples\nsmallexp\n#+end_example\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Example {
+                parameters: Some("gotta love examples"),
+                contents: "smallexp
+"
+            }
+        )
     }
 
     #[test]
-    #[rustfmt::skip]
     fn test_big_lesser_block_content() {
-        let inp =
-r"#+begin_example
+        let input = r"#+begin_example
 this is a larger example gotta love examples
 to demonstrate that it works
 string substring
@@ -329,12 +371,28 @@ one two three
 *abc*
 #+end_example
 ";
-        dbg!(parse_org(inp));
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Example {
+                parameters: None,
+                contents: r"this is a larger example gotta love examples
+to demonstrate that it works
+string substring
+big
+one two three
+/formatted text? no such thing!/
+*abc*
+"
+            }
+        )
     }
 
     #[test]
     fn test_big_greater_block_content() {
-        let inp = r"
+        let input = r"
 #+begin_quote
 
 /formatted text? such thing!/
@@ -359,7 +417,7 @@ if let Some(nested) = nest {
 ** headline :tag:meow:
 #+end_quote
 ";
-        let pool = parse_org(inp);
+        let pool = parse_org(input);
         pool.print_tree();
     }
 
@@ -377,8 +435,18 @@ here is after
 
 ";
 
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Src {
+                parameters: Some("python"),
+                contents: r"
+here is some text
+"
+            }
+        )
     }
 
     #[test]
@@ -389,8 +457,17 @@ here is after
              #+end_example
 ";
 
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Example {
+                parameters: None,
+                contents: r"             we are eating so good?
+"
+            }
+        )
     }
 
     #[test]
@@ -428,12 +505,25 @@ hiiiiiiiiiiiiiiiiiii
 
 hiiiiiiiiiiiiiiiiiii
 
-meowwwwwwwwww
+text
    #+end_src
 
 -
 ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            l,
+            &Block::Src {
+                parameters: None,
+                contents: r"
+
+hiiiiiiiiiiiiiiiiiii
+
+text
+"
+            }
+        )
     }
 }

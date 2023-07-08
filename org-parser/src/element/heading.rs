@@ -9,7 +9,7 @@ use super::{parse_property, PropertyDrawer};
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
 
 // STARS KEYWORD PRIORITY TITLE TAGS
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Heading<'a> {
     pub heading_level: HeadingLevel,
     // Org-Todo type stuff
@@ -21,7 +21,7 @@ pub struct Heading<'a> {
     pub children: Option<Vec<NodeID>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Priority {
     A,
     B,
@@ -29,12 +29,21 @@ pub enum Priority {
     Num(u8),
 }
 
-#[derive(Debug, Clone)]
+/// Headline Tag
+///
+/// ```example
+/// * head :tag:
+/// ** child :child:
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tag<'a> {
+    /// Tag unique to the individual headline.
     Raw(&'a str),
-    Loc(NodeID), // Loc refers to the parent headline
+    /// NodeID referring to the parent headline.
+    Loc(NodeID),
 }
 
+/// Enum of possible headline levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HeadingLevel {
     One,
@@ -45,8 +54,8 @@ pub enum HeadingLevel {
     Six,
 }
 
-/// Implemented not via `TryFrom` that `MatchError` can be private
-/// while keeping the struct Public
+// Implemented not via `TryFrom` so that `MatchError` can be private
+// while keeping the struct Public
 fn try_heading_levelfrom(value: usize) -> Result<HeadingLevel> {
     match value {
         1 => Ok(HeadingLevel::One),
@@ -255,13 +264,12 @@ impl<'a> Heading<'a> {
         cursor.skip_ws();
         // TODO: check if this is true
         // FIXME breaks in * [#A]EOF
-        // one digit: then idx + 4 points to a newline, this must exist
-        // two digit: idx + 4 points to RBRACK, also must exist.
 
         let end_idx;
         let ret_prio: Priority;
         cursor.word("[#")?;
 
+        // #[A] OR #[1]
         if cursor.try_curr()?.is_ascii_alphanumeric() && cursor.peek(1)? == RBRACK {
             end_idx = cursor.index + 2;
             ret_prio = match cursor.curr() {
@@ -270,7 +278,9 @@ impl<'a> Heading<'a> {
                 b'C' => Priority::C,
                 num => Priority::Num(num - 48),
             };
-        } else if cursor.curr().is_ascii_digit()
+        }
+        // #[64]
+        else if cursor.curr().is_ascii_digit()
             && cursor.peek(1)?.is_ascii_digit()
             && cursor.peek(2)? == RBRACK
         {
@@ -289,15 +299,12 @@ impl<'a> Heading<'a> {
         })
     }
 
-    // return usize is the end of where we parse the title
     fn parse_tag(mut cursor: Cursor) -> Match<Option<Vec<Tag>>> {
+        // we parse tags backwards
         let start = cursor.index;
         cursor.adv_till_byte(NEWLINE);
         let nl_loc = cursor.index;
         cursor.prev();
-
-        // might help optimize out bounds checks?
-        // assert!(temp_ind < cursor.len());
 
         while cursor.curr() == SPACE {
             cursor.prev();
@@ -352,27 +359,71 @@ impl<'a> Heading<'a> {
 mod tests {
     use std::borrow::Cow;
 
-    use crate::{element::PropertyDrawer, parse_org, types::Expr};
+    use crate::element::PropertyDrawer;
+    use crate::parse_org;
+    use crate::types::Expr;
 
+    use super::Heading;
+
+    fn get_head<'a>(input: &'a str) -> Heading<'a> {
+        parse_org(input)
+            .pool
+            .iter()
+            .find_map(|x| {
+                if let Expr::Heading(heading) = &x.obj {
+                    Some(heading)
+                } else {
+                    None
+                }
+            })
+            .cloned()
+            .unwrap()
+    }
     #[test]
     fn basic_headline() {
-        let inp = "* \n";
+        let input = "* \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: None,
+                priority: None,
+                title: None,
+                tags: None,
+                properties: None,
+                children: None,
+            }
+        )
     }
 
     #[test]
     fn headline_stars() {
-        let inp = "****  \n";
+        let input = "****  \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::Four,
+                keyword: None,
+                priority: None,
+                title: None,
+                tags: None,
+                properties: None,
+                children: None,
+            }
+        )
     }
 
     #[test]
+    #[should_panic]
     fn headline_too_many_stars() {
-        let inp = "*********  \n";
+        // panics because we'd unwrap on the case of no headings
+        let input = "*********  \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
     }
 
     #[test]
@@ -384,16 +435,40 @@ mod tests {
 
     #[test]
     fn headline_keyword() {
-        let inp = "* TODO \n";
+        let input = "* TODO \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: Some("TODO"),
+                priority: None,
+                title: None,
+                tags: None,
+                properties: None,
+                children: None,
+            }
+        )
     }
 
     #[test]
     fn headline_prio() {
-        let inp = "* [#A] \n";
+        let input = "* [#A] \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: None,
+                priority: Some(crate::element::Priority::A),
+                title: None,
+                tags: None,
+                properties: None,
+                children: None,
+            }
+        )
     }
 
     #[test]
@@ -426,9 +501,21 @@ mod tests {
 
     #[test]
     fn headline_prio_keyword() {
-        let inp = "* TODO [#A] \n";
+        let input = "* TODO [#A] \n";
 
-        dbg!(parse_org(inp));
+        let head = get_head(input);
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: Some("TODO"),
+                priority: Some(crate::element::Priority::A),
+                title: None,
+                tags: None,
+                properties: None,
+                children: None,
+            }
+        )
     }
 
     #[test]
@@ -464,7 +551,6 @@ more subcontent
 
         let pool = parse_org(inp);
         pool.print_tree();
-        // dbg!(parse_org(inp));
     }
 
     #[test]
@@ -477,16 +563,8 @@ more subcontent
 
 ";
 
-        let pool = parse_org(input);
-
-        let head = pool.pool.iter().find_map(|x| {
-            if let Expr::Heading(heading) = &x.obj {
-                Some(heading)
-            } else {
-                None
-            }
-        });
-        let got_prop = head.as_ref().unwrap().properties.as_ref().unwrap();
+        let head = get_head(input);
+        let got_prop = head.properties.as_ref().unwrap();
         assert_eq!(
             got_prop,
             &PropertyDrawer::from([("name", Cow::from("val"))])
@@ -500,16 +578,8 @@ more subcontent
 :end:
 
 ";
-        let pool = parse_org(input);
-
-        let head = pool.pool.iter().find_map(|x| {
-            if let Expr::Heading(heading) = &x.obj {
-                Some(heading)
-            } else {
-                None
-            }
-        });
-        let got_prop = head.as_ref().unwrap().properties.as_ref().unwrap();
+        let head = get_head(input);
+        let got_prop = head.properties.as_ref().unwrap();
         assert_eq!(
             got_prop,
             &PropertyDrawer::from([("name", Cow::from("val val again"))])

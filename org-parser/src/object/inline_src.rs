@@ -3,7 +3,7 @@ use crate::node_pool::NodeID;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InlineSrc<'a> {
     pub lang: &'a str,
     pub headers: Option<&'a str>,
@@ -110,21 +110,43 @@ impl<'a> InlineSrc<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::expr_in_pool;
+    use crate::object::InlineSrc;
     use crate::parse_org;
+    use crate::types::Expr;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn basic_src() {
-        let input = "src_python{cooool}";
+        let input = "src_python{neat}";
 
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, InlineSrc).unwrap();
+
+        assert_eq!(
+            l,
+            &InlineSrc {
+                lang: "python",
+                headers: None,
+                body: "neat"
+            }
+        )
     }
 
     #[test]
     fn inlinesrc_header() {
-        let input = "src_python[meow]{cooool}";
+        let input = "src_python[fun]{rad}";
 
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, InlineSrc).unwrap();
+
+        assert_eq!(
+            l,
+            &InlineSrc {
+                lang: "python",
+                headers: Some("fun"),
+                body: "rad"
+            }
+        )
     }
 }

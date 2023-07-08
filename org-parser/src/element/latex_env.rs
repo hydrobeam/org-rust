@@ -4,7 +4,7 @@ use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::NodeID;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LatexEnv<'a> {
     pub name: &'a str,
     pub contents: &'a str,
@@ -76,7 +76,7 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::{element::LatexEnv, expr_in_pool, parse_org, types::Expr};
 
     #[test]
     fn basic_latex_env() {
@@ -154,7 +154,16 @@ mod tests {
              \end{align}
 ";
 
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+
+        let l = expr_in_pool!(parsed, LatexEnv).unwrap();
+
+        assert_eq!(
+            l,
+            &LatexEnv {
+                name: "align",
+                contents: "            we are eating so good?"
+            }
+        )
     }
 }

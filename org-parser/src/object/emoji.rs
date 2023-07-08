@@ -1864,7 +1864,7 @@ static EMOJI_MAP: phf::Map<&'static str, char> = phf_map! {
 "zzz" => '💤',
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Emoji<'a> {
     pub name: &'a str,
     pub mapped_item: char,
@@ -1884,7 +1884,8 @@ impl<'a> Parseable<'a> for Emoji<'a> {
             return Err(MatchError::InvalidLogic);
         }
 
-        let moji_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
+        let moji_name_match =
+            cursor.fn_until(|chr: u8| chr.is_ascii_whitespace() || chr == COLON)?;
         cursor.index = moji_name_match.end;
         cursor.word(":")?;
 
@@ -1909,15 +1910,26 @@ pub(crate) fn parse_emoji(name: &str) -> Result<Emoji> {
 
 #[cfg(test)]
 mod tests {
+    use crate::expr_in_pool;
+    use crate::object::Emoji;
     use crate::parse_org;
+    use crate::types::Expr;
 
     #[test]
     fn basic_emoji() {
         let input = r":flushed: abc
 ";
 
-        let pool = parse_org(input);
-        dbg!(pool);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Emoji).unwrap();
+
+        assert_eq!(
+            l,
+            &Emoji {
+                name: "flushed",
+                mapped_item: '😳'
+            }
+        )
     }
 
     #[test]
@@ -1932,5 +1944,18 @@ mod tests {
     #[test]
     fn emoji_moji() {
         let input = r"* Heading baby :smirk_cat:  ";
+
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Emoji);
+        // the emoji is interpreted as a tag
+        assert!(l.is_none());
+
+        // assert_eq!(
+        //     l,
+        //     &Emoji {
+        //         name: "smirk_cat",
+        //         mapped_item: '😼'
+        //     }
+        // )
     }
 }

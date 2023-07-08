@@ -49,7 +49,7 @@ macro_rules! double_ending {
     };
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LatexFragment<'a> {
     Command {
         name: &'a str,
@@ -287,126 +287,163 @@ fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::{expr_in_pool, object::LatexFragment, parse_org, types::Expr};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn basic_latex_frag() {
-        let inp = r"\(abc\)";
+        let input = r"\(abc\)";
 
-        let pool = parse_org(inp);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(l, &LatexFragment::Inline("abc"))
     }
 
     #[test]
     fn latex_frag_display() {
-        let inp = r"\[abc\]";
+        let input = r"\[abc\]";
 
-        let pool = parse_org(inp);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(l, &LatexFragment::Display("abc"))
     }
 
     #[test]
     fn latex_frag_display_dollars() {
-        let inp = r"$$abc$$";
-        let pool = parse_org(inp);
+        let input = r"$$abc$$";
 
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
+
+        assert_eq!(l, &LatexFragment::Display("abc"))
     }
 
     #[test]
     fn latex_frag_inline_dollar() {
-        let inp = r"$abc$";
-        let pool = parse_org(inp);
+        let input = r"$abc$";
 
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
+
+        assert_eq!(l, &LatexFragment::Inline("abc"))
     }
 
     #[test]
     fn latex_frag_char_inline_dollar() {
-        let inp = r"$c$";
-        let pool = parse_org(inp);
+        let input = r"$c$";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(l, &LatexFragment::Inline("c"))
     }
 
     #[test]
     fn latex_frag_char_inline_dollar_invalid() {
-        let inp = r"$,$";
-        let pool = parse_org(inp);
+        let input = r"$,$";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment);
+        assert!(l.is_none())
 
-        pool.print_tree();
+        // not this
+        // assert_eq!(l, &LatexFragment::Inline(","))
     }
 
     #[test]
     fn latex_frag_command_1() {
-        let inp = r"\command{swag}";
-        let pool = parse_org(inp);
+        let input = r"\command{swag}";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(
+            l,
+            &LatexFragment::Command {
+                name: "command",
+                contents: Some("swag"),
+            }
+        )
     }
     #[test]
     fn latex_frag_command_2() {
-        let inp = r"\command[swag]";
-        let pool = parse_org(inp);
+        let input = r"\command[swag]";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(
+            l,
+            &LatexFragment::Command {
+                name: "command",
+                contents: Some("swag"),
+            }
+        )
     }
 
     #[test]
     fn latex_frag_command_3() {
-        let inp = r"\command no command!";
-        let pool = parse_org(inp);
+        let input = r"\command no command!";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(
+            l,
+            &LatexFragment::Command {
+                name: "command",
+                contents: None,
+            }
+        )
     }
 
     #[test]
     fn latex_frag_command_4() {
         // one backslash + invalid char => not a command!
-        let inp = r"\) not a command";
-        let pool = parse_org(inp);
+        let input = r"\) not a command";
+        let pool = parse_org(input);
 
         pool.print_tree();
     }
 
     #[test]
     fn latex_frag_newline() {
-        let inp = r"$ab
+        let input = r"$ab
 
 c$";
-        let pool = parse_org(inp);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment);
+        assert!(l.is_none())
 
-        pool.print_tree();
+        // assert_eq!(l, &LatexFragment::Inline("ab\n\nc"))
     }
 
     #[test]
     fn latex_frag_newline_2() {
-        let inp = r"\(ab
+        let input = r"\(ab
 
 c$\)";
-        let pool = parse_org(inp);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment);
+        assert!(l.is_none());
 
-        pool.print_tree();
+        // assert_eq!(l, &LatexFragment::Inline("ab\n\nc"))
     }
 
     #[test]
     fn latex_frag_newline_3() {
-        let inp = r"\(ab
+        let input = r"\(ab
 c
 con
 t
 ent
 $\)";
-        let pool = parse_org(inp);
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, LatexFragment).unwrap();
 
-        pool.print_tree();
+        assert_eq!(l, &LatexFragment::Inline("ab\nc\ncon\nt\nent\n$"))
     }
 
     #[test]
     fn latex_frag_all() {
-        let inp = r"
+        let input = r"
 $\alpha$ $$do
 llar$$
 \[display
@@ -421,7 +458,7 @@ and
 c}
 
 ";
-        let pool = parse_org(inp);
+        let pool = parse_org(input);
 
         pool.print_tree();
     }

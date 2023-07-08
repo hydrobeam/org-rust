@@ -3,7 +3,7 @@ use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroCall<'a> {
     pub name: &'a str,
     pub args: Vec<&'a str>,
@@ -102,28 +102,86 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use pretty_assertions::assert_eq;
+
+    use crate::{
+        element::{ArgNumOrText, MacroDef},
+        expr_in_pool,
+        object::MacroCall,
+        parse_org,
+        types::Expr,
+    };
 
     #[test]
     fn basic_macro() {
         let input = r"{{{abc}}}";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "abc",
+                args: Vec::new()
+            }
+        )
     }
 
     #[test]
     fn macro_with_args() {
         let input = r"{{{poem(cool, three)}}}";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "poem",
+                args: vec!["cool", " three"]
+            }
+        )
     }
 
     #[test]
     fn basic_macro_def() {
         let input = r"#+macro: poem hiii $1 $2 text
 ";
-        let pool = parse_org(input);
-        pool.print_tree();
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, MacroDef).unwrap();
+        assert_eq!(
+            l,
+            &MacroDef {
+                num_args: 2,
+                input: vec![
+                    ArgNumOrText::Text("hiii "),
+                    ArgNumOrText::ArgNum(1),
+                    ArgNumOrText::Text(" "),
+                    ArgNumOrText::ArgNum(2),
+                    ArgNumOrText::Text(" text")
+                ],
+                name: "poem"
+            }
+        )
+    }
+
+    #[test]
+    fn repeated_macro_def() {
+        let input = r"#+macro: poem $1 $1 text
+";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, MacroDef).unwrap();
+        assert_eq!(
+            l,
+            &MacroDef {
+                num_args: 1,
+                input: vec![
+                    ArgNumOrText::Text(""),
+                    ArgNumOrText::ArgNum(1),
+                    ArgNumOrText::Text(" "),
+                    ArgNumOrText::ArgNum(1),
+                    ArgNumOrText::Text(" text")
+                ],
+                name: "poem"
+            }
+        )
     }
 
     #[test]

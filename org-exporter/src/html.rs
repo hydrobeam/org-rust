@@ -1,3 +1,7 @@
+//! HTML Converter
+//!
+//! Converts the Org AST to its HTML representation.
+
 use core::fmt;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -38,6 +42,7 @@ pub struct Html<'buf> {
     footnote_ids: HashMap<NodeID, usize>,
 }
 
+/// Wrapper around strings that need to be properly HTML escaped.
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
 
 impl<'a> fmt::Display for HtmlEscape<'a> {
@@ -77,16 +82,7 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
 impl<'buf> Exporter<'buf> for Html<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
-        let parsed = parse_org(input);
-        let mut obj = Html {
-            buf: &mut buf,
-            nox: HashSet::new(),
-            footnotes: Vec::new(),
-            footnote_ids: HashMap::new(),
-        };
-
-        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&parsed)?;
+        Html::export_buf(input, &mut buf)?;
         Ok(buf)
     }
 
@@ -124,6 +120,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+        // avoid parsing this node
         if self.nox.contains(node_id) {
             return Ok(());
         }
@@ -781,15 +778,13 @@ hiii cool three text
 ",
         )?;
 
-        println!("{a}");
-        Ok(())
-    }
-
-    #[test]
-    fn defined_keyword_macro() -> Result {
-        let a = Html::export(r" {{{keyword(email)}}}")?;
-
-        println!("{a}");
+        assert_eq!(
+            a,
+            r"<p>
+hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+</p>
+"
+        );
         Ok(())
     }
 
