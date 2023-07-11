@@ -1,0 +1,20 @@
+[package]
+name = "org-rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.3.11", features = ["derive"] }
+clap_complete = "4.3.2"
+lazy_format = "2.0.0"
+org-exporter = { version = "0.1.0", path = "../org-exporter" }
+
+[build-dependencies]
+clap = { version = "4.3.11", features=["derive"]}
+clap_complete = "4.3.2"
+
+
+# [[bin]]
+# name="main"
