@@ -1,3 +1,8 @@
+//! Module containing element structures
+//!
+//! Elements are typically larger and comprise broader sections of text than objects.
+//! They include structues such as: [`Heading`], [`PlainList`], etc...
+
 mod block;
 mod comment;
 mod drawer;
@@ -33,5 +38,4 @@ pub use paragraph::Paragraph;
 pub use plain_list::ListKind;
 pub use plain_list::PlainList;
 pub use table::Table;
-pub use table::TableCell;
 pub use table::TableRow;

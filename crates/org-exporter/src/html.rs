@@ -11,13 +11,12 @@ use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
 use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
 use org_parser::parse_macro_call;
-use org_parser::types::{Expr, Node, Parser};
+use org_parser::{Expr, Node, Parser};
 
 use crate::org_macros::macro_handle;
-use crate::types::Exporter;
-use org_parser::node_pool::NodeID;
+use crate::types::{Exporter, ExporterInner};
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
-use org_parser::parse_org;
+use org_parser::{NodeID, parse_org};
 use phf::phf_set;
 
 const BACKEND_NAME: &str = "html";
@@ -32,6 +31,7 @@ static IMAGE_TYPES: phf::Set<&str> = phf_set! {
     "webp",
 };
 
+/// HTML Content Exporter
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
     // HACK: When we export a caption, insert the child id here to make sure
@@ -102,7 +102,9 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         obj.exp_footnotes(&parsed)?;
         Ok(buf)
     }
+}
 
+impl<'buf> ExporterInner<'buf> for Html<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,

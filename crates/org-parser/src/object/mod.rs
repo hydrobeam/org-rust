@@ -1,3 +1,5 @@
+//! Module containing object structures
+//!
 mod emoji;
 mod entity;
 mod export_snippet;
@@ -10,6 +12,7 @@ mod node_property;
 mod org_macro;
 mod sup_sub;
 mod target;
+mod table_cell;
 
 pub use emoji::Emoji;
 pub(crate) use entity::parse_entity;
@@ -31,3 +34,4 @@ pub use sup_sub::PlainOrRec;
 pub use sup_sub::Subscript;
 pub use sup_sub::Superscript;
 pub use target::Target;
+pub use table_cell::TableCell;

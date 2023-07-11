@@ -1,11 +1,7 @@
 use org_exporter::Exporter;
 use org_exporter::Html;
 use org_exporter::Org;
-use org_parser::node_pool::NodeID;
-use org_parser::node_pool::NodePool;
-use org_parser::parse_org;
-use org_parser::types::Expr;
-use org_parser::types::Node;
+use org_parser::{parse_org, Expr, Node, NodeID, NodePool};
 use wasm_bindgen::prelude::*;
 
 use js_sys::Int32Array;

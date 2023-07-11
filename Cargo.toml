@@ -3,6 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 default-members=["crates/org-cli"]
 
+
 [workspace.package]
 version = "0.1.0"
 rust-version = "1.70" # also change in ci.yml
@@ -10,7 +11,7 @@ authors = ["Laith Bahodi <laithbahodi@gmail.com>"]
 edition = "2021"
 homepage = "https://org-rust.pages.dev"
 repository = "https://github.com/hydrobeam/org-rust"
-readme = "README.md"
+readme = "README.org"
 license = "MIT"
 
 

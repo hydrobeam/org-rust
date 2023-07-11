@@ -4,6 +4,10 @@ use std::ops::{Index, IndexMut};
 use crate::types::{Expr, Node};
 
 #[derive(Clone, Copy, Hash, PartialEq, PartialOrd, Ord, Eq)]
+/// Identifier for [`Node`]s in a [`NodePool`].
+///
+/// NodeIDs are guaranteed to be unique to each node since they are assigned
+/// sequentially and cannot re-used.
 pub struct NodeID(u32);
 
 impl Display for NodeID {
@@ -18,6 +22,24 @@ impl std::fmt::Debug for NodeID {
     }
 }
 
+/// Arena-based container storing [`Node`]s
+///
+/// A [`NodePool`] is essentially just a [`Vec<Node>`] that is indexed by [`NodeID`]s.
+/// Each parsing construct stores [`NodeID`]s which refer to indices within the [`NodePool`].
+/// It acts like a flattened version of the AST where each node can be easily iterated over
+/// and tracked.
+///
+/// [`NodePool::iter`] and [`NodePool::iter_mut`] can be used for iterating over the contents of
+/// the pool.
+///
+/// # Safety
+///
+/// Removing or inserting an element at a position other than the end might invalidate every other NodeID
+/// and therefore the AST. Removing and de-allocating an individual [`Node`] is not possible due to
+/// this effect. However, the result can be feigned in the tree by "deleting" the node from its parent.
+/// See [`NodePool::delete_node`].
+///
+///
 #[derive(Debug)]
 pub struct NodePool<'a> {
     pub inner_vec: Vec<Node<'a>>,
@@ -88,7 +110,6 @@ impl<'a> NodePool<'a> {
     ///
     /// To be used when intending to replace the Node at the index
     /// in conjunction with `alloc_from_id`.
-    ///
     pub(crate) fn reserve_id(&mut self) -> NodeID {
         self.inner_vec.push(Node::default());
         let old_counter = self.counter;
@@ -106,22 +127,20 @@ impl<'a> NodePool<'a> {
         self.inner_vec.iter_mut()
     }
 
-    pub fn root(&self) -> &Node {
-        &self.inner_vec[0]
-    }
-
     /// Outputs a (somewhat) legible representation of the tree to stdout.
     pub fn print_tree(&self) {
         self.inner_vec[0].print_tree(self);
     }
 
-    /// Returns a `NodeID` for the first element in the pool.
+    /// Returns the [`NodeID`] of the first element in the pool.
     pub fn root_id(&self) -> NodeID {
         NodeID(0)
     }
 
-    // removes the node from its parents' "children"
-    // does /not/ actually deallocate or remove the node from the pool
+    /// Removes a [`Node`] from its parents' "children".
+    ///
+    /// This action mimicks the effect of a deletion, but does
+    /// *not* actually deallocate or remove the node from the pool.
     pub fn delete_node(&mut self, index_id: u32) {
         let par_id = self[NodeID(index_id)].parent.unwrap();
         let par_node = &mut self[par_id];

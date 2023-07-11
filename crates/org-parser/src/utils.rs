@@ -78,7 +78,7 @@ pub(crate) fn bytes_to_str(byte_arr: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(byte_arr) }
 }
 
-/// A range around an arbitary item.
+/// The range of an arbitary item in the source text.
 #[derive(Debug, Clone)]
 pub struct Match<T> {
     pub start: usize,
@@ -147,6 +147,19 @@ pub(crate) fn id_escape(potential_id: &str) -> String {
     ret
 }
 
+/// Shorthand for extracting a [`crate::Expr`] from a [`crate::Parser`].
+///
+/// # Example
+///
+/// ```rust
+/// use org_rust_parser as org_parser;
+///
+/// use org_parser::{Expr, expr_in_pool, parse_org};
+/// use org_parser::element::Heading;
+///
+/// let ret_parse = parse_org("* Hello world!\n");
+/// let heading_expr: &Heading = expr_in_pool!(ret_parse, Heading).unwrap();
+/// ```
 #[macro_export]
 macro_rules! expr_in_pool {
     ($parsed: ident, $name: ident) => {
@@ -160,6 +173,18 @@ macro_rules! expr_in_pool {
     };
 }
 
+/// Shorthand for extracting a [`crate::Node`] from a [`crate::Parser`].
+///
+/// # Example
+///
+/// ```rust
+/// use org_rust_parser as org_parser;
+///
+/// use org_parser::{Expr, node_in_pool, parse_org, Node};
+///
+/// let ret_parse = parse_org("* Hello world!\n");
+/// let heading_expr: &Node = node_in_pool!(ret_parse, Heading).unwrap();
+/// ```
 #[macro_export]
 macro_rules! node_in_pool {
     ($parsed: ident, $name: ident) => {

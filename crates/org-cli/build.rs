@@ -16,7 +16,7 @@ fn main() -> Result<(), io::Error> {
     let mut built = Cli::command();
 
     for &shell in Shell::value_variants() {
-        generate_to(shell, &mut built, "org-rust", outdir.clone())?;
+        generate_to(shell, &mut built, "org-rust", &outdir)?;
     }
 
     Ok(())

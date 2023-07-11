@@ -12,8 +12,8 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2.63"
-org-exporter = { path = "../org-exporter" }
-org-parser = { path = "../org-parser" }
+org-exporter = { path = "../org-exporter", package= "org-rust-exporter" }
+org-parser = { path = "../org-parser", package="org-rust-parser" }
 
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

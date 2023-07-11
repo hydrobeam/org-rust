@@ -1,11 +1,10 @@
 use core::fmt;
 
-use org_parser::node_pool::NodeID;
-use org_parser::types::Parser;
+use org_parser::{NodeID, Parser};
 
-/// Primary exporter trait.
+/// Trait for exporter implementations
 ///
-/// Exporting backends should implement this trait.
+/// Exporting backends must implement this trait.
 pub trait Exporter<'buf> {
     /// Writes the AST generated from the input into a `String`.
     fn export(input: &str) -> core::result::Result<String, fmt::Error>;
@@ -14,6 +13,10 @@ pub trait Exporter<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error>;
+}
+
+/// Private interface for Exporter types.
+pub(crate) trait ExporterInner<'buf> {
     /// Entry point of the exporter to handle macros.
     ///
     /// Exporting macros entails creating a new context and parsing objects,

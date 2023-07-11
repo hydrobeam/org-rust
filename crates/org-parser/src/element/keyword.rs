@@ -6,8 +6,8 @@ use crate::utils::Match;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Keyword<'a> {
-    key: &'a str,
-    val: &'a str,
+    pub key: &'a str,
+    pub val: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

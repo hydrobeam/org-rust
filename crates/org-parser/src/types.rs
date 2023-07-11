@@ -14,35 +14,83 @@ pub(crate) type Result<T> = std::result::Result<T, MatchError>;
 
 pub type NodeCache = HashMap<usize, NodeID>;
 
+/// Representation of attributes that can be attached to [`Node`]s.
+///
+/// Arbitrary nodes can be assigned attributes via [`Affiliated`] keywords:
+///
+///
+/// ```rust
+///
+/// use org_rust_parser as org_parser;
+///
+/// use org_parser::{node_in_pool, Expr, Node, parse_org, Attr};
+///
+/// let parsed = parse_org(r"
+/// #+attr_html: :one 1 :two 2
+/// * one
+/// ");
+///
+/// let heading_node = &node_in_pool!(parsed, Heading).unwrap().attrs["html"];
+///
+/// assert_eq!(
+///     heading_node,
+///     &vec![
+///         Attr {
+///             key: "one",
+///             val: "1"
+///         },
+///         Attr {
+///             key: "two",
+///             val: "2"
+///         },
+///     ]
+/// );
+/// ```
+///
+/// For
+///
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Attr<'a> {
     pub key: &'a str,
     pub val: &'a str,
 }
 
+/// The primary output of parsing.
+///
+/// While parsing, a [`Parser`] is passed to each recursive function
+/// where the output is accumulated.
+/// In addition to storing every [`Node`] of the AST in a [`NodePool`],
+/// [`Parser`] also keeps track of
+/// results from caching that may prove to be useful while working with the AST.
 #[derive(Debug)]
 pub struct Parser<'a> {
-    /// The contents of the AST
+    /// The contents of the AST represented as [`Node`]s.
     pub pool: NodePool<'a>,
     /// Cache used during the construction of the AST.
     pub(crate) cache: NodeCache,
 
-    /// target names to uuids
+    /// A map of target names to their unique uuids.
     pub targets: HashMap<&'a str, Rc<str>>,
 
     /// uuids to number of times they occur
     /// used to help ensure no duplicates are being inserted
     pub(crate) target_occurences: HashMap<Rc<str>, usize>,
 
-    /// name to macro def
+    /// A map of macro names to their corresponding [`MacroDef`]s
     pub macros: HashMap<&'a str, NodeID>,
 
-    /// basic keywords, key: val
+    /// A map storing basic the key/val content of [`Keyword`]s.
+    ///
+    /// Allows for quick access to possible values while exporting/manipulating the AST.
+    // HACK: this feels quite janky, kinda double storing Keywords?
     pub keywords: HashMap<&'a str, &'a str>,
 
-    /// footnote label to footnote definition
+    /// A map of footnote labels to [`FootnoteDef`]s.
     pub footnotes: HashMap<&'a str, NodeID>,
 
+    /// The original source text
+    ///
+    /// Useful for referencing the captured area of a [`Node`], since it stores spans.
     pub source: &'a str,
 }
 
@@ -90,7 +138,7 @@ impl<'a> Parser<'a> {
         target_id
     }
 
-    pub fn print_tree(&self) {
+    pub(crate) fn print_tree(&self) {
         self.pool.print_tree();
     }
 
@@ -165,6 +213,10 @@ impl<'a> Cursor<'a> {
         self.index = loc;
     }
 
+    /// Advance the cursor and return a copy
+    ///
+    /// Useful for when you don't want to mutate the original buffer before
+    /// passing it into a sub-parser.
     pub fn adv_copy(mut self, diff: usize) -> Self {
         self.index += diff;
         self
@@ -233,6 +285,12 @@ impl<'a> Cursor<'a> {
             + self.index;
     }
 
+    /// Query the cursor until a function is true
+    ///
+    /// The function is a type that accepts a byte and returns a boolean depending on the condition.
+    ///
+    /// Returns a [`Match`] struct representing the captured area of the
+    /// buffer and the string the test enclosed.
     pub fn fn_until(self, func: impl Fn(u8) -> bool) -> Result<Match<&'a str>> {
         let ret = self.byte_arr[self.index..]
             .iter()
@@ -247,6 +305,12 @@ impl<'a> Cursor<'a> {
         })
     }
 
+    /// Query the cursor while a function remains true
+    ///
+    /// The function is a type that accepts a byte and returns a boolean depending on the condition.
+    ///
+    /// Returns a [`Match`] struct representing the captured area of the
+    /// buffer and the string the test enclosed.
     pub fn fn_while(self, func: impl Fn(u8) -> bool) -> Result<Match<&'a str>> {
         let ret = self.byte_arr[self.index..]
             .iter()
@@ -277,7 +341,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-/// A wrapper struct around an Expr which stores important metadata.
+/// A wrapper around an [`Expr`] which stores important metadata.
 #[derive(Clone, Debug)]
 pub struct Node<'a> {
     /// The actual AST node that this Node holds.
@@ -328,7 +392,7 @@ impl<'a> Node<'a> {
     }
 }
 
-/// Enum listing all possible AST nodes
+/// An enum that represents all possible AST nodes
 #[derive(From, Clone)]
 pub enum Expr<'a> {
     // Branch

@@ -1,20 +1,23 @@
 // #![allow(dead_code)]
 #![allow(unused_variables)]
 
+pub mod element;
+pub mod object;
+
+pub(crate) mod node_pool;
+pub(crate) mod types;
+pub(crate) mod utils;
+
+mod parse;
+
+pub use node_pool::{NodeID, NodePool};
+pub use types::{Attr, Expr, Node, Parser};
+pub use utils::Match;
+
 use std::collections::HashMap;
 
-use node_pool::{NodeID, NodePool};
-use types::{Cursor, Expr, NodeCache, ParseOpts, Parser};
-
-use crate::parse::parse_element;
-use crate::parse::parse_object;
-
-pub mod element;
-pub mod node_pool;
-pub mod object;
-mod parse;
-pub mod types;
-pub(crate) mod utils;
+use parse::{parse_element, parse_object};
+use types::{Cursor, NodeCache, ParseOpts};
 
 #[rustfmt::skip]
 pub(crate) mod constants {
@@ -46,7 +49,8 @@ pub(crate) mod constants {
 }
 
 /// The main entry point to the parser.
-/// Repeatedly parses elements until EOF, then returns a Parser struct.
+///
+/// Repeatedly parses elements until EOF, then returns a [`Parser`].
 pub fn parse_org(input: &str) -> Parser<'_> {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
@@ -75,8 +79,9 @@ pub fn parse_org(input: &str) -> Parser<'_> {
     parser
 }
 
-/// An alternative entry point to the parser.
-/// Parses objects, not elements.
+/// An alternative entry point to the parser for parsing macros.
+///
+/// Unlike [`parse_org`], this function parses objects, not elements.
 pub fn parse_macro_call(input: &str) -> Parser {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();

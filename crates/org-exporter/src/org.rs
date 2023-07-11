@@ -6,14 +6,20 @@ use std::fmt::Write;
 
 use crate::org_macros::macro_handle;
 use crate::types::Exporter;
+use crate::types::ExporterInner;
 use org_parser::element::Block;
 use org_parser::element::{BulletKind, CounterKind, Priority, TableRow, Tag};
-use org_parser::node_pool::NodeID;
 
 use org_parser::object::{LatexFragment, PlainOrRec};
-use org_parser::parse_org;
-use org_parser::types::{Expr, Parser};
+use org_parser::{parse_org, Expr, Parser, NodeID};
 
+/// Org-Mode Content Exporter
+///
+/// This backend might seem a little unncessary, but it's fairly useful as a sanity check
+/// for the parser.
+///
+/// It also carries out some modifications to the source such as prettifying tables and resolving
+/// macros
 pub struct Org<'buf> {
     buf: &'buf mut dyn fmt::Write,
     indentation_level: u8,
@@ -23,14 +29,7 @@ pub struct Org<'buf> {
 impl<'buf> Exporter<'buf> for Org<'buf> {
     fn export(input: &str) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
-        let porg = parse_org(input);
-        let mut obj = Org {
-            buf: &mut buf,
-            indentation_level: 0,
-            on_newline: false,
-        };
-
-        obj.export_rec(&porg.pool.root_id(), &porg)?;
+        Org::export_buf(input, &mut buf)?;
         Ok(buf)
     }
 
@@ -48,7 +47,9 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         obj.export_rec(&porg.pool.root_id(), &porg)?;
         Ok(buf)
     }
+}
 
+impl<'buf> ExporterInner<'buf> for Org<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,

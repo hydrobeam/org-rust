@@ -273,7 +273,7 @@ pub enum CheckBox {
     Intermediate,
     /// [ ]
     Off,
-    /// [X]
+    /// \[X\]
     On,
 }
 

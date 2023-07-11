@@ -1,6 +1,6 @@
 use org_parser::element::{ArgNumOrText, MacroDef};
 use org_parser::object::MacroCall;
-use org_parser::types::{Expr, Parser};
+use org_parser::{Expr, Parser};
 use std::borrow::Cow;
 
 use crate::utils::keyword_lookup;
