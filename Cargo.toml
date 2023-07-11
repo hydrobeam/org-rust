@@ -1,9 +1,17 @@
 [workspace]
 resolver = "2"
-members = [
-"org-parser",
-"org-exporter",
-"org-wasm",
-]
+members = ["crates/*"]
+default-members=["crates/org-cli"]
+
+[workspace.package]
+version = "0.1.0"
+rust-version = "1.70" # also change in ci.yml
+authors = ["Laith Bahodi <laithbahodi@gmail.com>"]
+edition = "2021"
+homepage = "https://org-rust.pages.dev"
+repository = "https://github.com/hydrobeam/org-rust"
+readme = "README.md"
+license = "MIT"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

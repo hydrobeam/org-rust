@@ -33,8 +33,8 @@ export class ParserAdapter extends Parser {
 
   startParse(
     input: string | Input,
-    _0?: readonly TreeFragment[] | undefined,
-    _1?: readonly { from: number; to: number }[] | undefined
+    _fragments?: readonly TreeFragment[] | undefined,
+    _ranges?: readonly { from: number; to: number }[] | undefined
   ): PartialParse {
     const doc =
       typeof input === "string" ? input : input.read(0, input.length);
