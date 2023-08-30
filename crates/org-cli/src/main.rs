@@ -1,13 +1,20 @@
 use cli::Backend;
 use lazy_format::prelude::*;
 use std::fs::{read_to_string, OpenOptions};
-use std::io::{stdin, Read, Result, Write};
+use std::io::{stdin, Read, Write};
 
 use clap::Parser;
 use org_exporter::Exporter;
 mod cli;
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::parse();
     let mut input_source: String = String::new();
     let mut out = String::new();
@@ -16,9 +23,7 @@ fn main() -> Result<()> {
         None => {
             stdin().lock().read_to_string(&mut input_source)?;
         }
-        Some(file) => {
-            input_source = read_to_string(file)?;
-        }
+        Some(ref file) => input_source = read_to_string(file)?,
     }
 
     match cli.backend {
