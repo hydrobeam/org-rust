@@ -1,8 +1,20 @@
-use crate::constants::{NEWLINE, SPACE};
+use crate::constants::NEWLINE;
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use memchr::memmem;
+use regex::bytes::Regex;
+use lazy_static::lazy_static;
+
+// regexes that search for various ending tokens on a line that only contains whitespace
+lazy_static! {
+  static ref CENTER_RE  : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_center[\t ]*$") .unwrap();
+  static ref QUOTE_RE   : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_quote[\t ]*$")  .unwrap();
+  static ref COMMENT_RE : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_comment[\t ]*$").unwrap();
+  static ref EXAMPLE_RE : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_example[\t ]*$").unwrap();
+  static ref EXPORT_RE  : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_export[\t ]*$") .unwrap();
+  static ref SRC_RE     : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_src[\t ]*$")    .unwrap();
+  static ref VERSE_RE   : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_verse[\t ]*$")  .unwrap();
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block<'a> {
@@ -52,7 +64,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
-        cursor.word("#+begin_")?;
+        cursor.word("#+begin_").or_else(|_| cursor.word("#+BEGIN_"))?;
 
         let block_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
 
@@ -76,55 +88,40 @@ impl<'a> Parseable<'a> for Block<'a> {
             cursor.index = params_match.end;
         }
 
-        // have to predeclare these so that the allocated string
+        // have to predeclare these so that the allocated regex
         // doesn't go out of scope and we can still pull a reference
         // to it.
-        let alloc_str;
-        let needle;
+        let alloc_reg;
 
         // avoid an allocation for pre-known endings
-        if let Some(block_end) = block_kind.to_end() {
-            needle = block_end;
+        let re = if let Some(block_end) = block_kind.to_end() {
+            block_end
         } else {
-            alloc_str = format!("#+end_{}\n", block_name_match.obj);
-            needle = &alloc_str;
-        }
+            alloc_reg = Regex::new(&format!(
+                r"(?mi)^[ \t]*#\+end_{}[\t ]*$",
+                block_name_match.obj
+            )).unwrap();
+            &alloc_reg
+        };
 
         cursor.next();
         // Find ending cookie: #+end_{}
         // lesser blocks: clamp a string between the beginning and end
         // greater blocks: parse between the bounds
-        let mut it = memmem::find_iter(cursor.rest(), needle.as_bytes());
-        // memmem returns result at the start of the needle
+        // let re = regex::bytes::Regex::new(needle).unwrap();
+        let ret = if let Some(val) = re.find(cursor.rest()) {
+            val
+        } else {
+            Err(MatchError::InvalidLogic)?
+        };
 
-        let loc;
-        let end;
-        'l: loop {
-            // done this way to handle indented blocks,
-            // such as in the case of lists
-            if let Some(potential_loc) = it.next() {
-                // - 1 since the match is at the start of the word,
-                // which is going to be #
-                let mut moving_loc = potential_loc + cursor.index - 1;
-                while cursor[moving_loc] == SPACE {
-                    moving_loc -= 1;
-                }
-                if !cursor[moving_loc] == NEWLINE {
-                    continue 'l;
-                }
-                // end the area we're capturing on a newline
-                loc = moving_loc + 1;
-                end = potential_loc + cursor.index + needle.len();
-                break;
-            } else {
-                Err(MatchError::InvalidLogic)?
-            }
-        }
+        let loc = ret.start() + cursor.index;
+        let end = ret.end() + cursor.index;
 
         // handle empty contents
-        if cursor.index > loc {
-            cursor.index = loc;
-        }
+        // if cursor.index > loc {
+        //     cursor.index = loc;
+        // }
 
         if block_kind.is_lesser() {
             let contents = cursor.clamp_forwards(loc);
@@ -227,15 +224,15 @@ impl BlockKind<'_> {
         )
     }
 
-    fn to_end(self) -> Option<&'static str> {
+    fn to_end(self) -> Option<&'static Regex> {
         match self {
-            BlockKind::Center => Some("#+end_center\n"),
-            BlockKind::Quote => Some("#+end_quote\n"),
-            BlockKind::Comment => Some("#+end_comment\n"),
-            BlockKind::Example => Some("#+end_example\n"),
-            BlockKind::Export => Some("#+end_export\n"),
-            BlockKind::Src => Some("#+end_src\n"),
-            BlockKind::Verse => Some("#+end_verse\n"),
+            BlockKind::Center  => Some(&CENTER_RE ) ,
+            BlockKind::Quote   => Some(&QUOTE_RE  ) ,
+            BlockKind::Comment => Some(&COMMENT_RE) ,
+            BlockKind::Example => Some(&EXAMPLE_RE) ,
+            BlockKind::Export  => Some(&EXPORT_RE ) ,
+            BlockKind::Src     => Some(&SRC_RE    ) ,
+            BlockKind::Verse   => Some(&VERSE_RE  ) ,
             BlockKind::Special(_) => None,
         }
     }
@@ -524,6 +521,45 @@ hiiiiiiiiiiiiiiiiiii
 text
 "
             }
+        )
+    }
+
+    #[test]
+    fn caps() {
+        let input = r"
+#+BEGIN_VERSE
+text
+#+END_VERSE
+";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            &Block::Verse {
+                parameters: None,
+                contents: r"text
+"
+            },
+            l
+        )
+    }
+    #[test]
+    fn caps_space() {
+        let input = r"
+#+BEGIN_COMMENT
+                                                text
+                #+END_COMMENT
+";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Block).unwrap();
+
+        assert_eq!(
+            &Block::Comment {
+                parameters: None,
+                contents: r"                                                text
+"
+            },
+            l
         )
     }
 }

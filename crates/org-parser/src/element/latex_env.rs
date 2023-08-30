@@ -1,8 +1,7 @@
-use memchr::memmem;
-
 use crate::constants::{NEWLINE, RBRACE, STAR};
 use crate::node_pool::NodeID;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use regex::bytes::Regex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LatexEnv<'a> {
@@ -27,48 +26,25 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         cursor.word("}\n")?;
         let name = name_match.obj;
 
-        // \end{name}
-        let alloc_str = format!("\\end{{{name}}}\n");
-        let needle = &alloc_str;
+        let a = format!(r"(?m)^[ \t]*\\end{{{name}}}[\t ]*$");
+        // HACK: i simplt cannot figure out how to properly escape the curls in the regex.
+        // always getting hit with:
+        // error: repetition quantifier expects a valid decimal
+        let a = a.replace("{", r"\{");
+        let a = a.replace("}", r"\}");
 
-        // skip newline
-        cursor.next();
-
-        let mut it = memmem::find_iter(cursor.rest(), needle.as_bytes());
-        // returns result at the start of the needle
-        let loc;
-        let end;
-        'l: loop {
-            if let Some(potential_loc) = it.next() {
-                let mut moving_loc = potential_loc + cursor.index - 1;
-                while cursor[moving_loc] != NEWLINE {
-                    if !cursor[moving_loc].is_ascii_whitespace() {
-                        continue 'l;
-                    }
-                    moving_loc -= 1;
-                }
-                loc = moving_loc;
-                end = potential_loc + cursor.index + needle.len();
-                break;
-            } else {
-                Err(MatchError::InvalidLogic)?
-            }
-        }
-        // let loc = it.next().ok_or(MatchError::InvalidLogic)? + (name_match.end + 1);
-
-        // handle empty contents
-        if cursor.index > loc {
-            cursor.index = loc;
-        }
+        let ending_re: Regex = Regex::new(&a).unwrap();
+        let matched_reg = ending_re
+            .find_at(cursor.byte_arr, cursor.index)
+            .ok_or(MatchError::InvalidLogic)?;
 
         Ok(parser.alloc(
             Self {
                 name,
-                // + 1 to skip newline
-                contents: cursor.clamp_forwards(loc),
+                contents: cursor.clamp_forwards(matched_reg.start()),
             },
             start,
-            end,
+            matched_reg.end(),
             parent,
         ))
     }
@@ -162,7 +138,7 @@ mod tests {
             l,
             &LatexEnv {
                 name: "align",
-                contents: "            we are eating so good?"
+                contents: "             we are eating so good?\n"
             }
         )
     }

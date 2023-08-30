@@ -101,7 +101,7 @@ This isn't a big deal for non cache-able elements since they're quicker to parse
 
   Mostly a convenience crate to make it easy to create a ~Node~ from an ~Expr~.
 
-- [[https://github.com/BurntSushi/memchr][memchr]]: provides fast string search functions.
+- [[https://github.com/rust-lang/regex][regex]]: provides fast string search functions.
 
    Used in parsing block / LaTeX environments to find the ending token (~#+end_NAME~). I expect these elements to be fairly large on average, so being able to do this quickly is very good!
 
