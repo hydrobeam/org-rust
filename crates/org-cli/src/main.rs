@@ -40,10 +40,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(loc) = cli.output {
             // lazy format so the entire output isn't reallocated just before writing to a file
             let ret_str = lazy_format!(
-                r#"<!doctype html>
-<html>
-    <meta charset="utf-8"/>
-<head>
+                r#"
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  </head>
 </head>
 <body>
 {out}
