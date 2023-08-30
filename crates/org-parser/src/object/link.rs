@@ -33,6 +33,7 @@ impl Display for PathReg<'_> {
             PathReg::CustomId(inner) => f.write_fmt(format_args!("#{inner}")),
             PathReg::Coderef(inner) => f.write_fmt(format_args!("({inner})")),
             PathReg::Unspecified(inner) => f.write_fmt(format_args!("{inner}")),
+            PathReg::File(inner) => f.write_fmt(format_args!("file:{inner}")),
         }
     }
 }
@@ -55,6 +56,7 @@ pub enum PathReg<'a> {
     Id(&'a str),
     CustomId(&'a str),
     Coderef(&'a str),
+    File(&'a str),
     Unspecified(&'a str),
     // We can't determine while parsing whether we point to a headline
     // or a filename (we don't track headlines while building)
@@ -69,6 +71,13 @@ impl<'a> PathReg<'a> {
             b'i' => {
                 if let Ok(id) = PathReg::parse_id(cursor) {
                     return PathReg::Id(id);
+                } else if let Ok(link) = parse_plain_link(cursor) {
+                    return PathReg::PlainLink(link.obj);
+                }
+            }
+            b'f' => {
+                if let Ok(file_path) = PathReg::parse_file(cursor) {
+                    return PathReg::File(file_path);
                 } else if let Ok(link) = parse_plain_link(cursor) {
                     return PathReg::PlainLink(link.obj);
                 }
@@ -101,6 +110,17 @@ impl<'a> PathReg<'a> {
             if !num.is_ascii_hexdigit() || num == HYPHEN {
                 return Err(MatchError::InvalidLogic);
             }
+            cursor.next();
+        }
+
+        return Ok(cursor.clamp_backwards(begin_id));
+    }
+
+    fn parse_file(mut cursor: Cursor<'a>) -> Result<&'a str> {
+        cursor.word("file:")?;
+        let begin_id = cursor.index;
+
+        while let Ok(num) = cursor.try_curr() {
             cursor.next();
         }
 
@@ -503,5 +523,20 @@ word
         let input = " [[https://meo][cool *site* ~one two~ three *four ~five six ]]";
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn file_link() {
+
+        let input = r"
+I'll be skipping over the instrumentals unless there's reason to.
+
+[[file:bmc.jpg]]
+** songs
+";
+
+        let pool = parse_org(input);
+        pool.print_tree();
+
     }
 }

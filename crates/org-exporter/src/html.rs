@@ -16,7 +16,7 @@ use org_parser::{Expr, Node, Parser};
 use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
-use org_parser::{NodeID, parse_org};
+use org_parser::{parse_org, NodeID};
 use phf::phf_set;
 
 const BACKEND_NAME: &str = "html";
@@ -253,6 +253,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     PathReg::Coderef(_) => todo!(),
                     PathReg::Unspecified(a) => {
                         let mut rita = String::new();
+                        // see if the link is present in someone's target
                         for (match_targ, ret) in parser.targets.iter() {
                             if match_targ.starts_with(a) {
                                 rita = format!("#{ret}");
@@ -262,6 +263,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         // TODO: how to handle non-existing links
                         rita
                     }
+                    PathReg::File(a) => format!("{a}"),
                 };
                 write!(self, r#"<a href="{}">"#, HtmlEscape(&path_link))?;
                 if let Some(children) = &inner.description {
@@ -277,13 +279,24 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             Expr::Paragraph(inner) => {
                 if inner.0.len() == 1 {
                     if let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj {
-                        let link_source = link.path.to_str(parser.source);
+                        let link_source = match link.path.obj {
+                            PathReg::Unspecified(inner) => inner,
+                            PathReg::File(inner) => inner,
+                            _ => {
+                                // HACK: we just want to jump outta here, everything else doesnt make sense
+                                // in an image context
+                                ""
+                            }
+                        };
+
+                        // extract extension_type
                         let ending_tag = link_source.split('.').last();
                         if let Some(extension) = ending_tag {
                             if IMAGE_TYPES.contains(extension) {
                                 write!(self, "<figure>\n<img")?;
                                 self.prop(node)?;
                                 write!(self, r#" src="{}""#, HtmlEscape(link_source))?;
+                                // start writing alt (if there are children)
                                 write!(self, r#" alt=""#)?;
                                 if let Some(children) = &link.description {
                                     for id in children {
@@ -1138,6 +1151,37 @@ mysterious</div>
 </div>
   </div>
 </div>"##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn file_link() -> Result {
+        let a = Html::export(r"[[file:html.org][hi]]")?;
+
+        assert_eq!(
+            a,
+            r#"<p>
+<a href="html.org">hi</a>
+</p>
+"#
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn file_link_image() -> Result {
+        let a = Html::export(
+            r"
+[[file:bmc.jpg]]
+",
+        )?;
+        assert_eq!(a,
+            r#"<figure>
+<img src="bmc.jpg" alt="bmc.jpg">
+</figure>"#
         );
 
         Ok(())

@@ -55,6 +55,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
         buf: &'buf mut T,
     ) -> core::result::Result<&'buf mut T, fmt::Error> {
         let parsed = org_parser::parse_macro_call(input);
+
         let mut obj = Org {
             buf,
             indentation_level: 0,
@@ -602,6 +603,8 @@ impl<'buf> fmt::Write for Org<'buf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn basic_org_export() -> Result {
@@ -1260,6 +1263,7 @@ four
 
 four
 :end:
+
 "
         );
 
