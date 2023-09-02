@@ -28,10 +28,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.backend {
         Backend::Html => {
-            org_exporter::Html::export_buf(&input_source, &mut out).unwrap();
+            org_exporter::Html::export_buf(&input_source, &mut out)?;
         }
         Backend::Org => {
-            org_exporter::Org::export_buf(&input_source, &mut out).unwrap();
+            org_exporter::Org::export_buf(&input_source, &mut out)?;
         }
     };
 
@@ -55,7 +55,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 </html>
 "#
             );
-            let mut fs = OpenOptions::new().write(true).open(&loc)?;
+            let mut fs = OpenOptions::new().write(true).create(true).open(&loc)?;
             fs.write_fmt(format_args!("{ret_str}"))?;
         } else {
             print!("{out}");
