@@ -9,14 +9,12 @@ use std::fmt::{Result, Write};
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
+use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
-use org_parser::parse_macro_call;
-use org_parser::{Expr, Node, Parser};
+use org_parser::{parse_macro_call, Expr, Node, Parser, parse_org, NodeID};
 
 use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
-use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
-use org_parser::{parse_org, NodeID};
 use phf::phf_set;
 
 const BACKEND_NAME: &str = "html";
@@ -45,6 +43,9 @@ pub struct Html<'buf> {
 /// Wrapper around strings that need to be properly HTML escaped.
 pub(crate) struct HtmlEscape<'a>(pub &'a str);
 
+// TODO this is not appropriate for certain things (can break). i can't rememmber them atm
+// but you need to escape  more for certain stuff, it would be easier to just not use two separate htmlescapes
+// REVIEW: jetscii
 impl<'a> fmt::Display for HtmlEscape<'a> {
     // design based on:
     // https://lise-henry.github.io/articles/optimising_strings.html
@@ -89,8 +90,15 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
     fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
-    ) -> core::result::Result<&'buf mut T, fmt::Error> {
-        let parsed = parse_org(input);
+    ) -> Result {
+        let parsed: Parser<'_> = parse_org(input);
+        Html::export_tree(&parsed, buf)
+    }
+
+    fn export_tree<'inp, T: fmt::Write>(
+        parsed: &Parser,
+        buf: &'buf mut T,
+    ) -> fmt::Result {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -99,8 +107,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&parsed)?;
-        Ok(buf)
+        obj.exp_footnotes(&parsed)
     }
 }
 
@@ -108,7 +115,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
-    ) -> core::result::Result<&'buf mut T, fmt::Error> {
+    ) -> Result {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
@@ -117,8 +124,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             footnote_ids: HashMap::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        Ok(buf)
+        obj.export_rec(&parsed.pool.root_id(), &parsed)
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
@@ -657,6 +663,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
     }
 }
 
+// Writers for generic attributes
 impl<'buf> Html<'buf> {
     fn prop(&mut self, node: &Node) -> Result {
         if let Some(tag_contents) = node.id_target.as_ref() {
@@ -1178,7 +1185,8 @@ mysterious</div>
 [[file:bmc.jpg]]
 ",
         )?;
-        assert_eq!(a,
+        assert_eq!(
+            a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
 </figure>"#

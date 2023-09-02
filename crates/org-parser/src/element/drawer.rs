@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use crate::constants::{COLON, HYPHEN, NEWLINE, SPACE, UNDERSCORE};
+use crate::constants::{COLON, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::object::parse_node_property;
 use crate::parse::parse_element;

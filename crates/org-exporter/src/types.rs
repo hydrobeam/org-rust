@@ -12,7 +12,8 @@ pub trait Exporter<'buf> {
     fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
-    ) -> core::result::Result<&'buf mut T, fmt::Error>;
+    ) -> fmt::Result;
+    fn export_tree<T: fmt::Write>(parsed: &Parser, buf: &'buf mut T) -> fmt::Result;
 }
 
 /// Private interface for Exporter types.
@@ -24,7 +25,7 @@ pub(crate) trait ExporterInner<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
-    ) -> core::result::Result<&'buf mut T, fmt::Error>;
+    ) -> fmt::Result;
     /// Primary exporting routine.
     ///
     /// This method is called recursively until every `Node` in the tree is exhausted.
