@@ -17,8 +17,6 @@ use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
 use phf::phf_set;
 
-const BACKEND_NAME: &str = "html";
-
 // file types we can wrap an `img` around
 static IMAGE_TYPES: phf::Set<&str> = phf_set! {
     "jpeg",
@@ -215,7 +213,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if let Some(params) = parameters {
-                            if params.contains(BACKEND_NAME) {
+                            if params.contains(Html::backend_name()) {
                                 writeln!(self, "{contents}")?;
                             }
                         }
@@ -595,7 +593,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 }
             }
             Expr::ExportSnippet(inner) => {
-                if inner.backend == BACKEND_NAME {
+                if inner.backend == Html::backend_name() {
                     write!(self, "{}", inner.contents)?;
                 }
             }
@@ -653,16 +651,23 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 
         Ok(())
     }
+
+    fn backend_name() -> &'static str {
+        "html"
+    }
 }
 
 // Writers for generic attributes
 impl<'buf> Html<'buf> {
+    /// Adds a property
     fn prop(&mut self, node: &Node) -> Result {
+        // if the target needs an id
         if let Some(tag_contents) = node.id_target.as_ref() {
             write!(self, r#" id="{tag_contents}""#)?;
         }
 
-        if let Some(attrs) = node.attrs.get(BACKEND_NAME) {
+        // attach any keys that need to be placed
+        if let Some(attrs) = node.attrs.get(Html::backend_name()) {
             for item in attrs {
                 self.attr(item.key, item.val)?;
             }

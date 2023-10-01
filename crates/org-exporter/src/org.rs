@@ -575,6 +575,10 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
 
         Ok(())
     }
+
+    fn backend_name() -> &'static str {
+        "org"
+    }
 }
 
 impl<'buf> fmt::Write for Org<'buf> {
