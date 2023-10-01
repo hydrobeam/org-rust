@@ -106,7 +106,7 @@ impl<'a> NodePool<'a> {
         self.inner_vec.get_mut(id.0 as usize)
     }
 
-    /// Allocates a defualt Node at in index and returns its index.
+    /// Allocates a default Node at in index and returns its index.
     ///
     /// To be used when intending to replace the Node at the index
     /// in conjunction with `alloc_from_id`.

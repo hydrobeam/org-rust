@@ -4,91 +4,26 @@ This crate aims to provide parsing support for [[https://orgmode.org/][org-mode]
 The goal is to be mostly spec compliant, and allow for exporting the generated AST to other formats and applying modifications to it. View the demo at https://org-rust.pages.dev/.
 
 
-** Syntax Progress
+** Installation
 
-| Component           | Parse | Export(org) | Export(html) |
-|---------------------+-------+-------------+--------------|
-| Heading             | X     | X           | X            |
-| Section             | X     | X           | X            |
-| Plain               | X     | X           | X            |
-| Markup              | X     | X           | X            |
-| GreaterBlock        | X     | X           | X            |
-| LesserBlock         | X     | X           | ~            |
-| Keyword             | X     | X           | X            |
-| Item                | X     | X           | X            |
-| List                | X     | X           | X            |
-| Paragraph           | X     | X           | X            |
-| InlineSrcBlock      | X     | X           | X            |
-| Comment             | X     | X           | X            |
-| LaTeXFragment       | X     | X           | X            |
-| LaTeXEnvironment    | X     | X           | X            |
-| PlainLink           | X     | X           | X            |
-| AngleLink           | X     | X           | X            |
-| RegularLink         | X     | X           | X            |
-| Entity              | X     | X           | X            |
-| Table               | X     | X           | ~            |
-| Subscript           | X     | X           | X            |
-| Superscript         | X     | X           | X            |
-| Target              | X     | X           | X            |
-| Macro               | X     | ~           | ~            |
-| LineBreak           | X     | X           | X            |
-| HorizontalRule      | X     | X           | X            |
-| NodeProperty        | X     | X           | X            |
-| PropertyDrawer      | X     | ~           | ~            |
-| Drawer              | X     | X           | X            |
-| ExportSnippet       | X     | X           | X            |
-| Affiliated Keywords | X     | _           | X            |
-| FootnoteReference   | X     | X           | X            |
-| FootnoteDefinition  | X     | X           | X            |
-| RadioLink           | _     | _           | _            |
-| RadioTarget         | _     | _           | _            |
-| BabelCall           | _     | _           | _            |
-| InlineBabelCall     | _     | _           | _            |
-| Planning            | _     | _           | _            |
-| FixedWidth          | _     | _           | _            |
-| Citation            | _     | _           | _            |
-| StatisticsCookie    | _     | _           | _            |
-| Timestamp           | _     | _           | _            |
+~org-rust~ can be used as a CLI tool or as a library via the ~org-rust-parser/org-rust-exporter~ crates.
 
-* Parsing Approach
+The MSRV is 1.70.0, but may compile with earlier rust versions (untested).
 
-The parser was implemented manually without the use of parser combinator libraries to keep dependencies low and to have more flexibility with the implementation and performance.
-
-The parsing strategy is to try to (almost) consecutively apply each potential item's ~parse~ method, and determine if it returns a successful result. If the result is is not successful,
-either move on to the next available item, or the default parser.
-
-For elements, the default parser is ~Paragraph::parse~ and for objects, the default parser is ~parse_text()~.
-
-We match based on the first character to decide which item's parser to try. For example, if we match on ~#~, we'd first try ~Block::parse()~, then ~Keyword::parse()~ and so on. If we match on ~|~, we'd first try ~Table::parse()~, then move on to the default parser (~Paragraph::parse()~). This approach allows us to skip trying most of the parsing functions for a given input.
-
-The typical transition is:
-1. ~parse_org()~: entry point to the parser, runs ~parse_element~ in a loop
-2. ~parse_element()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Elements][elements]]
-3. ~Paragraph::parse()~: handles the default [[https://orgmode.org/worg/dev/org-syntax-edited.html#Paragraphs][paragraph]] element,
-4. ~parse_object()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Objects][objects]]
-5. ~parse_text()~: if no objects are recognized, interpret them as text
+*** Arch
 
 
-** Overall
+[[https://aur.archlinux.org/packages/org-rust][org-rust]] can be found on the AUR.
 
-~Parseable~ is the trait that provides the ~parse()~ method for each element/object. It returns a ~NodeID~. Corresponding to the element having been placed inside the ~NodePool~.
+#+begin_src bash
+paru -S org-rust
+#+end_src
 
-~NodePool~ is the index arena that ~Node~'s are stored in. Using an arena helps simplify lifetimes and provides easy iteration over all elements in the AST. We pass a mutable reference to the arena to each within each ~parse()~ to fill it up when needed.
+*** Cargo
 
-
-Each ~Node~ contains an ~Expr~ (which maps to an actual AST item) and additional metadata, which is useful during parsing / exporting.
-
-We take in a ~&str~ and turn it into a byte array (~&[u8]~) with a ~Cursor~. ~Cursor~ has some helpful utility functions implemented to make the parsing functions easier to write and more legible. We also avoid re-allocating the input this way.
-
-
-** Caching
-
-The parsing function we attempt to use can make significant progress into parsing, even accumulating child nodes of its own before failing (such as in the case of improperly closed markup).
-So in theory, we'd be heavily backtracking and re-parsing elements we've already seen!
-
-To avoid this, we try to cache the progress we've made within each parsing function.
-Not all progress can be cached, especially in the case of "state changes", like in a ~#+begin_src~ block where the contents aren't org.
-This isn't a big deal for non cache-able elements since they're quicker to parse.
+#+begin_src bash
+cargo install org-rust
+#+end_src
 
 
 ** Dependencies
@@ -97,7 +32,7 @@ This isn't a big deal for non cache-able elements since they're quicker to parse
 
   Extremely useful for handling markup delimiters and creating object groups (standard set, minimal set, etc...).
 
-- [[https://docs.rs/derive_more/latest/derive_more/][derive_more{from}]]: allows... deriving ~From~.
+- [[https://docs.rs/derive_more/latest/derive_more/][derive_more{from}]]: allows deriving ~From~ on a enum.
 
   Mostly a convenience crate to make it easy to create a ~Node~ from an ~Expr~.
 
@@ -107,12 +42,8 @@ This isn't a big deal for non cache-able elements since they're quicker to parse
 
 - [[https://github.com/rust-phf/rust-phf][phf]]: allows initializing compile time look up tables.
 
-   Not absolutely necessary, but makes it faster/easier to group together characters, such as those that are allowed to enclose markup delimiters, entities, etc...
+   Not absolutely necessary, but makes it faster/easier to group together characters like markup delimiters, entities, etc...
 
-* Resources
+*** Development
 
- - Helpful for understanding how a packrat parser works:
-   https://blog.bruce-hill.com/packrat-parsing-from-scratch
-
- - Motivation behind going for a flattened arena-based AST:
-   https://www.cs.cornell.edu/~asampson/blog/flattening.html
+Refer to the [[./docs][documentation]] for information about developer-specific information & syntax-progress.

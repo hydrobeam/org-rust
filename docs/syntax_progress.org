@@ -1,0 +1,49 @@
+* Syntax Progress
+
+There are points not mentioned in the spec that are pretty relevant when exporting to different formats.
+These are not covered in this table.
+
+
+| Component           | Parse | Export(org) | Export(html) |
+|---------------------+-------+-------------+--------------|
+| Heading             | X     | X           | X            |
+| Section             | X     | X           | X            |
+| Plain               | X     | X           | X            |
+| Markup              | X     | X           | X            |
+| GreaterBlock        | X     | X           | X            |
+| LesserBlock         | X     | X           | ~            |
+| Keyword             | X     | X           | X            |
+| Item                | X     | X           | X            |
+| List                | X     | X           | X            |
+| Paragraph           | X     | X           | X            |
+| InlineSrcBlock      | X     | X           | X            |
+| Comment             | X     | X           | X            |
+| LaTeXFragment       | X     | X           | X            |
+| LaTeXEnvironment    | X     | X           | X            |
+| PlainLink           | X     | X           | X            |
+| AngleLink           | X     | X           | X            |
+| RegularLink         | X     | X           | X            |
+| Entity              | X     | X           | X            |
+| Table               | X     | X           | ~            |
+| Subscript           | X     | X           | X            |
+| Superscript         | X     | X           | X            |
+| Target              | X     | X           | X            |
+| Macro               | X     | ~           | ~            |
+| LineBreak           | X     | X           | X            |
+| HorizontalRule      | X     | X           | X            |
+| NodeProperty        | X     | X           | X            |
+| PropertyDrawer      | X     | ~           | ~            |
+| Drawer              | X     | X           | X            |
+| ExportSnippet       | X     | X           | X            |
+| Affiliated Keywords | X     | _           | X            |
+| FootnoteReference   | X     | X           | X            |
+| FootnoteDefinition  | X     | X           | X            |
+| RadioLink           | _     | _           | _            |
+| RadioTarget         | _     | _           | _            |
+| BabelCall           | _     | _           | _            |
+| InlineBabelCall     | _     | _           | _            |
+| Planning            | _     | _           | _            |
+| FixedWidth          | _     | _           | _            |
+| Citation            | _     | _           | _            |
+| StatisticsCookie    | _     | _           | _            |
+| Timestamp           | _     | _           | _            |
