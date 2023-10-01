@@ -7,7 +7,7 @@ use crate::types::{Exporter, ExporterInner};
 use org_parser::element::{Block, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::object::{LatexFragment, PlainOrRec};
 
-use org_parser::{parse_org, Expr, Parser, NodeID};
+use org_parser::{parse_org, Expr, NodeID, Parser};
 
 /// Org-Mode Content Exporter
 ///
@@ -29,18 +29,12 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         Ok(buf)
     }
 
-    fn export_buf<'inp, T: fmt::Write>(
-        input: &'inp str,
-        buf: &'buf mut T,
-    ) -> fmt::Result {
+    fn export_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> fmt::Result {
         let parsed = parse_org(input);
         Org::export_tree(&parsed, buf)
     }
 
-    fn export_tree<'inp, T: fmt::Write>(
-        parsed: &Parser,
-        buf: &'buf mut T,
-    ) -> fmt::Result {
+    fn export_tree<'inp, T: fmt::Write>(parsed: &Parser, buf: &'buf mut T) -> fmt::Result {
         let mut obj = Org {
             buf,
             indentation_level: 0,
@@ -52,10 +46,7 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
 }
 
 impl<'buf> ExporterInner<'buf> for Org<'buf> {
-    fn export_macro_buf<'inp, T: fmt::Write>(
-        input: &'inp str,
-        buf: &'buf mut T,
-    ) -> fmt::Result {
+    fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> fmt::Result {
         let parsed = org_parser::parse_macro_call(input);
 
         let mut obj = Org {
@@ -609,8 +600,8 @@ impl<'buf> fmt::Write for Org<'buf> {
 mod tests {
     use super::*;
 
-    use pretty_assertions::assert_eq;
     use fmt::Result;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn basic_org_export() -> Result {

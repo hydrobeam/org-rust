@@ -23,6 +23,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
         if !cursor.curr().is_ascii_alphabetic() {
             return Err(MatchError::InvalidLogic);
         }
+
         let name_match = cursor.fn_while(|chr: u8| {
             // permitted characters
             chr.is_ascii_alphanumeric()

@@ -1,8 +1,5 @@
 use clap::CommandFactory;
-use clap_complete::{
-    generate_to,
-    Shell,
-};
+use clap_complete::{generate_to, Shell};
 use std::{env, io};
 include!("src/cli.rs");
 

@@ -2,10 +2,11 @@ use crate::constants::NEWLINE;
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
-use regex::bytes::Regex;
 use lazy_static::lazy_static;
+use regex::bytes::Regex;
 
 // regexes that search for various ending tokens on a line that only contains whitespace
+#[rustfmt::skip]
 lazy_static! {
   static ref CENTER_RE  : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_center[\t ]*$") .unwrap();
   static ref QUOTE_RE   : Regex = Regex::new(r"(?mi)^[ \t]*#\+end_quote[\t ]*$")  .unwrap();
@@ -64,7 +65,9 @@ impl<'a> Parseable<'a> for Block<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
-        cursor.word("#+begin_").or_else(|_| cursor.word("#+BEGIN_"))?;
+        cursor
+            .word("#+begin_")
+            .or_else(|_| cursor.word("#+BEGIN_"))?;
 
         let block_name_match = cursor.fn_until(|chr: u8| chr.is_ascii_whitespace())?;
 
@@ -100,7 +103,8 @@ impl<'a> Parseable<'a> for Block<'a> {
             alloc_reg = Regex::new(&format!(
                 r"(?mi)^[ \t]*#\+end_{}[\t ]*$",
                 block_name_match.obj
-            )).unwrap();
+            ))
+            .unwrap();
             &alloc_reg
         };
 
@@ -224,6 +228,7 @@ impl BlockKind<'_> {
         )
     }
 
+    #[rustfmt::skip]
     fn to_end(self) -> Option<&'static Regex> {
         match self {
             BlockKind::Center  => Some(&CENTER_RE ) ,
