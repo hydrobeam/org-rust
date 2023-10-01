@@ -50,11 +50,14 @@ impl From<PlainLink<'_>> for String {
     }
 }
 
+/// Enum representing various file types
 #[derive(Debug, Clone, Copy)]
 pub enum PathReg<'a> {
     PlainLink(PlainLink<'a>),
     Id(&'a str),
+    /// allows changing the name of the exported id
     CustomId(&'a str),
+    /// allows linking to specific lines in code blocks
     Coderef(&'a str),
     File(&'a str),
     Unspecified(&'a str),
@@ -98,7 +101,12 @@ impl<'a> PathReg<'a> {
                 }
             }
         }
-        // unspecified
+        // unspecified:
+        // We can't determine while parsing whether we point to a headline
+        // or a filename (we don't track headlines while building)
+        // leave it to the exporter.
+        // FileName(&'a Path),
+        // Fuzzy(&'a str),
         return PathReg::Unspecified(cursor.clamp_forwards(cursor.len()));
     }
 
@@ -234,23 +242,22 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
     }
 }
 
-/// Word-constituent characters are letters, digits, and the underscore.
-/// source: https://www.gnu.org/software/grep/manual/grep.html
-///
-/// REVIEW:
-/// apparently a word constituent..isn't ujndescore??
-/// https://www.gnu.org/software/emacs/manual/html_node/elisp/Syntax-Class-Table.html
-///
-/// Parts of words in human languages.
-/// These are typically used in variable and command names in programs.
-/// All upper- and lower-case letters, and the digits, are typically word constituents.
+// REVIEW:
+// apparently a word constituent..isn't undescore??
+// https://www.gnu.org/software/emacs/manual/html_node/elisp/Syntax-Class-Table.html
+// Parts of words in human languages.
+// These are typically used in variable and command names in programs.
+// All upper- and lower-case letters, and the digits, are typically word constituents.
 
 /// PROTOCOL
-/// A string which is one of the link type strings in org-link-parameters11. PATHPLAIN
+/// A string which is one of the link type strings in org-link-parameters.
 ///
+/// PATHPLAIN
 /// A string containing any non-whitespace character but (, ), <, or >.
 /// It must end with a word-constituent character,
 /// or any non-whitespace non-punctuation character followed by /.
+// Word-constituent characters are letters, digits, and the underscore.
+// source: https://www.gnu.org/software/grep/manual/grep.html
 pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink<'_>>> {
     if let Ok(pre_byte) = cursor.peek_rev(1) {
         if pre_byte.is_ascii_alphanumeric() {
@@ -282,7 +289,7 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
                 }
 
                 let last_link_byte = cursor[cursor.index - 1];
-                // if no progress was made, i.e. just PROTOCOL:
+                // if no progress was made, i.e. just PROTOCOL (https://):
 
                 // rewind until we end with an alphanumeric char or SLASH
                 //
@@ -527,7 +534,6 @@ word
 
     #[test]
     fn file_link() {
-
         let input = r"
 I'll be skipping over the instrumentals unless there's reason to.
 
@@ -537,6 +543,5 @@ I'll be skipping over the instrumentals unless there's reason to.
 
         let pool = parse_org(input);
         pool.print_tree();
-
     }
 }

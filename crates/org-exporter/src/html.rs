@@ -9,9 +9,9 @@ use std::fmt::{Result, Write};
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
-use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
-use org_parser::{parse_macro_call, Expr, Node, Parser, parse_org, NodeID};
+use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
+use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
 use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
@@ -87,18 +87,12 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         Ok(buf)
     }
 
-    fn export_buf<'inp, T: fmt::Write>(
-        input: &'inp str,
-        buf: &'buf mut T,
-    ) -> Result {
+    fn export_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> Result {
         let parsed: Parser<'_> = parse_org(input);
         Html::export_tree(&parsed, buf)
     }
 
-    fn export_tree<'inp, T: fmt::Write>(
-        parsed: &Parser,
-        buf: &'buf mut T,
-    ) -> fmt::Result {
+    fn export_tree<'inp, T: fmt::Write>(parsed: &Parser, buf: &'buf mut T) -> fmt::Result {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -112,10 +106,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
 }
 
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
-    fn export_macro_buf<'inp, T: fmt::Write>(
-        input: &'inp str,
-        buf: &'buf mut T,
-    ) -> Result {
+    fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> Result {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
@@ -288,6 +279,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         let link_source = match link.path.obj {
                             PathReg::Unspecified(inner) => inner,
                             PathReg::File(inner) => inner,
+                            PathReg::PlainLink(_) => link.path.to_str(parser.source),
                             _ => {
                                 // HACK: we just want to jump outta here, everything else doesnt make sense
                                 // in an image context
@@ -1189,6 +1181,24 @@ mysterious</div>
             a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
+</figure>"#
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn basic_link_image() -> Result {
+        let a = Html::export(
+            r"
+[[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
+",
+        )?;
+
+        assert_eq!(
+            a,
+            r#"<figure>
+<img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
 </figure>"#
         );
 
