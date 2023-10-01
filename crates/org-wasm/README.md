@@ -31,7 +31,7 @@ wasm-pack build  --release --target bundler
 Then for the site itself (output will be found at `/dist`):
 
 ```
-npm run build
+npm run deploy
 ```
 
 `/dist` can then be served as is.

@@ -18,7 +18,7 @@ let
 let parse_func = parse_dict["html"];
 
 // dict of tab views
-let view_dict = {
+const view_dict = {
   "org": document.getElementById("org"),
   "raw": document.getElementById("raw"),
   "rendered": document.getElementById("rendered"),
@@ -34,16 +34,16 @@ import images_string from "./static/images.org";
 let currElem = view_dict["rendered"];
 
 // key items in the file
-let textbox = document.getElementById("textbox");
-let views = document.querySelectorAll(".tabcontent");
-let switch_buttons = document.querySelectorAll(".tablinks");
-let contentButtons = document.querySelectorAll(".contentlinks");
+const textbox = document.getElementById("textbox");
+const views = document.querySelectorAll(".tabcontent");
+const switch_buttons = document.querySelectorAll(".tablinks");
+const contentButtons = document.querySelectorAll(".contentlinks");
 
-let vim_button = document.getElementById("vim");
+const vim_button = document.getElementById("vim");
 
-let vim_keymap = new Compartment();
+const vim_keymap = new Compartment();
 
-let throttled_reparse = throttle(reparse, 35);
+const throttled_reparse = throttle(reparse, 35);
 
 const gutterColour = getComputedStyle(document.body)
   .getPropertyValue('--gutter-colour');
@@ -72,7 +72,7 @@ const theme = EditorView.theme(
     },
   });
 
-let editor = new EditorView({
+const editor = new EditorView({
   parent: textbox,
   state: EditorState.create({
     extensions: [
@@ -93,7 +93,7 @@ let editor = new EditorView({
 })
 
 vim_button.addEventListener("click", () => {
-  let on = vim_button.checked;
+  const on = vim_button.checked;
   editor.dispatch({
     effects: vim_keymap.reconfigure(on ? vim() : [])
   })
@@ -193,7 +193,7 @@ function toggleView(name, button_name) {
 }
 
 function reparse() {
-  let result = parse_func(editor.state.doc.toString().concat("\n"));
+  const result = parse_func(editor.state.doc.toString().concat("\n"));
   // actually changing srcdoc causes extreme white flashing.
   // updating the iframe like this is much better
   if (currElem === view_dict["rendered"]) {
