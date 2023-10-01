@@ -27,6 +27,36 @@ static IMAGE_TYPES: phf::Set<&str> = phf_set! {
     "webp",
 };
 
+/// Directly convert these types when used in special blocks
+/// to named blocks, e.g.:
+///
+/// #+begin_aside
+/// #+end_aside
+///
+/// becomes
+///
+/// <aside></aside>
+static HTML5_TYPES: phf::Set<&str> = phf_set! {
+"article",
+"aside",
+"audio",
+"canvas",
+"details",
+"figcaption",
+"figure",
+"footer",
+"header",
+"menu",
+"meter",
+"nav",
+"output",
+"progress",
+"section",
+"summary",
+"video",
+"picture",
+};
+
 /// HTML Content Exporter
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
@@ -157,7 +187,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         write!(self, "<div")?;
-                        self.class("center")?;
+                        self.class("org-center")?;
                         self.prop(node)?;
                         writeln!(self, ">")?;
                         for id in contents {
@@ -182,14 +212,25 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                         name,
                     } => {
-                        write!(self, "<div")?;
-                        self.prop(node)?;
-                        self.class(name)?;
-                        writeln!(self, ">")?;
-                        for id in contents {
-                            self.export_rec(id, parser)?;
+                        // html5 names are directly converted into tags
+                        if HTML5_TYPES.contains(name) {
+                            write!(self, "<{name}")?;
+                            self.prop(node)?;
+                            writeln!(self, ">")?;
+                            for id in contents {
+                                self.export_rec(id, parser)?;
+                            }
+                            write!(self, "</{name}>")?;
+                        } else {
+                            write!(self, "<div")?;
+                            self.prop(node)?;
+                            self.class(name)?;
+                            writeln!(self, ">")?;
+                            for id in contents {
+                                self.export_rec(id, parser)?;
+                            }
+                            writeln!(self, "</div>")?;
                         }
-                        writeln!(self, "</div>")?;
                     }
 
                     // Lesser blocks
