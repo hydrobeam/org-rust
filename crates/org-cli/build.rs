@@ -19,7 +19,7 @@ fn main() -> Result<(), io::Error> {
     let man = clap_mangen::Man::new(built);
     let mut buffer: Vec<u8> = Vec::new();
     man.render(&mut buffer)?;
-    std::fs::write(std::path::PathBuf::from(outdir).join("xshot.1"), buffer)?;
+    std::fs::write(std::path::PathBuf::from(outdir).join("org-rust.1"), buffer)?;
 
     Ok(())
 }
