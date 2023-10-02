@@ -16,5 +16,10 @@ fn main() -> Result<(), io::Error> {
         generate_to(shell, &mut built, "org-rust", &outdir)?;
     }
 
+    let man = clap_mangen::Man::new(built);
+    let mut buffer: Vec<u8> = Vec::new();
+    man.render(&mut buffer)?;
+    std::fs::write(std::path::PathBuf::from(outdir).join("xshot.1"), buffer)?;
+
     Ok(())
 }

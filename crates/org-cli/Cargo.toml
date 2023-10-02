@@ -1,6 +1,6 @@
 [package]
 name = "org-rust"
-version = "0.1.3"
+version = "0.1.4"
 description = "CLI tool for converting Org-Mode documents to other formats"
 keywords = ["org-mode", "parser"]
 categories = ["command-line-utilities"]
@@ -22,6 +22,7 @@ org-exporter = { version = "0.1.1", path = "../org-exporter", package = "org-rus
 [build-dependencies]
 clap = { version = "4.3.11", features=["derive"]}
 clap_complete = "4.3.2"
+clap_mangen = "0.2.14"
 
 
 # [[bin]]
