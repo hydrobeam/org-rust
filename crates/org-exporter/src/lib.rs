@@ -32,6 +32,7 @@
 //! ```
 
 mod html;
+mod include;
 mod org;
 mod org_macros;
 mod types;
