@@ -13,6 +13,7 @@ use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
 use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
+use crate::include::include_handle;
 use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
 use phf::phf_set;
@@ -433,17 +434,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 // }
                 // write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(_) => {
-                // todo!()
-                // match inner {
-                //     Keyword::Basic { key, val } => {
-                //         if ORG_AFFILIATED_KEYWORDS.contains(key) {
-                //             todo!()
-                //         }
-                //     }
-                //     Keyword::Macro(_) => todo!(),
-                //     Keyword::Affilliated(_) => todo!(),
-                // }
+            Expr::Keyword(inner) => {
+                if inner.key.to_ascii_lowercase() == "include" {
+                    // FIXME: proper error handling
+                    include_handle(inner.val, self).unwrap();
+                }
             }
             Expr::LatexEnv(inner) => {
                 let ret = latex_to_mathml(
