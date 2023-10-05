@@ -32,6 +32,7 @@ use org_parser::element::HeadingLevel;
 
 use crate::types::ExporterInner;
 
+/// Block types that correspond directly to types within the parser.
 #[derive(Debug)]
 enum IncludeBlock<'a> {
     Export { backend: Option<&'a str> },
@@ -41,29 +42,38 @@ enum IncludeBlock<'a> {
 
 #[derive(Debug)]
 pub(crate) struct InclParams<'a> {
+    /// The file path to be included
     file: &'a Path,
+    /// Whether to surround the included file in a block. `block` being `None` implies the content will be
+    /// parsed as org.
     block: Option<IncludeBlock<'a>>,
     // TODO
     only_contents: bool,
+    /// A range of lines from the file that will be included
     lines: Option<Range<usize>>,
     // TODO
     min_level: Option<HeadingLevel>,
 }
 
 impl<'a> InclParams<'a> {
-    fn new(value: &'a str) -> Result<Self, String> {
-        // todo!("parse");
-
+    // TODO; make error handling less... weird
+    fn new(value: &'a str) -> Result<Self, Box<dyn std::error::Error>> {
+        // peekable so we don't accidentally consume :kwarg params when expecting
+        // positional arguments
         let mut params = value.split(" ").peekable();
+
         let provided_path;
         let file_chunk = params.next().ok_or("No file provided")?;
+
+        // TODO: searching through file
+        // account for search options
         if let Some((file_name, _search_opts)) = file_chunk.trim_matches('"').split_once("::") {
             provided_path = Path::new(file_name);
             eprintln!("Search options are not yet supported");
         } else {
             provided_path = Path::new(file_chunk);
         }
-        // let file_spec = ;
+
         let block: Option<IncludeBlock>;
         let is_not_kwarg = |x: &&str| !x.starts_with(':');
 
@@ -88,15 +98,17 @@ impl<'a> InclParams<'a> {
                     };
                     IncludeBlock::Src { lang }
                 }
-                _ => Err(format!("Invalid Block name {}", potential_block))?,
+                _ => Err(format!("Invalid block name {}", potential_block))?,
             })
         } else {
             None
         };
 
+        // defaults for kwargs
         let mut only_contents = false;
         let mut lines = None;
         let mut min_level = None;
+
         while let Some(kwarg) = params.next() {
             match kwarg {
                 ":only-contents" => {
@@ -121,15 +133,13 @@ impl<'a> InclParams<'a> {
                         start = if hyphen_ind == 0 {
                             0
                         } else {
-                            usize::from_str_radix(&not_kwarg[..hyphen_ind], 10)
-                                .map_err(|_| "Failed to parse string")?
+                            usize::from_str_radix(&not_kwarg[..hyphen_ind], 10)?
                         };
 
-                        end = if hyphen_ind == not_kwarg.len() {
+                        end = if hyphen_ind == (not_kwarg.len() - 1) {
                             usize::MAX
                         } else {
-                            usize::from_str_radix(&not_kwarg[(hyphen_ind + 1)..], 10)
-                                .map_err(|_| "Failed to parse string")?
+                            usize::from_str_radix(&not_kwarg[(hyphen_ind + 1)..], 10)?
                         };
 
                         lines = Some(Range { start, end });
@@ -137,7 +147,7 @@ impl<'a> InclParams<'a> {
                 }
                 ":minlevel" => {
                     if let Some(not_kwarg) = params.next_if(is_not_kwarg) {
-                        let temp = not_kwarg.parse::<usize>().map_err(|_| "Failed to parse")?;
+                        let temp = not_kwarg.parse::<usize>()?;
                         // FIXME: generalize headline level parsing with heading.rs in the parser
                         min_level = match temp {
                             1 => Some(HeadingLevel::One),
@@ -150,7 +160,7 @@ impl<'a> InclParams<'a> {
                         };
                     }
                 }
-                _ => Err(format!("Invalid parameter name {}", kwarg))?,
+                _ => Err(format!("Invalid kwarg name {}", kwarg))?,
             }
         }
 
@@ -164,12 +174,19 @@ impl<'a> InclParams<'a> {
     }
 }
 
+/// Key entrypoint to handle includes
+///
+/// - value represents the value in a keyword's key/value pair (#+key: value).
+///
+///   We parse this to extract what we want from an "#+include:"
+/// - writer is what we use to match the desired output format & write.
+///
 pub(crate) fn include_handle<'a>(
-    value_str: &str,
+    value: &str,
     writer: &mut impl ExporterInner<'a>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let ret = InclParams::new(value_str)?;
-    // little uncomfortable reding the full string in before
+    let ret = InclParams::new(value)?;
+    // REVIEW: little uncomfortable reding the full string in before
     // processing lines
     let mut out_str = read_to_string(ret.file)?;
     if let Some(lines) = ret.lines {
@@ -182,6 +199,10 @@ pub(crate) fn include_handle<'a>(
 
     let feed_str;
     let parsed;
+
+    // goal: create a string that can be parsed into our desired org object
+    // HACK: for blocks, this involves wrapping the file in a #+begin_X to be interpreted literally
+    // For org files, just parse it directly.
 
     // TODO: figure out how to not double allocate out_str
     // now it's being allocated when we read_to_string and also
