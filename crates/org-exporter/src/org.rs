@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Write;
 
+use crate::include::include_handle;
 use crate::org_macros::macro_handle;
 use crate::types::{Exporter, ExporterInner};
 use org_parser::element::{Block, BulletKind, CounterKind, Priority, TableRow, Tag};
@@ -304,8 +305,11 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 }
                 write!(self, "{{{}}}", inner.body)?;
             }
-            Expr::Keyword(_inner) => {
-                // write!(self, "#+{}: {}", inner.key, inner.val)?;
+            Expr::Keyword(inner) => {
+                if inner.key.to_ascii_lowercase() == "include" {
+                    // FIXME: proper error handling
+                    include_handle(inner.val, self).unwrap();
+                }
             }
             Expr::LatexEnv(inner) => {
                 write!(

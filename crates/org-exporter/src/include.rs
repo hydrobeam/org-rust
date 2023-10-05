@@ -23,10 +23,14 @@
 //! :args
 //! :block.
 
+use org_parser::parse_org;
+use std::fs::read_to_string;
 use std::ops::Range;
 use std::path::Path;
 
 use org_parser::element::HeadingLevel;
+
+use crate::types::ExporterInner;
 
 #[derive(Debug)]
 enum IncludeBlock<'a> {
@@ -36,11 +40,13 @@ enum IncludeBlock<'a> {
 }
 
 #[derive(Debug)]
-struct InclParams<'a> {
+pub(crate) struct InclParams<'a> {
     file: &'a Path,
     block: Option<IncludeBlock<'a>>,
+    // TODO
     only_contents: bool,
     lines: Option<Range<usize>>,
+    // TODO
     min_level: Option<HeadingLevel>,
 }
 
@@ -156,4 +162,78 @@ impl<'a> InclParams<'a> {
             min_level,
         })
     }
+}
+
+pub(crate) fn include_handle<'a>(
+    value_str: &str,
+    writer: &mut impl ExporterInner<'a>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ret = InclParams::new(value_str)?;
+    // little uncomfortable reding the full string in before
+    // processing lines
+    let mut out_str = read_to_string(ret.file)?;
+    if let Some(lines) = ret.lines {
+        out_str = out_str
+            .lines()
+            .skip(lines.start)
+            .take(lines.end - lines.start)
+            .collect();
+    }
+
+    let feed_str;
+    let parsed;
+
+    // TODO: figure out how to not double allocate out_str
+    // now it's being allocated when we read_to_string and also
+    // when we format! it in a block context.
+    if let Some(block) = ret.block {
+        match block {
+            IncludeBlock::Export { backend } => {
+                if let Some(backend) = backend {
+                    feed_str = format!(
+                        r"#+begin_export {backend}
+{out_str}
+#+end_export"
+                    );
+                } else {
+                    feed_str = format!(
+                        r"#+begin_export
+{out_str}
+#+end_export"
+                    );
+                }
+            }
+            IncludeBlock::Example => {
+                feed_str = format!(
+                    r"#+begin_example
+{out_str}
+#+end_example"
+                );
+            }
+            IncludeBlock::Src { lang } => {
+                if let Some(lang) = lang {
+                    feed_str = format!(
+                        r"#+begin_src {lang}
+{out_str}
+#+end_src"
+                    );
+                } else {
+                    feed_str = format!(
+                        r"#+begin_src
+{out_str}
+#+end_src"
+                    );
+                }
+            }
+        }
+    } else {
+        feed_str = out_str;
+    }
+    // TODO: minlevel
+    // TODO: only-contents
+
+    parsed = parse_org(&feed_str);
+    writer.export_rec(&parsed.pool.root_id(), &parsed)?;
+
+    Ok(())
 }
