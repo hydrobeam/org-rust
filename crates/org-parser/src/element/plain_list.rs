@@ -58,7 +58,12 @@ impl<'a> Parseable<'a> for PlainList {
             match &got_obj.obj {
                 Expr::Item(item) => {
                     let item_kind = find_kind(item);
+                    // makes it so that a list that encounters a different bullet list
+                    // starts a new list
                     if !variant_eq(&item_kind, &kind) {
+                        // HACK: modifying the cache directly is janky
+                        // but we need to do this so that we dont run into a cached item
+                        parser.cache.remove(&got_obj.start);
                         break;
                     } else {
                         children.push(element_id);
@@ -92,7 +97,7 @@ fn find_kind(item: &Item) -> ListKind {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::{parse_org, Expr};
 
     #[test]
     fn basic_list() {
@@ -329,5 +334,21 @@ a*
 
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn mixed_list() {
+        let input = r#"1. one
+- two
+"#;
+
+        let pool = parse_org(input);
+        assert_eq!(
+            pool.pool
+                .iter()
+                .filter(|x| matches!(x.obj, Expr::PlainList(_)))
+                .count(),
+            2
+        );
     }
 }
