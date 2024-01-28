@@ -297,8 +297,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                                 break;
                             }
                         }
-                        // TODO: how to handle non-existing links
-                        rita
+                        // if we confirmed it's not a target, just interpret the string directly
+                        //
+                        // handles the [[./hello]] case for us.
+                        // turning it into <href="./hello">
+                        if rita.is_empty() {
+                            a.to_string()
+                        } else {
+                            rita
+                        }
                     }
                     PathReg::File(a) => format!("{a}"),
                 };
@@ -1241,6 +1248,21 @@ mysterious</div>
             r#"<figure>
 <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
 </figure>"#
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn unspecified_link() -> Result {
+        let a = Html::export(r"[[./hello]]")?;
+
+        assert_eq!(
+            a,
+            r##"<p>
+<a href="./hello">./hello</a>
+</p>
+"##
         );
 
         Ok(())
