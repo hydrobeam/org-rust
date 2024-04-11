@@ -211,7 +211,7 @@ fn run() -> anyhow::Result<()> {
                             .with_cause("error in writing to destination file")
                     })?;
                 opened.write(&exported_content.as_bytes())?;
-                writeln!(stdout, " -- destination: {}", file_path.display())
+                writeln!(stdout, " -- destination: {}", full_output_path.display())
                     .map_err(|e| CliError::from(e))?;
             }
         } else {
@@ -228,6 +228,8 @@ fn run() -> anyhow::Result<()> {
                         .with_path(&file_path)
                         .with_cause("error in copying file to destination")
                 });
+                writeln!(stdout, " -- copied: {}", full_output_path.display())
+                    .map_err(|e| CliError::from(e))?;
             }
         }
 
