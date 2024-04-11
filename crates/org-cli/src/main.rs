@@ -1,20 +1,27 @@
 use lazy_format::prelude::*;
+use serde::de::IntoDeserializer;
 use std::collections::HashMap;
+use std::env::current_dir;
+use std::error::Error;
 use std::fs::{self, read_to_string, File, OpenOptions};
 use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Read, Write};
-use std::path::Path;
+use std::path::{self, Path, PathBuf};
+use utils::normalize_path;
 
 use clap::Parser;
 use org_exporter::Exporter;
+
+use thiserror::Error;
 
 use crate::cli::Backend;
 mod cli;
 mod eat;
 mod template;
+mod utils;
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("{e}");
+        eprintln!("{}", e);
         std::process::exit(1);
     }
 }
@@ -37,6 +44,31 @@ enum InpType<'a> {
 enum OutType<'a> {
     File(Box<dyn Write>),
     Dir(&'a Path),
+}
+
+#[derive(Error, Debug)]
+enum CliError {
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+    #[error("{path}: {err}")]
+    WithPath { err: Box<CliError>, path: PathBuf },
+    #[error("{cause}: {err}")]
+    WithCause { err: Box<CliError>, cause: String },
+}
+
+impl CliError {
+    fn with_path(self, path: &Path) -> Self {
+        Self::WithPath {
+            err: Box::new(self),
+            path: normalize_path(path),
+        }
+    }
+    fn with_cause(self, cause: &str) -> Self {
+        Self::WithCause {
+            err: Box::new(self),
+            cause: cause.to_string(),
+        }
+    }
 }
 
 // we only want to hold one file in memory
@@ -69,10 +101,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let src = match input_path {
         None => InpType::File(Box::new(BufReader::new(stdin().lock()))),
         Some(ref file) => {
-            // let mut fs = OpenOptions::new().write(true).create(true).open(file)?;
             let f = std::path::Path::new(file);
-
-            // let meta = std::fs::metadata(file)?;
             if f.is_dir() {
                 InpType::Dir(f)
             } else {
@@ -95,9 +124,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 //
                 // HACK: would like to open the file only when we've finished parsing.
                 InpType::File(_) => {
-                    OutType::File(Box::new(BufWriter::new(std::fs::File::open(f)?)))
+                    let opened = OpenOptions::new().create(true).write(true).open(f)?;
+                    OutType::File(Box::new(BufWriter::new(opened)))
                 }
-                InpType::Dir(_) => OutType::Dir(f),
+                InpType::Dir(_) => {
+                    if !f.exists() {
+                        std::fs::create_dir_all(f)?;
+                    }
+                    OutType::Dir(f)
+                }
             }
         }
     };
@@ -113,7 +148,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             backend.export(&parser_output, &mut exported_content)?;
 
             if let Some(template_path) = parser_output.keywords.get("template_path") {
-                // do shit
+                let prev =
+                    current_dir().map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
+                // file_path ought to exist and can't be the root since it's been read from.
+                // no error possible
+                let target_dir = file_path.parent().unwrap();
+                std::env::set_current_dir(target_dir).map_err(|e| {
+                    CliError::from(e)
+                        .with_path(target_dir)
+                        .with_cause("failed to chdir")
+                })?;
+
+                exported_content = process_template(template_path, &exported_content)?;
             }
 
             // only files are allowed if inp is a file
@@ -131,7 +177,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut dirs = vec![src_dir.to_path_buf()];
 
             while let Some(dir) = dirs.pop() {
-                for entry in fs::read_dir(dir)? {
+                for entry in fs::read_dir(&dir).map_err(|e| CliError::from(e).with_path(&dir))? {
                     let entry = entry?;
                     let path = entry.path();
                     if path.is_file() {
@@ -146,28 +192,57 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             for file_path in &paths {
-                if file_path.ends_with(".org") {
-                    let mut f = std::fs::File::open(file_path)?;
-                    let _num_bytes = f.read_to_string(&mut file_contents)?;
-                    let parser_output = org_parser::parse_org(&file_contents);
-                    backend.export(&parser_output, &mut exported_content)?;
-                    if let Some(template_path) = parser_output.keywords.get("template_path") {
-                        // do shit
-                    }
-                    match dest {
-                        // this is stdout
-                        OutType::File(ref mut f) => {
-                            f.write(&exported_content.as_bytes())?;
+                if let Some(ext) = file_path.extension() {
+                    if ext == "org" {
+                        let mut input_file = std::fs::File::open(file_path)
+                            .map_err(|e| CliError::from(e).with_path(&file_path))?;
+                        let _num_bytes =
+                            input_file.read_to_string(&mut file_contents).map_err(|e| {
+                                CliError::from(e)
+                                    .with_path(file_path)
+                                    .with_cause("failed to read input file")
+                            });
+                        let parser_output = org_parser::parse_org(&file_contents);
+                        backend.export(&parser_output, &mut exported_content)?;
+                        if let Some(template_path) = parser_output.keywords.get("template_path") {
+                            let prev = current_dir()
+                                .map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
+                            // file_path ought to exist and can't be the root since it's been read from.
+                            // no error possible
+                            let target_dir = file_path.parent().unwrap();
+                            std::env::set_current_dir(target_dir).map_err(|e| {
+                                CliError::from(e)
+                                    .with_path(target_dir)
+                                    .with_cause("failed to chdir")
+                            })?;
                         }
-                        OutType::Dir(dest_path) => {
-                            // origin: ./dest/d/e.org
-                            // goal: strip the "./dest" prefix, and append /d/e.org to the destination. use fs::create_dir_all.
-                            //
-                            // output: ./out/d/e.html
-                            let stripped_path = file_path.strip_prefix(src_dir)?;
+                        match dest {
+                            // this is stdout
+                            OutType::File(ref mut output_file) => {
+                                output_file.write(&exported_content.as_bytes())?;
+                            }
+                            OutType::Dir(dest_path) => {
+                                // origin: ./dest/d/e.org
+                                // goal: strip the "./dest" prefix, and append /d/e.org to the destination. use fs::create_dir_all.
+                                //
+                                // output: ./out/d/e.html
+                                let stripped_path = file_path.strip_prefix(src_dir)?;
 
-                            let mut full_output_path = dest_path.join(stripped_path);
-                            full_output_path.set_extension(backend.extension());
+                                let mut full_output_path = dest_path.join(stripped_path);
+                                full_output_path.set_extension(backend.extension());
+
+                                let mut opened = OpenOptions::new()
+                                    .create(true)
+                                    .write(true)
+                                    .open(&full_output_path)
+                                    .map_err(|e| {
+                                        CliError::from(e)
+                                            .with_path(&full_output_path)
+                                            .with_cause("error in writing to file")
+                                    })?;
+
+                                opened.write(&exported_content.as_bytes()).unwrap();
+                            }
                         }
                     }
                 } else {
@@ -184,57 +259,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // match backend {
-    //     Backend::Html => org_parser::parse_org(input)
-    //     Backend::Org => todo!(),
-    // }
-    // let templates : HashMap<String, Template> = process_templates(template_path);
-
-    // let export_func =
-    // match cli.backend {
-    //     None | Some(Backend::Html) => {
-    //         org_exporter::Html::export_buf(&input_source, &mut out)?;
-    //     }
-    //     Some(Backend::Org) => {
-    //         org_exporter::Org::export_buf(&input_source, &mut out)?;
-    //     }
-    // };
-    // match cli.backend {
-    //     None | Some(Backend::Html) => {
-    //         org_exporter::Html::export_buf(&input_source, &mut out)?;
-    //     }
-    //     Some(Backend::Org) => {
-    //         org_exporter::Org::export_buf(&input_source, &mut out)?;
-    //     }
-    // };
-
-    //    // add default html structure when writing html to a file
-    //     if let Backend::Html = cli.backend {
-    //         if let Some(loc) = cli.output {
-    //             // lazy format so the entire output isn't reallocated just before writing to a file
-    //             let ret_str = lazy_format!(
-    //                 r#"
-    // <!DOCTYPE html>
-    // <html lang="en">
-    //   <head>
-    //     <meta charset="UTF-8">
-    //     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    //   </head>
-    // </head>
-    // <body>
-    // {out}
-    // <body>
-    // </html>
-    // "#
-    //             );
-    //             let mut fs = OpenOptions::new().write(true).create(true).open(&loc)?;
-    //             fs.write_fmt(format_args!("{ret_str}"))?;
-    //         } else {
-    //             print!("{out}");
-    //         }
-    //     } else {
-    //         print!("{out}");
-    //     }
-
     Ok(())
+}
+
+fn process_template(template_path: &str, exported_output: &str) -> Result<String, CliError> {
+    let f = std::path::Path::new(template_path);
+    let template_contents = std::fs::read_to_string(f).map_err(|e| {
+        CliError::from(e)
+            .with_path(f)
+            .with_cause("error with opening template file")
+    })?;
+
+    // the regex is checked at compile time and won't exceed the size limits + is valid
+    let re = regex::Regex::new(r#"\{\{\{content\}\}\}"#).unwrap();
+    let a = re.replace(&template_contents, exported_output);
+
+    Ok(a.to_string())
 }
