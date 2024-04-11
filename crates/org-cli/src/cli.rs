@@ -12,18 +12,19 @@ pub struct Cli {
     #[arg(short, long, value_enum)]
     pub backend: Option<Backend>,
 
-    /// Input file path
+    /// Input path
     ///
     /// If the input is a directory, `org-rust` will walk and export every file
     /// to the output directory maintaining the directory structure.
     #[arg(value_hint = ValueHint::FilePath)]
-    pub input: Option<String>,
+    pub input: String,
 
-    /// Output file path
+    /// Output path
     ///
-    /// Outputs to stdout if not specified
+    /// The output type corresponds to the type of the input. I.e. if the input path is a file
+    /// then the output path will be a file, same for a directory.
     #[arg(short, long, value_hint = ValueHint::AnyPath)]
-    pub output: Option<String>,
+    pub output: String,
 
     /// Path to config file
     ///
