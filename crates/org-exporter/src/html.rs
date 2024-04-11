@@ -645,8 +645,8 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 Affiliated::Caption(id, contents) => {
                     if let Some(caption_id) = id {
                         writeln!(self, "<figure>")?;
-                        writeln!(self, "<figcaption>{contents}</figcaption>")?;
                         self.export_rec(caption_id, parser)?;
+                        writeln!(self, "<figcaption>{contents}</figcaption>")?;
                         writeln!(self, "</figure>")?;
                         self.nox.insert(*caption_id);
                     }

@@ -92,6 +92,7 @@ pub struct Parser<'a> {
     ///
     /// Useful for referencing the captured area of a [`Node`], since it stores spans.
     pub source: &'a str,
+    // pub errors: Vec<MatchError>,
 }
 
 impl<'a> Parser<'a> {
@@ -334,6 +335,7 @@ impl<'a> Cursor<'a> {
         self
     }
 
+    // restrict the byte array between two indices
     pub fn clamp_off(mut self, begin: usize, end: usize) -> Self {
         self.byte_arr = &self.byte_arr[begin..end];
         self.index = 0;

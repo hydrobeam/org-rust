@@ -81,7 +81,6 @@ impl<'a> NodePool<'a> {
     ///
     /// Must refer to an ID that already exists in the pool.
     /// Will panic at runtime otherwise.
-    ///
     pub(crate) fn alloc_with_id<T>(
         &mut self,
         obj: T,
@@ -141,12 +140,12 @@ impl<'a> NodePool<'a> {
     ///
     /// This action mimicks the effect of a deletion, but does
     /// *not* actually deallocate or remove the node from the pool.
-    pub fn delete_node(&mut self, index_id: u32) {
-        let par_id = self[NodeID(index_id)].parent.unwrap();
+    pub fn delete_node(&mut self, index_id: NodeID) {
+        let par_id = self[index_id].parent.unwrap();
         let par_node = &mut self[par_id];
 
         let children = par_node.obj.children_mut().unwrap();
-        let index = children.iter().position(|x| x.0 == index_id).unwrap();
+        let index = children.iter().position(|&x| x == index_id).unwrap();
         children.remove(index);
     }
 }
