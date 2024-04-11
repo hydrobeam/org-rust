@@ -46,4 +46,4 @@ cargo install org-rust
 
 *** Development
 
-Refer to the [[./docs][documentation]] for information about developer-specific information & syntax-progress.
+Refer to the [[./docs][documentation]] for developer-specific information & syntax-progress.
