@@ -149,7 +149,7 @@ fn run() -> anyhow::Result<()> {
     let mut stdout = BufWriter::new(stdout());
 
     for file_path in &paths {
-        write!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
+        writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
         if let Some(ext) = file_path.extension() {
             if ext == "org" {
                 let mut input_file = std::fs::File::open(file_path)
@@ -199,6 +199,7 @@ fn run() -> anyhow::Result<()> {
                     }
                 }
 
+                fs::create_dir_all(full_output_path.parent().unwrap())?;
                 let mut opened = OpenOptions::new()
                     .create(true)
                     .write(true)
@@ -209,28 +210,36 @@ fn run() -> anyhow::Result<()> {
                             .with_cause("error in writing to destination file")
                     })?;
                 opened.write(&exported_content.as_bytes())?;
-                writeln!(stdout, " -- destination: {}", full_output_path.display())
-                    .map_err(|e| CliError::from(e))?;
-            }
-        } else {
-            // if not org, do nothing and just copy it
-            let stripped_path = if let InpType::Dir(src_dir) = src {
-                file_path.strip_prefix(src_dir)?
+                writeln!(
+                    stdout,
+                    " -- processed: {}\n",
+                    full_output_path.canonicalize()?.display()
+                )
+                .map_err(|e| CliError::from(e))?;
             } else {
-                unreachable!()
-            };
-            if let OutType::Dir(dest_path) = dest {
-                let full_output_path = dest_path.join(stripped_path);
-                fs::copy(file_path, &full_output_path).map_err(|e| {
-                    CliError::from(e)
-                        .with_path(&file_path)
-                        .with_cause("error in copying file to destination")
-                })?;
-                writeln!(stdout, " -- copied: {}", full_output_path.display())
+                // if not org, do nothing and just copy it
+                let stripped_path = if let InpType::Dir(src_dir) = src {
+                    file_path.strip_prefix(src_dir)?
+                } else {
+                    unreachable!()
+                };
+                if let OutType::Dir(dest_path) = dest {
+                    let full_output_path = dest_path.join(stripped_path);
+                    fs::create_dir_all(full_output_path.parent().unwrap())?;
+                    fs::copy(file_path, &full_output_path).map_err(|e| {
+                        CliError::from(e)
+                            .with_path(&file_path)
+                            .with_cause("error in copying file to destination")
+                    })?;
+                    writeln!(
+                        stdout,
+                        " -- copied: {}\n",
+                        &full_output_path.canonicalize()?.display()
+                    )
                     .map_err(|e| CliError::from(e))?;
+                }
             }
         }
-
         file_contents.clear();
     }
 
