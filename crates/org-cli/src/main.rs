@@ -38,7 +38,7 @@ enum CliError {
     Io(#[from] std::io::Error),
     #[error("{path}: {err}")]
     WithPath { err: Box<CliError>, path: PathBuf },
-    #[error("{cause}: {err}")]
+    #[error("{cause}.\n{err}")]
     WithCause { err: Box<CliError>, cause: String },
 }
 
@@ -173,7 +173,8 @@ fn run() -> anyhow::Result<()> {
                             .with_cause("failed to chdir")
                     })?;
 
-                    exported_content = process_template(template_path, &exported_content)?;
+                    exported_content =
+                        process_template(template_path, &exported_content, &parser_output)?;
                     std::env::set_current_dir(prev)
                         .map_err(|e| CliError::from(e).with_cause("failed to chdir"))?;
                 }
@@ -200,9 +201,11 @@ fn run() -> anyhow::Result<()> {
                 }
 
                 fs::create_dir_all(full_output_path.parent().unwrap())?;
+                // truncate is needed to fully overwrite file contents
                 let mut opened = OpenOptions::new()
                     .create(true)
                     .write(true)
+                    .truncate(true)
                     .open(&full_output_path)
                     .map_err(|e| {
                         CliError::from(e)
@@ -246,17 +249,77 @@ fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn process_template(template_path: &str, exported_output: &str) -> Result<String, CliError> {
+fn process_template(
+    template_path: &str,
+    exported_output: &str,
+    parser: &org_parser::Parser,
+) -> Result<String, CliError> {
     let f = std::path::Path::new(template_path);
-    let template_contents = std::fs::read_to_string(f).map_err(|e| {
+    let mut template_contents = std::fs::read_to_string(f).map_err(|e| {
         CliError::from(e)
             .with_path(f)
             .with_cause("error with opening template file")
     })?;
 
     // the regex is checked at compile time and won't exceed the size limits + is valid
-    let re = regex::Regex::new(r#"\{\{\{content\}\}\}"#).unwrap();
-    let a = re.replace(&template_contents, exported_output);
+    let re = regex::Regex::new(r#"\{\{\{(.*)\}\}\}"#).unwrap();
 
-    Ok(a.to_string())
+    let mut matches = Vec::new();
+    for hmm in re.captures_iter(&template_contents) {
+        if let Some(res) = hmm.get(1) {
+            // we expand the range of the capture to include the {{{}}}
+            // to be replaced in the next step
+            let start = res.start() - 3;
+            let end = res.end() + 3;
+            let extract = res.as_str();
+            matches.push(dbg!(start, end, extract.to_owned()));
+        }
+    }
+    // process: we take all our matches and replace them with their respective hits as needed.
+    // however, the indices change as we replace a section of the original string, so we keep
+    // track of an offset which determines how much the start/end indicies must be adjusted
+    //
+    // demo:
+    // {{{a}}} -> hi.         the new string is smaller, so offset is decreased.
+    // {{{a}}} -> long-string the new string is larger, so offset is increased
+    //
+    // REVIEW: this process is probably very slow, maybe a faster solution?
+    let mut offset: isize = 0;
+
+    // offset calculators
+    let mut diff;
+    let mut old_len;
+    let mut new_len = 0;
+
+    for (start, end, extract) in matches {
+        // "content" is a special case keyword
+        let start = (start as isize + offset) as usize;
+        let end = (end as isize + offset) as usize;
+
+        if extract == "content" {
+            template_contents.replace_range(start..end, exported_output);
+            new_len = exported_output.len();
+        } else {
+            // &* needed because: https://stackoverflow.com/a/65550108
+            if let Some(val) = parser.keywords.get(&*extract) {
+                template_contents.replace_range(start..end, val);
+                new_len = val.len();
+            } else {
+                eprintln!(r#"warning: "{}" not found in keywords"#, extract)
+            }
+        }
+
+        // 6 from {{{}}}
+        old_len = 6 + extract.len();
+        diff = old_len.abs_diff(new_len);
+        if old_len > new_len {
+            // got smaller
+            offset -= diff as isize;
+        } else {
+            // got bigger
+            offset += diff as isize;
+        }
+    }
+
+    Ok(template_contents)
 }

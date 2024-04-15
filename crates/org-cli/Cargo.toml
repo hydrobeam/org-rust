@@ -1,6 +1,6 @@
 [package]
 name = "org-rust"
-version = "0.1.7"
+version = "0.1.8"
 description = "CLI tool for converting Org-Mode documents to other formats"
 keywords = ["org-mode", "parser"]
 categories = ["command-line-utilities"]
