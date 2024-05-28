@@ -364,12 +364,12 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 }
                 write!(self, "<p")?;
                 self.prop(node)?;
-                writeln!(self, ">")?;
+                write!(self, ">")?;
 
                 for id in &inner.0 {
                     self.export_rec(id, parser)?;
                 }
-                writeln!(self, "\n</p>")?;
+                writeln!(self, "</p>")?;
             }
 
             Expr::Italic(inner) => {
