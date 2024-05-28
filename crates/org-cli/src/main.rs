@@ -272,7 +272,7 @@ fn process_template(
             let start = res.start() - 3;
             let end = res.end() + 3;
             let extract = res.as_str();
-            matches.push(dbg!(start, end, extract.to_owned()));
+            matches.push((start, end, extract.to_owned()));
         }
     }
     // process: we take all our matches and replace them with their respective hits as needed.
