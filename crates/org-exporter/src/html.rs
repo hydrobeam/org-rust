@@ -70,12 +70,12 @@ pub struct Html<'buf> {
 }
 
 /// Wrapper around strings that need to be properly HTML escaped.
-pub(crate) struct HtmlEscape<'a>(pub &'a str);
+pub(crate) struct HtmlEscape<S: AsRef<str>>(pub S);
 
 // TODO this is not appropriate for certain things (can break). i can't rememmber them atm
 // but you need to escape  more for certain stuff, it would be easier to just not use two separate htmlescapes
 // REVIEW: jetscii
-impl<'a> fmt::Display for HtmlEscape<'a> {
+impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
     // design based on:
     // https://lise-henry.github.io/articles/optimising_strings.html
     // we can iterate over bytes since it's not possible for
@@ -91,12 +91,13 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
         // there are invariants in the parsing (i hope) that should make
         // using memchr3 okay. if not, consider using jetscii for more byte blasting
 
-        let escape_bytes = memchr3_iter(b'<', b'&', b'>', self.0.as_bytes());
+        let v = self.0.as_ref();
+        let escape_bytes = memchr3_iter(b'<', b'&', b'>', v.as_bytes());
 
         for ret in escape_bytes {
-            write!(f, "{}", &self.0[prev_pos..ret])?;
+            write!(f, "{}", &v[prev_pos..ret])?;
 
-            match self.0.as_bytes()[ret] {
+            match v.as_bytes()[ret] {
                 b'<' => write!(f, r"&lt;")?,
                 b'>' => write!(f, r"&gt;")?,
                 b'&' => write!(f, r"&amp;")?,
@@ -105,7 +106,7 @@ impl<'a> fmt::Display for HtmlEscape<'a> {
             prev_pos = ret + 1;
         }
 
-        write!(f, "{}", &self.0[prev_pos..])
+        write!(f, "{}", &v[prev_pos..])
     }
 }
 
@@ -283,7 +284,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 }
             }
             Expr::RegularLink(inner) => {
-                let path_link: String = match inner.path.obj {
+                let path_link: String = match &inner.path.obj {
                     PathReg::PlainLink(a) => a.into(),
                     PathReg::Id(a) => format!("#{a}"),
                     PathReg::CustomId(a) => format!("#{a}"),
@@ -292,7 +293,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         let mut rita = String::new();
                         // see if the link is present in someone's target
                         for (match_targ, ret) in parser.targets.iter() {
-                            if match_targ.starts_with(a) {
+                            if match_targ.starts_with(a.as_ref()) {
                                 rita = format!("#{ret}");
                                 break;
                             }
@@ -323,14 +324,14 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             Expr::Paragraph(inner) => {
                 if inner.0.len() == 1 {
                     if let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj {
-                        let link_source = match link.path.obj {
+                        let link_source: &str = match &link.path.obj {
                             PathReg::Unspecified(inner) => inner,
                             PathReg::File(inner) => inner,
                             PathReg::PlainLink(_) => link.path.to_str(parser.source),
                             _ => {
                                 // HACK: we just want to jump outta here, everything else doesnt make sense
                                 // in an image context
-                                ""
+                                "".into()
                             }
                         };
 
@@ -348,11 +349,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                                         self.export_rec(id, parser)?;
                                     }
                                 } else {
-                                    let alt_text =
+                                    let alt_text: Cow<str> =
                                         if let Some(slashed) = link_source.split('/').last() {
-                                            slashed
+                                            slashed.into()
                                         } else {
-                                            link_source
+                                            link_source.into()
                                         };
                                     write!(self, "{}", HtmlEscape(alt_text))?;
                                 }

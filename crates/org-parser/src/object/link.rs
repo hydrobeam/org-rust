@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::constants::{
@@ -38,20 +39,20 @@ impl Display for PathReg<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlainLink<'a> {
-    pub protocol: &'a str,
-    pub path: &'a str,
+    pub protocol: Cow<'a, str>,
+    pub path: Cow<'a, str>,
 }
 
-impl From<PlainLink<'_>> for String {
-    fn from(value: PlainLink) -> Self {
+impl From<&PlainLink<'_>> for String {
+    fn from(value: &PlainLink) -> Self {
         format!("{}:{}", value.protocol, value.path)
     }
 }
 
 /// Enum representing various file types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PathReg<'a> {
     PlainLink(PlainLink<'a>),
     Id(&'a str),
@@ -59,8 +60,8 @@ pub enum PathReg<'a> {
     CustomId(&'a str),
     /// allows linking to specific lines in code blocks
     Coderef(&'a str),
-    File(&'a str),
-    Unspecified(&'a str),
+    File(Cow<'a, str>),
+    Unspecified(Cow<'a, str>),
     // We can't determine while parsing whether we point to a headline
     // or a filename (we don't track headlines while building)
     // leave it to the exporter.
@@ -80,7 +81,7 @@ impl<'a> PathReg<'a> {
             }
             b'f' => {
                 if let Ok(file_path) = PathReg::parse_file(cursor) {
-                    return PathReg::File(file_path);
+                    return PathReg::File(file_path.into());
                 } else if let Ok(link) = parse_plain_link(cursor) {
                     return PathReg::PlainLink(link.obj);
                 }
@@ -107,7 +108,7 @@ impl<'a> PathReg<'a> {
         // leave it to the exporter.
         // FileName(&'a Path),
         // Fuzzy(&'a str),
-        return PathReg::Unspecified(cursor.clamp_forwards(cursor.len()));
+        return PathReg::Unspecified(cursor.clamp_forwards(cursor.len()).into());
     }
 
     fn parse_id(mut cursor: Cursor<'a>) -> Result<&'a str> {
@@ -317,8 +318,8 @@ pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink
                         start,
                         end: cursor.index,
                         obj: PlainLink {
-                            protocol,
-                            path: cursor.clamp_backwards(path_start),
+                            protocol: protocol.into(),
+                            path: cursor.clamp_backwards(path_start).into(),
                         },
                     });
                 } else {
@@ -362,8 +363,8 @@ pub(crate) fn parse_angle_link<'a>(
 
                 return Ok(parser.alloc(
                     PlainLink {
-                        protocol,
-                        path: cursor.clamp_backwards(path_start),
+                        protocol: protocol.into(),
+                        path: cursor.clamp_backwards(path_start).into(),
                     },
                     start,
                     cursor.index + 1, // skip rangle
@@ -395,8 +396,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "https",
-                path: "//swag.org"
+                protocol: "https".into(),
+                path: "//swag.org".into()
             }
         )
     }
@@ -410,8 +411,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "http",
-                path: "//swag.org"
+                protocol: "http".into(),
+                path: "//swag.org".into()
             }
         )
     }
@@ -424,8 +425,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "http",
-                path: "//swag.com"
+                protocol: "http".into(),
+                path: "//swag.com".into()
             }
         )
     }
@@ -440,8 +441,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "mailto",
-                path: "swag@cool.com"
+                protocol: "mailto".into(),
+                path: "swag@cool.com".into()
             }
         )
     }
@@ -456,8 +457,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "https",
-                path: "//one_two_three_https"
+                protocol: "https".into(),
+                path: "//one_two_three_https".into()
             }
         )
     }
@@ -472,8 +473,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "https",
-                path: "//one_two_three_https______/"
+                protocol: "https".into(),
+                path: "//one_two_three_https______/".into()
             }
         )
     }
@@ -488,8 +489,8 @@ mod tests {
         assert_eq!(
             l,
             &PlainLink {
-                protocol: "https",
-                path: "//one two  !!@#!OIO DJDFK Jk"
+                protocol: "https".into(),
+                path: "//one two  !!@#!OIO DJDFK Jk".into()
             }
         )
     }
