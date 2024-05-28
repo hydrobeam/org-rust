@@ -1,4 +1,5 @@
 use anyhow::bail;
+use std::borrow::Cow;
 use std::env::current_dir;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
@@ -262,18 +263,29 @@ fn process_template(
             // we expand the range of the capture to include the {{{}}}
             let start = res.start() - 3;
             let end = res.end() + 3;
-            let extract = res.as_str();
-            let kw: &str;
+            let mut extract = res.as_str();
+            let kw: Cow<str>;
 
             if extract == "content" {
-                kw = exported_content;
+                kw = exported_content.into();
             } else {
+                let mut default_val = None;
+                if let Some(ind) = extract.find('|') {
+                    let (left, right) = extract.split_at(ind + 1);
+                    extract = left;
+                    default_val = Some(right);
+                }
+
                 // &* needed because: https://stackoverflow.com/a/65550108
-                kw = if let Some(val) = parser.keywords.get(&*extract) {
-                    val
+                kw = if let Some(&val) = parser.keywords.get(&*extract) {
+                    val.into()
                 } else {
-                    eprintln!(r#"warning: "{}" not found in keywords"#, extract);
-                    ""
+                    if let Some(val) = default_val {
+                        val.to_owned().into()
+                    } else {
+                        eprintln!(r#"warning: "{}" not found in keywords"#, extract);
+                        "".into()
+                    }
                 };
             }
             matches.push((start, end, kw));
@@ -300,7 +312,7 @@ fn process_template(
         let start = (start as isize + offset) as usize;
         let end = (end as isize + offset) as usize;
 
-        template_contents.replace_range(start..end, kw);
+        template_contents.replace_range(start..end, &kw);
 
         // old_len is length of extract + 6 from {{{}}}
         old_len = (end - start) as isize;
