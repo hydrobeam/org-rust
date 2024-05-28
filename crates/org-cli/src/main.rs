@@ -251,10 +251,10 @@ fn run() -> anyhow::Result<()> {
 
 fn process_template(
     template_path: &str,
-    exported_output: &str,
+    exported_content: &str,
     parser: &org_parser::Parser,
 ) -> Result<String, CliError> {
-    let f = std::path::Path::new(template_path);
+    let f = Path::new(template_path);
     let mut template_contents = std::fs::read_to_string(f).map_err(|e| {
         CliError::from(e)
             .with_path(f)
@@ -265,14 +265,27 @@ fn process_template(
     let re = regex::Regex::new(r#"\{\{\{(.*)\}\}\}"#).unwrap();
 
     let mut matches = Vec::new();
-    for hmm in re.captures_iter(&template_contents) {
-        if let Some(res) = hmm.get(1) {
+    // collect all matches to {{{.*}}} regex - things we want to replace with keywords
+    for captured in re.captures_iter(&template_contents) {
+        if let Some(res) = captured.get(1) {
             // we expand the range of the capture to include the {{{}}}
-            // to be replaced in the next step
             let start = res.start() - 3;
             let end = res.end() + 3;
             let extract = res.as_str();
-            matches.push((start, end, extract.to_owned()));
+            let kw: &str;
+
+            if extract == "content" {
+                kw = exported_content;
+            } else {
+                // &* needed because: https://stackoverflow.com/a/65550108
+                kw = if let Some(val) = parser.keywords.get(&*extract) {
+                    val
+                } else {
+                    eprintln!(r#"warning: "{}" not found in keywords"#, extract);
+                    ""
+                };
+            }
+            matches.push((start, end, kw));
         }
     }
     // process: we take all our matches and replace them with their respective hits as needed.
@@ -283,42 +296,26 @@ fn process_template(
     // {{{a}}} -> hi.         the new string is smaller, so offset is decreased.
     // {{{a}}} -> long-string the new string is larger, so offset is increased
     //
-    // REVIEW: this process is probably very slow, maybe a faster solution?
-    let mut offset: isize = 0;
+    // REVIEW: this process is probably slow, maybe a faster solution?
 
     // offset calculators
+    let mut offset = 0;
     let mut diff;
     let mut old_len;
-    let mut new_len = 0;
+    let mut new_len;
 
-    for (start, end, extract) in matches {
+    for (start, end, kw) in matches {
         // "content" is a special case keyword
         let start = (start as isize + offset) as usize;
         let end = (end as isize + offset) as usize;
 
-        if extract == "content" {
-            template_contents.replace_range(start..end, exported_output);
-            new_len = exported_output.len();
-        } else {
-            // &* needed because: https://stackoverflow.com/a/65550108
-            if let Some(val) = parser.keywords.get(&*extract) {
-                template_contents.replace_range(start..end, val);
-                new_len = val.len();
-            } else {
-                eprintln!(r#"warning: "{}" not found in keywords"#, extract)
-            }
-        }
+        template_contents.replace_range(start..end, kw);
 
-        // 6 from {{{}}}
-        old_len = 6 + extract.len();
-        diff = old_len.abs_diff(new_len);
-        if old_len > new_len {
-            // got smaller
-            offset -= diff as isize;
-        } else {
-            // got bigger
-            offset += diff as isize;
-        }
+        // old_len is length of extract + 6 from {{{}}}
+        old_len = (end - start) as isize;
+        new_len = kw.len() as isize;
+        diff = new_len - old_len;
+        offset += diff;
     }
 
     Ok(template_contents)
