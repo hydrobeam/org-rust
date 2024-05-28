@@ -271,9 +271,9 @@ fn process_template(
             } else {
                 let mut default_val = None;
                 if let Some(ind) = extract.find('|') {
-                    let (left, right) = extract.split_at(ind + 1);
+                    let (left, right) = extract.split_at(ind);
                     extract = left;
-                    default_val = Some(right);
+                    default_val = Some(&right[1..]); // drop |
                 }
 
                 // &* needed because: https://stackoverflow.com/a/65550108
