@@ -3,14 +3,15 @@ use std::env::current_dir;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use utils::normalize_path;
+use types::{CliError, InpType, OutType};
+use utils::mkdir_recursively;
 
 use clap::Parser;
 
-use thiserror::Error;
-
 use crate::cli::Backend;
+use crate::utils::switch_dir;
 mod cli;
+mod types;
 mod utils;
 
 fn main() {
@@ -20,56 +21,25 @@ fn main() {
     }
 }
 
-#[derive(Debug)]
-enum InpType<'a> {
-    File(&'a Path),
-    Dir(&'a Path),
-}
-
-#[derive(Debug)]
-enum OutType<'a> {
-    File(&'a Path),
-    Dir(&'a Path),
-}
-
-#[derive(Error, Debug)]
-enum CliError {
-    #[error("{0}")]
-    Io(#[from] std::io::Error),
-    #[error("{path}: {err}")]
-    WithPath { err: Box<CliError>, path: PathBuf },
-    #[error("{cause}.\n{err}")]
-    WithCause { err: Box<CliError>, cause: String },
-}
-
-impl CliError {
-    fn with_path(self, path: &Path) -> Self {
-        Self::WithPath {
-            err: Box::new(self),
-            path: normalize_path(path),
-        }
-    }
-    fn with_cause(self, cause: &str) -> Self {
-        Self::WithCause {
-            err: Box::new(self),
-            cause: cause.to_string(),
-        }
-    }
-}
-
 /// Function that works through the entire pipeline
 fn run() -> anyhow::Result<()> {
     let cli_params = cli::Cli::parse();
     let config_params: cli::Cli;
 
     if let Some(config_path) = cli_params.config {
-        let a = read_to_string(config_path)?;
+        let path = Path::new(&config_path);
+        let conf = read_to_string(path).map_err(|e| {
+            CliError::from(e)
+                .with_path(path)
+                .with_cause(&format!("failed to read config file: {}", path.display()))
+        })?;
 
-        config_params = toml::from_str(&a)?;
+        config_params = toml::from_str(&conf)?;
     } else {
         config_params = cli::Cli::default();
     }
 
+    // prefer cli params to config params
     let backend = match cli_params.backend {
         None => config_params.backend,
         r => r,
@@ -90,12 +60,7 @@ fn run() -> anyhow::Result<()> {
         None => Backend::default(),
     };
 
-    // fn handle_file that eats a bufreader, hmm
-    //
-    // but we can't do that because we need to establish it's a file.
-    // maybe an enum that eats a bufreader and a path, if it's a path it's a dir
-    // bufreader => file
-    let f = std::path::Path::new(&input_path);
+    let f = Path::new(&input_path);
     if !f.exists() {
         bail!("Input path not found: {}", f.display());
     }
@@ -108,12 +73,12 @@ fn run() -> anyhow::Result<()> {
     // if input is a dir, then output is a dir
     // if output is none, then output is stdout regardless
 
-    let f = std::path::Path::new(&output_path);
+    let f = Path::new(&output_path);
     let dest = match src {
         InpType::File(_) => OutType::File(f),
         InpType::Dir(_) => {
             if !f.exists() {
-                std::fs::create_dir_all(f).map_err(|e| CliError::from(e).with_path(f))?;
+                mkdir_recursively(f)?;
             }
             OutType::Dir(f)
         }
@@ -122,7 +87,7 @@ fn run() -> anyhow::Result<()> {
     let mut file_contents = String::new();
     let mut exported_content = String::new();
 
-    // farm up files
+    // vecs that hold dirs/files that need to be processed
     let mut paths = Vec::new();
     let mut dirs = Vec::new();
 
@@ -131,6 +96,7 @@ fn run() -> anyhow::Result<()> {
         InpType::Dir(p) => dirs.push(p.to_path_buf()),
     }
 
+    // recursively process directories to find all containing files
     while let Some(dir) = dirs.pop() {
         for entry in fs::read_dir(&dir).map_err(|e| CliError::from(e).with_path(&dir))? {
             let entry = entry?;
@@ -148,6 +114,7 @@ fn run() -> anyhow::Result<()> {
     // PERF: avoid overloading syscalls if lots of files are processed
     let mut stdout = BufWriter::new(stdout());
 
+    // main loop to export files
     for file_path in &paths {
         writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
         if let Some(ext) = file_path.extension() {
@@ -159,24 +126,24 @@ fn run() -> anyhow::Result<()> {
                         .with_path(file_path)
                         .with_cause("failed to read input file")
                 });
+
                 let parser_output = org_parser::parse_org(&file_contents);
                 backend.export(&parser_output, &mut exported_content)?;
+
                 if let Some(template_path) = parser_output.keywords.get("template_path") {
                     let prev = current_dir()
                         .map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
                     // file_path ought to exist and can't be the root since it's been read from.
                     // no error possible
-                    let target_dir = file_path.parent().unwrap();
-                    std::env::set_current_dir(target_dir).map_err(|e| {
-                        CliError::from(e)
-                            .with_path(target_dir)
-                            .with_cause("failed to chdir")
-                    })?;
 
+                    // HACK: switch dirs to allow template file finding using relative paths
+                    let target_dir = file_path.parent().unwrap();
+
+                    switch_dir(&target_dir)?;
                     exported_content =
                         process_template(template_path, &exported_content, &parser_output)?;
-                    std::env::set_current_dir(prev)
-                        .map_err(|e| CliError::from(e).with_cause("failed to chdir"))?;
+
+                    switch_dir(&prev)?;
                 }
 
                 // the destination we are writing to
@@ -186,8 +153,8 @@ fn run() -> anyhow::Result<()> {
                         full_output_path = output_file.to_path_buf();
                     }
                     OutType::Dir(dest_path) => {
-                        // origin: ./dest/d/e.org
-                        // goal: strip the "./dest" prefix, and append /d/e.org to the destination. use fs::create_dir_all.
+                        // origin: ./path/to/d/e.org
+                        // goal: strip the "./path/to/" prefix, and append /d/e.org to the destination.
                         //
                         // output: ./out/d/e.html
                         let stripped_path = if let InpType::Dir(src_dir) = src {
@@ -200,7 +167,7 @@ fn run() -> anyhow::Result<()> {
                     }
                 }
 
-                fs::create_dir_all(full_output_path.parent().unwrap())?;
+                mkdir_recursively(&full_output_path.parent().unwrap())?;
                 // truncate is needed to fully overwrite file contents
                 let mut opened = OpenOptions::new()
                     .create(true)
@@ -217,8 +184,7 @@ fn run() -> anyhow::Result<()> {
                     stdout,
                     " -- processed: {}\n",
                     full_output_path.canonicalize()?.display()
-                )
-                .map_err(|e| CliError::from(e))?;
+                )?
             } else {
                 // if not org, do nothing and just copy it
                 let stripped_path = if let InpType::Dir(src_dir) = src {
@@ -228,7 +194,7 @@ fn run() -> anyhow::Result<()> {
                 };
                 if let OutType::Dir(dest_path) = dest {
                     let full_output_path = dest_path.join(stripped_path);
-                    fs::create_dir_all(full_output_path.parent().unwrap())?;
+                    mkdir_recursively(full_output_path.parent().unwrap())?;
                     fs::copy(file_path, &full_output_path).map_err(|e| {
                         CliError::from(e)
                             .with_path(&file_path)
@@ -244,6 +210,7 @@ fn run() -> anyhow::Result<()> {
             }
         }
         file_contents.clear();
+        exported_content.clear();
     }
 
     Ok(())
