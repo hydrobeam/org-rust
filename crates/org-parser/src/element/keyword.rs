@@ -1,8 +1,10 @@
-use crate::constants::{COLON, DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
+use crate::constants::{DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
-use crate::types::{Attr, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{process_attrs, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::Match;
+
+use super::Paragraph;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Keyword<'a> {
@@ -13,7 +15,7 @@ pub struct Keyword<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Affiliated<'a> {
     Name(Option<NodeID>),
-    Caption(Option<NodeID>, &'a str),
+    Caption(Option<NodeID>, NodeID),
     Attr {
         child_id: Option<NodeID>,
         backend: &'a str,
@@ -37,52 +39,10 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             cursor.index = backend.end;
             cursor.word(":")?;
 
-            let mut new_attrs: Vec<Attr> = Vec::new();
-
             // val is in the form
             // :key val :key val :key val
             let val_start_ind = cursor.index;
-            loop {
-                match cursor.try_curr()? {
-                    NEWLINE => break,
-                    COLON => {
-                        cursor.next();
-                        let key_match = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
-                        cursor.index = key_match.end;
-                        cursor.skip_ws();
-                        if NEWLINE == cursor.try_curr()? {
-                            new_attrs.push(Attr {
-                                key: key_match.obj.trim(),
-                                val: "",
-                            });
-                            break;
-                        }
-
-                        let val_begin = cursor.index;
-                        // allows for non-breaking colons:
-                        // #+attr_html: :style border:2px solid black
-                        loop {
-                            match cursor.curr() {
-                                NEWLINE => break,
-                                COLON => {
-                                    if cursor.peek_rev(1)?.is_ascii_whitespace() {
-                                        break;
-                                    }
-                                }
-                                _ => {}
-                            }
-                            cursor.next();
-                        }
-                        let val_obj = cursor.clamp_backwards(val_begin);
-
-                        new_attrs.push(Attr {
-                            key: key_match.obj.trim(),
-                            val: val_obj.trim(),
-                        });
-                    }
-                    _ => cursor.next(),
-                }
-            }
+            let (mut cursor, new_attrs) = process_attrs(cursor)?;
             let val = cursor.clamp_backwards(val_start_ind);
             // skip past newline
             cursor.next();
@@ -98,7 +58,11 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                     } else {
                         node.attrs
                             .entry(lowercase_backend)
-                            .and_modify(|attr_vec| attr_vec.append(&mut new_attrs))
+                            .and_modify(|attr_map| {
+                                for (key, item) in &new_attrs {
+                                    attr_map.insert(key, item);
+                                }
+                            })
                             .or_insert(new_attrs);
                         break Some(child_id);
                     }
@@ -179,11 +143,12 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                     };
                 };
 
-                return Ok(parser.alloc(
-                    Affiliated::Caption(child_id, val.obj.trim()),
+                return Ok(parser.alloc_with_id(
+                    Affiliated::Caption(child_id, ret),
                     start,
                     val.end + 1,
                     parent,
+                    caption_id,
                 ));
             }
             _ => {}
@@ -290,11 +255,9 @@ impl<'a> MacroDef<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        element::Keyword,
-        expr_in_pool, node_in_pool, parse_org,
-        types::{Attr, Expr},
-    };
+    use std::collections::HashMap;
+
+    use crate::{element::Keyword, expr_in_pool, node_in_pool, parse_org, types::Expr};
 
     #[test]
     fn basic_keyword() {
@@ -378,20 +341,24 @@ mod tests {
 
         assert_eq!(
             table,
-            &vec![
-                Attr {
-                    key: "black",
-                    val: "yes"
-                },
-                Attr {
-                    key: "class",
-                    val: ""
-                },
-                Attr {
-                    key: "words",
-                    val: "multiple spaces accepted"
-                },
-            ]
+            &HashMap::from([
+                ("black", "yes"),
+                ("class", ""),
+                ("words", "multiple spaces accepted"),
+            ])
         );
+    }
+
+    #[test]
+    fn caption_with_children() {
+        let input = r#"
+
+#+caption:*hi*
+yeah
+
+"#;
+
+        let parsed = parse_org(input);
+        parsed.print_tree();
     }
 }

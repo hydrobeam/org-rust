@@ -40,7 +40,11 @@ pub enum Backend {
 }
 
 impl Backend {
-    pub fn export(self, parsed: &org_parser::Parser, buf: &mut String) -> Result<(), core::fmt::Error> {
+    pub fn export(
+        self,
+        parsed: &org_parser::Parser,
+        buf: &mut String,
+    ) -> Result<(), core::fmt::Error> {
         match self {
             Backend::Html => org_exporter::Html::export_tree(parsed, buf),
             Backend::Org => org_exporter::Org::export_tree(parsed, buf),

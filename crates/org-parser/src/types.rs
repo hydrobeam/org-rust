@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Write};
 use std::rc::Rc;
 
-use crate::constants::{EQUAL, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR};
+use crate::constants::{
+    COLON, EQUAL, NEWLINE, PLUS, RBRACE, RBRACK, SLASH, SPACE, STAR, TILDE, UNDERSCORE, VBAR,
+};
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::*;
@@ -23,7 +25,8 @@ pub type NodeCache = HashMap<usize, NodeID>;
 ///
 /// use org_rust_parser as org_parser;
 ///
-/// use org_parser::{node_in_pool, Expr, Node, parse_org, Attr};
+/// use org_parser::{node_in_pool, Expr, Node, parse_org};
+/// use std::collections::HashMap;
 ///
 /// let parsed = parse_org(r"
 /// #+attr_html: :one 1 :two 2
@@ -34,25 +37,52 @@ pub type NodeCache = HashMap<usize, NodeID>;
 ///
 /// assert_eq!(
 ///     heading_node,
-///     &vec![
-///         Attr {
-///             key: "one",
-///             val: "1"
-///         },
-///         Attr {
-///             key: "two",
-///             val: "2"
-///         },
-///     ]
-/// );
+///     &HashMap::from( [("one", "1"), ("two", "2")] ))
 /// ```
 ///
 /// For
 ///
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Attr<'a> {
-    pub key: &'a str,
-    pub val: &'a str,
+
+pub(crate) fn process_attrs<'a>(
+    mut cursor: Cursor<'a>,
+) -> Result<(Cursor, HashMap<&'a str, &'a str>)> {
+    let mut new_attrs: HashMap<&'a str, &'a str> = HashMap::new();
+    loop {
+        match cursor.try_curr()? {
+            NEWLINE => break,
+            COLON => {
+                cursor.next();
+                let key_match = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
+                cursor.index = key_match.end;
+                cursor.skip_ws();
+                if NEWLINE == cursor.try_curr()? {
+                    new_attrs.insert(key_match.obj.trim(), "");
+                    break;
+                }
+
+                let val_begin = cursor.index;
+                // allows for non-breaking colons:
+                // #+attr_html: :style border:2px solid black
+                loop {
+                    match cursor.curr() {
+                        NEWLINE => break,
+                        COLON => {
+                            if cursor.peek_rev(1)?.is_ascii_whitespace() {
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    cursor.next();
+                }
+                let val_obj = cursor.clamp_backwards(val_begin);
+
+                new_attrs.insert(key_match.obj.trim(), val_obj.trim());
+            }
+            _ => cursor.next(),
+        }
+    }
+    Ok((cursor, new_attrs))
 }
 
 /// The primary output of parsing.
@@ -358,7 +388,7 @@ pub struct Node<'a> {
     pub id_target: Option<Rc<str>>,
     /// Any additional attributes attached to the node
     /// Typically from Affiliated Keywords.
-    pub attrs: HashMap<String, Vec<Attr<'a>>>,
+    pub attrs: HashMap<String, HashMap<&'a str, &'a str>>,
 }
 
 impl<'a> Default for Node<'a> {
@@ -779,7 +809,18 @@ impl<'a> Expr<'a> {
             Expr::Macro(inner) => print!("{inner:#?}"),
             Expr::Drawer(inner) => print!("{inner:#?}"),
             Expr::ExportSnippet(inner) => print!("{inner:#?}"),
-            Expr::Affiliated(inner) => print!("{inner:#?}"),
+            Expr::Affiliated(inner) => match inner {
+                Affiliated::Name(_) => print!("{inner:#?}"),
+                Affiliated::Caption(i1, i2) => {
+                    // pool[i1.unwrap()].obj.print_tree(pool);
+                    pool[*i2].obj.print_tree(pool);
+                }
+                Affiliated::Attr {
+                    child_id,
+                    backend,
+                    val,
+                } => print!("{inner:#?}"),
+            },
             Expr::MacroDef(inner) => print!("{inner:#?}"),
             Expr::FootnoteDef(inner) => print!("{inner:#?}"),
             Expr::FootnoteRef(inner) => print!("{inner:#?}"),

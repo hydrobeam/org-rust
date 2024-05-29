@@ -50,7 +50,7 @@ impl<'a> NodePool<'a> {
     pub(crate) fn new() -> Self {
         Self {
             inner_vec: Vec::new(),
-            /// The next free index in the pool.
+            // The next free index in the pool.
             counter: 0,
         }
     }

@@ -1,7 +1,8 @@
-use crate::constants::NEWLINE;
+use std::collections::HashMap;
+
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
-use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{process_attrs, Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
 
@@ -21,38 +22,40 @@ lazy_static! {
 pub enum Block<'a> {
     // Greater Blocks
     Center {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: Vec<NodeID>,
     },
     Quote {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: Vec<NodeID>,
     },
     Special {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: Vec<NodeID>,
         name: &'a str,
     },
 
     // Lesser Blocks
     Comment {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: &'a str,
     },
     Example {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: &'a str,
     },
     Export {
-        parameters: Option<&'a str>,
+        backend: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: &'a str,
     },
     Src {
-        parameters: Option<&'a str>,
+        language: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: &'a str,
     },
     Verse {
-        parameters: Option<&'a str>,
+        parameters: HashMap<&'a str, &'a str>,
         contents: &'a str,
     },
 }
@@ -82,14 +85,38 @@ impl<'a> Parseable<'a> for Block<'a> {
 
         let block_kind: BlockKind = block_name_match.obj.into();
 
-        let parameters: Option<&str>;
-        if cursor.curr() == NEWLINE {
-            parameters = None;
-        } else {
-            let params_match = cursor.fn_until(|chr| chr == NEWLINE)?;
-            parameters = Some(params_match.obj);
-            cursor.index = params_match.end;
+        let mut language: Option<&str> = None;
+        let mut backend: Option<&str> = None;
+        match block_kind {
+            // TODO: reduce duplication here
+            BlockKind::Src => {
+                let lang_match = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
+                let trimmed = lang_match.obj.trim();
+
+                if trimmed.is_empty() {
+                    language = None;
+                } else {
+                    language = Some(trimmed);
+                }
+                cursor.skip_ws();
+            }
+            BlockKind::Export => {
+                let backend_match = cursor.fn_until(|chr| chr.is_ascii_whitespace())?;
+                let trimmed = backend_match.obj.trim();
+
+                if trimmed.is_empty() {
+                    backend = None;
+                } else {
+                    backend = Some(trimmed);
+                }
+                cursor.skip_ws();
+            }
+            _ => (),
         }
+        // TODO: src switches
+        let (mut cursor, parameters) = process_attrs(cursor)?;
+        // skip newline
+        cursor.next();
 
         // have to predeclare these so that the allocated regex
         // doesn't go out of scope and we can still pull a reference
@@ -108,7 +135,6 @@ impl<'a> Parseable<'a> for Block<'a> {
             &alloc_reg
         };
 
-        cursor.next();
         // Find ending cookie: #+end_{}
         // lesser blocks: clamp a string between the beginning and end
         // greater blocks: parse between the bounds
@@ -141,10 +167,12 @@ impl<'a> Parseable<'a> for Block<'a> {
                         contents,
                     },
                     BlockKind::Export => Block::Export {
+                        backend,
                         parameters,
                         contents,
                     },
                     BlockKind::Src => Block::Src {
+                        language,
                         parameters,
                         contents,
                     },
@@ -275,6 +303,8 @@ impl<'a> From<BlockKind<'a>> for &'a str {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::element::Block;
     use crate::types::Expr;
     use crate::{expr_in_pool, parse_org};
@@ -291,7 +321,8 @@ mod tests {
         assert_eq!(
             l,
             &Block::Export {
-                parameters: None,
+                backend: None,
+                parameters: HashMap::new(),
                 contents: r""
             }
         )
@@ -306,7 +337,7 @@ mod tests {
         assert_eq!(
             l,
             &Block::Special {
-                parameters: None,
+                parameters: HashMap::new(),
                 contents: Vec::new(),
                 name: "rainbow"
             }
@@ -322,7 +353,8 @@ mod tests {
         assert_eq!(
             l,
             &Block::Src {
-                parameters: Some("python"),
+                language: Some("python"),
+                parameters: HashMap::new(),
                 contents: ""
             }
         )
@@ -330,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_block_params() {
-        let input = "#+begin_example gotta love examples\n#+end_example\n";
+        let input = "#+begin_example :gotta :love :examples\n#+end_example\n";
 
         let parsed = parse_org(input);
         let l = expr_in_pool!(parsed, Block).unwrap();
@@ -338,7 +370,7 @@ mod tests {
         assert_eq!(
             l,
             &Block::Example {
-                parameters: Some("gotta love examples"),
+                parameters: HashMap::from([("gotta", ""), ("love", ""), ("examples", "")]),
                 contents: ""
             }
         )
@@ -354,7 +386,7 @@ mod tests {
         assert_eq!(
             l,
             &Block::Example {
-                parameters: Some("gotta love examples"),
+                parameters: HashMap::new(),
                 contents: "smallexp
 "
             }
@@ -379,7 +411,7 @@ one two three
         assert_eq!(
             l,
             &Block::Example {
-                parameters: None,
+                parameters: HashMap::new(),
                 contents: r"this is a larger example gotta love examples
 to demonstrate that it works
 string substring
@@ -443,7 +475,8 @@ here is after
         assert_eq!(
             l,
             &Block::Src {
-                parameters: Some("python"),
+                language: Some("python"),
+                parameters: HashMap::new(),
                 contents: r"
 here is some text
 "
@@ -465,7 +498,7 @@ here is some text
         assert_eq!(
             l,
             &Block::Example {
-                parameters: None,
+                parameters: HashMap::new(),
                 contents: r"             we are eating so good?
 "
             }
@@ -518,7 +551,8 @@ text
         assert_eq!(
             l,
             &Block::Src {
-                parameters: None,
+                language: None,
+                parameters: HashMap::new(),
                 contents: r"
 
 hiiiiiiiiiiiiiiiiiii
@@ -541,7 +575,7 @@ text
 
         assert_eq!(
             &Block::Verse {
-                parameters: None,
+                parameters: HashMap::new(),
                 contents: r"text
 "
             },
@@ -560,7 +594,7 @@ text
 
         assert_eq!(
             &Block::Comment {
-                parameters: None,
+                parameters: HashMap::new(),
                 contents: r"                                                text
 "
             },

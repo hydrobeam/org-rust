@@ -11,7 +11,7 @@ pub(crate) mod utils;
 mod parse;
 
 pub use node_pool::{NodeID, NodePool};
-pub use types::{Attr, Expr, Node, Parser};
+pub use types::{Expr, Node, Parser};
 pub use utils::Match;
 
 use std::collections::HashMap;

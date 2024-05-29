@@ -185,9 +185,12 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 match inner {
                     // Greater Blocks
                     Block::Center {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         write!(self, "<div")?;
                         self.class("org-center")?;
                         self.prop(node)?;
@@ -198,9 +201,12 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         writeln!(self, "</div>")?;
                     }
                     Block::Quote {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         write!(self, "<blockquote")?;
                         self.prop(node)?;
                         writeln!(self, ">")?;
@@ -210,10 +216,13 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         writeln!(self, "</blockquote>")?;
                     }
                     Block::Special {
-                        parameters: _,
+                        parameters,
                         contents,
                         name,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         // html5 names are directly converted into tags
                         if HTML5_TYPES.contains(name) {
                             write!(self, "<{name}")?;
@@ -237,44 +246,62 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 
                     // Lesser blocks
                     Block::Comment {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         writeln!(self, "<!--{contents}-->")?;
                     }
                     Block::Example {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         write!(self, "<pre")?;
                         self.class("example")?;
                         self.prop(node)?;
                         writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Export {
+                        backend,
                         parameters,
                         contents,
                     } => {
-                        if let Some(params) = parameters {
-                            if params.contains(Html::backend_name()) {
-                                writeln!(self, "{contents}")?;
-                            }
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
+                        if backend.is_some_and(|x| x == Html::backend_name()) {
+                            writeln!(self, "{contents}")?;
                         }
                     }
                     Block::Src {
-                        parameters: _,
+                        language,
+                        parameters,
                         contents,
                     } => {
-                        // TODO: work with the language parameter
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         write!(self, "<pre")?;
-                        self.class("src")?;
+                        if let Some(lang) = language {
+                            self.class(&format!("src src-{}", lang))?;
+                        } else {
+                            self.class(&format!("src"))?;
+                        }
                         self.prop(node)?;
                         writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
+                        if parameters.get("exports").is_some_and(|&x| x == "none") {
+                            return Ok(());
+                        }
                         // FIXME: apparently verse blocks contain objects...
                         write!(self, "<p")?;
                         self.class("verse")?;
@@ -714,8 +741,8 @@ impl<'buf> Html<'buf> {
 
         // attach any keys that need to be placed
         if let Some(attrs) = node.attrs.get(Html::backend_name()) {
-            for item in attrs {
-                self.attr(item.key, item.val)?;
+            for (key, val) in attrs {
+                self.attr(key, val)?;
             }
         }
 

@@ -40,9 +40,8 @@ pub fn switch_dir(path: &Path) -> Result<(), CliError> {
 
 pub fn mkdir_recursively(path: &Path) -> Result<(), CliError> {
     std::fs::create_dir_all(path).map_err(|e| {
-        CliError::from(e).with_path(path).with_cause(&format!(
-            "failed to create directory {}",
-            path.display()
-        ))
+        CliError::from(e)
+            .with_path(path)
+            .with_cause(&format!("failed to create directory {}", path.display()))
     })
 }

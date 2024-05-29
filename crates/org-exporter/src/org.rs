@@ -141,8 +141,8 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         contents,
                     } => {
                         write!(self, "#+begin_center")?;
-                        if let Some(params) = parameters {
-                            write!(self, " {params}")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
                         writeln!(self)?;
                         for id in contents {
@@ -154,9 +154,9 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         parameters,
                         contents,
                     } => {
-                        write!(self, "#+begin_quote")?;
-                        if let Some(params) = parameters {
-                            write!(self, " {params}")?;
+                        writeln!(self, "#+begin_quote")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
                         writeln!(self)?;
                         for id in contents {
@@ -170,8 +170,8 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         name,
                     } => {
                         write!(self, "#+begin_{name}")?;
-                        if let Some(params) = parameters {
-                            write!(self, " {params}")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
                         writeln!(self)?;
                         for id in contents {
@@ -182,47 +182,63 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
 
                     // Lesser blocks
                     Block::Comment {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_comment\n{contents}#+end_comment")?;
+                        write!(self, "#+begin_comment")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
+                        }
+                        write!(self, "\n{contents}")?;
+                        writeln!(self, "#+end_comment")?;
                     }
                     Block::Example {
-                        parameters: _,
+                        parameters,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_example\n{contents}#+end_example")?;
+                        write!(self, "#+begin_example")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
+                        }
+                        write!(self, "\n{contents}")?;
+                        writeln!(self, "#+end_example")?;
                     }
                     Block::Export {
+                        backend,
                         parameters,
                         contents,
                     } => {
-                        if let Some(params) = parameters {
-                            writeln!(self, "#+begin_export {params}\n{contents}#+end_export")?;
-                        } else {
-                            writeln!(self, "#+begin_export\n{contents}#+end_export")?;
+                        let back = if let Some(word) = backend { word } else { "" };
+                        write!(self, "#+begin_export {}", back)?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
+                        write!(self, "\n{contents}")?;
+                        writeln!(self, "#+end_export")?;
                     }
                     Block::Src {
+                        language,
                         parameters,
                         contents,
                     } => {
-                        dbg!(contents);
-                        if let Some(params) = parameters {
-                            writeln!(self, "#+begin_src {params}\n{contents}#+end_src")?;
-                        } else {
-                            writeln!(self, "#+begin_src\n{contents}#+end_src")?;
+                        let lang = if let Some(word) = language { word } else { "" };
+                        write!(self, "#+begin_export {}", lang)?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
+                        write!(self, "\n{contents}")?;
+                        writeln!(self, "#+end_src")?;
                     }
                     Block::Verse {
                         parameters,
                         contents,
                     } => {
-                        if let Some(params) = parameters {
-                            writeln!(self, "#+begin_verse {params}\n{contents}#+end_verse")?;
-                        } else {
-                            writeln!(self, "#+begin_verse\n{contents}#+end_verse")?;
+                        write!(self, "#+begin_verse")?;
+                        for (key, val) in parameters {
+                            write!(self, " :{} {}", key, val)?;
                         }
+                        write!(self, "\n{contents}")?;
+                        writeln!(self, "#+end_verse")?;
                     }
                 }
             }

@@ -1,6 +1,6 @@
 [package]
 name = "org-rust-exporter"
-version = "0.1.4"
+version = "0.1.5"
 description = "exporter for org mode documents parsed with `org-rust-parser`"
 
 homepage.workspace = true
