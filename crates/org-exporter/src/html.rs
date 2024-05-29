@@ -647,7 +647,9 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     if let Some(caption_id) = id {
                         writeln!(self, "<figure>")?;
                         self.export_rec(caption_id, parser)?;
-                        writeln!(self, "<figcaption>{contents}</figcaption>")?;
+                        writeln!(self, "<figcaption>")?;
+                        self.export_rec(contents, parser)?;
+                        writeln!(self, "</figcaption>")?;
                         writeln!(self, "</figure>")?;
                         self.nox.insert(*caption_id);
                     }

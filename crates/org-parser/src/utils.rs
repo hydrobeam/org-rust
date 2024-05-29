@@ -46,6 +46,7 @@ static MARKUP_PRE: phf::Set<u8> = phf_set! {
  b'*',
  b'_',
  b'+',
+ b':',
 };
 
 // Why add non-standard extenders?

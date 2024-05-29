@@ -158,8 +158,12 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             }
             "caption" => {
                 let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
+                let caption_id = parser.pool.reserve_id();
+                let temp_cursor = cursor.cut_off(val.end);
+                let ret = Paragraph::parse(parser, temp_cursor, Some(caption_id), parse_opts)?;
+
                 cursor.index = val.end;
-                cursor.next();
+                cursor.word("\n")?;
 
                 let child_id = loop {
                     if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
