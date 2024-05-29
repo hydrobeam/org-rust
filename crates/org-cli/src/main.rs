@@ -104,7 +104,13 @@ fn run() -> anyhow::Result<()> {
             let path = entry.path();
             if path.is_file() {
                 paths.push(path)
+            } else if path.is_dir() && path.is_symlink() {
+                // we don't want to duplicate the contents of symlinks to dirs,
+                // just copy the dir as is.
+                // REVIEW: what about symlinks to dirs of org files?
+                paths.push(path)
             } else if path.is_dir() {
+                dbg!(&path);
                 dirs.push(path)
             } else {
                 bail!("unsupported file type: {}", path.display())
@@ -118,108 +124,118 @@ fn run() -> anyhow::Result<()> {
     // main loop to export files
     for file_path in &paths {
         writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
-        if let Some(ext) = file_path.extension() {
-            if ext == "org" {
-                let mut input_file = std::fs::File::open(file_path)
-                    .map_err(|e| CliError::from(e).with_path(&file_path))?;
-                let _num_bytes = input_file.read_to_string(&mut file_contents).map_err(|e| {
-                    CliError::from(e)
-                        .with_path(file_path)
-                        .with_cause("failed to read input file")
-                });
+        if file_path.extension().is_some_and(|x| x == "org") {
+            let mut input_file = std::fs::File::open(file_path)
+                .map_err(|e| CliError::from(e).with_path(&file_path))?;
+            let _num_bytes = input_file.read_to_string(&mut file_contents).map_err(|e| {
+                CliError::from(e)
+                    .with_path(file_path)
+                    .with_cause("failed to read input file")
+            });
 
-                let mut parser_output = org_parser::parse_org(&file_contents);
-                // convert .org links to .extension links
-                for item in parser_output.pool.iter_mut() {
-                    if let org_parser::Expr::RegularLink(expr) = &mut item.obj {
-                        match &mut expr.path.obj {
-                            org_parser::object::PathReg::PlainLink(l) => {
-                                let p = &mut l.path;
-                                if let Some(v) = p.strip_suffix(".org") {
-                                    let mut v = v.to_owned();
-                                    v.push_str(backend.extension());
-                                    *p = v.into();
-                                }
+            let mut parser_output = org_parser::parse_org(&file_contents);
+            // convert .org links to .extension links
+            for item in parser_output.pool.iter_mut() {
+                if let org_parser::Expr::RegularLink(expr) = &mut item.obj {
+                    match &mut expr.path.obj {
+                        org_parser::object::PathReg::PlainLink(l) => {
+                            let p = &mut l.path;
+                            if let Some(v) = p.strip_suffix(".org") {
+                                let mut v = v.to_owned();
+                                v.push_str(backend.extension());
+                                *p = v.into();
                             }
-                            org_parser::object::PathReg::File(l)
-                            | org_parser::object::PathReg::Unspecified(l) => {
-                                if let Some(v) = l.strip_suffix(".org") {
-                                    let mut v = v.to_owned();
-                                    v.push_str(&format!(".{}", backend.extension()));
-                                    *l = v.into();
-                                }
-                            }
-                            _ => {}
                         }
+                        org_parser::object::PathReg::File(l)
+                        | org_parser::object::PathReg::Unspecified(l) => {
+                            if let Some(v) = l.strip_suffix(".org") {
+                                let mut v = v.to_owned();
+                                v.push_str(&format!(".{}", backend.extension()));
+                                *l = v.into();
+                            }
+                        }
+                        _ => {}
                     }
                 }
-                backend.export(&parser_output, &mut exported_content)?;
+            }
+            backend.export(&parser_output, &mut exported_content)?;
 
-                if let Some(template_path) = parser_output.keywords.get("template_path") {
-                    let prev = current_dir()
-                        .map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
-                    // file_path ought to exist and can't be the root since it's been read from.
-                    // no error possible
+            if let Some(template_path) = parser_output.keywords.get("template_path") {
+                let prev =
+                    current_dir().map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
+                // file_path ought to exist and can't be the root since it's been read from.
+                // no error possible
 
-                    // HACK: switch dirs to allow template file finding using relative paths
-                    let target_dir = file_path.parent().unwrap();
+                // HACK: switch dirs to allow template file finding using relative paths
+                let target_dir = file_path.parent().unwrap();
 
-                    switch_dir(&target_dir)?;
-                    exported_content =
-                        process_template(template_path, &exported_content, &parser_output)?;
+                switch_dir(&target_dir)?;
+                exported_content =
+                    process_template(template_path, &exported_content, &parser_output)?;
 
-                    switch_dir(&prev)?;
+                switch_dir(&prev)?;
+            }
+
+            // the destination we are writing to
+            let mut full_output_path: PathBuf;
+            match dest {
+                OutType::File(ref output_file) => {
+                    full_output_path = output_file.to_path_buf();
                 }
-
-                // the destination we are writing to
-                let mut full_output_path: PathBuf;
-                match dest {
-                    OutType::File(ref output_file) => {
-                        full_output_path = output_file.to_path_buf();
-                    }
-                    OutType::Dir(dest_path) => {
-                        // origin: ./path/to/d/e.org
-                        // goal: strip the "./path/to/" prefix, and append /d/e.org to the destination.
-                        //
-                        // output: ./out/d/e.html
-                        let stripped_path = if let InpType::Dir(src_dir) = src {
-                            file_path.strip_prefix(src_dir)?
-                        } else {
-                            unreachable!()
-                        };
-                        full_output_path = dest_path.join(stripped_path);
-                        full_output_path.set_extension(backend.extension());
-                    }
+                OutType::Dir(dest_path) => {
+                    // origin: ./path/to/d/e.org
+                    // goal: strip the "./path/to/" prefix, and append /d/e.org to the destination.
+                    //
+                    // output: ./out/d/e.html
+                    let stripped_path = if let InpType::Dir(src_dir) = src {
+                        file_path.strip_prefix(src_dir)?
+                    } else {
+                        unreachable!()
+                    };
+                    full_output_path = dest_path.join(stripped_path);
+                    full_output_path.set_extension(backend.extension());
                 }
+            }
 
-                mkdir_recursively(&full_output_path.parent().unwrap())?;
-                // truncate is needed to fully overwrite file contents
-                let mut opened = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&full_output_path)
-                    .map_err(|e| {
-                        CliError::from(e)
-                            .with_path(&full_output_path)
-                            .with_cause("error in writing to destination file")
-                    })?;
-                opened.write(&exported_content.as_bytes())?;
-                writeln!(
-                    stdout,
-                    " -- processed: {}\n",
-                    full_output_path.canonicalize()?.display()
-                )?
+            mkdir_recursively(&full_output_path.parent().unwrap())?;
+            // truncate is needed to fully overwrite file contents
+            let mut opened = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&full_output_path)
+                .map_err(|e| {
+                    CliError::from(e)
+                        .with_path(&full_output_path)
+                        .with_cause("error in writing to destination file")
+                })?;
+            opened.write(&exported_content.as_bytes())?;
+            writeln!(
+                stdout,
+                " -- processed: {}\n",
+                full_output_path.canonicalize()?.display()
+            )?
+        } else {
+            // if not org, do nothing and just copy it
+            let stripped_path = if let InpType::Dir(src_dir) = src {
+                file_path.strip_prefix(src_dir)?
             } else {
-                // if not org, do nothing and just copy it
-                let stripped_path = if let InpType::Dir(src_dir) = src {
-                    file_path.strip_prefix(src_dir)?
+                unreachable!()
+            };
+            if let OutType::Dir(dest_path) = dest {
+                let full_output_path = dest_path.join(stripped_path);
+                mkdir_recursively(full_output_path.parent().unwrap())?;
+
+                // fs::copy doesn't handle symlinked dirs. we do it ourselves
+                if file_path.is_symlink() && file_path.is_dir() {
+                    let t = fs::read_link(file_path)?;
+                    std::os::unix::fs::symlink(t, &full_output_path)?;
+                    writeln!(
+                        stdout,
+                        " -- symlinked: {}\n",
+                        &full_output_path.canonicalize()?.display()
+                    )
                 } else {
-                    unreachable!()
-                };
-                if let OutType::Dir(dest_path) = dest {
-                    let full_output_path = dest_path.join(stripped_path);
-                    mkdir_recursively(full_output_path.parent().unwrap())?;
                     fs::copy(file_path, &full_output_path).map_err(|e| {
                         CliError::from(e)
                             .with_path(&file_path)
@@ -230,8 +246,8 @@ fn run() -> anyhow::Result<()> {
                         " -- copied: {}\n",
                         &full_output_path.canonicalize()?.display()
                     )
-                    .map_err(|e| CliError::from(e))?;
                 }
+                .map_err(|e| CliError::from(e))?;
             }
         }
         file_contents.clear();
