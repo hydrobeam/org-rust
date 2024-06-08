@@ -1,6 +1,6 @@
 [package]
 name = "org-rust"
-version = "0.1.14"
+version = "0.1.15"
 description = "CLI tool for converting Org-Mode documents to other formats"
 keywords = ["org-mode", "parser"]
 categories = ["command-line-utilities"]
@@ -18,7 +18,7 @@ rust-version.workspace = true
 clap = { version = "4.3.11", features = ["derive"] }
 lazy_format = "2.0.0"
 regex = "1.9.5"
-org-exporter = { version = "0.1.5", path = "../org-exporter", package = "org-rust-exporter" }
+org-exporter = { version = "0.1.6", path = "../org-exporter", package = "org-rust-exporter" }
 org-parser =   { version = "0.1.4", path = "../org-parser", package = "org-rust-parser" }
 serde = { version = "1.0.196", features=["derive"]}
 toml = "0.8.8"

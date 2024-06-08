@@ -110,7 +110,6 @@ fn run() -> anyhow::Result<()> {
                 // REVIEW: what about symlinks to dirs of org files?
                 paths.push(path)
             } else if path.is_dir() {
-                dbg!(&path);
                 dirs.push(path)
             } else {
                 bail!("unsupported file type: {}", path.display())
@@ -149,8 +148,9 @@ fn run() -> anyhow::Result<()> {
                         org_parser::object::PathReg::File(l)
                         | org_parser::object::PathReg::Unspecified(l) => {
                             if let Some(v) = l.strip_suffix(".org") {
+                                use std::fmt::Write;
                                 let mut v = v.to_owned();
-                                v.push_str(&format!(".{}", backend.extension()));
+                                write!(v, ".{}", backend.extension())?;
                                 *l = v.into();
                             }
                         }
@@ -229,6 +229,9 @@ fn run() -> anyhow::Result<()> {
                 // fs::copy doesn't handle symlinked dirs. we do it ourselves
                 if file_path.is_symlink() && file_path.is_dir() {
                     let t = fs::read_link(file_path)?;
+                    if full_output_path.exists() {
+                        fs::remove_dir_all(&full_output_path)?;
+                    }
                     std::os::unix::fs::symlink(t, &full_output_path)?;
                     writeln!(
                         stdout,
