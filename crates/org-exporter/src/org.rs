@@ -222,7 +222,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         contents,
                     } => {
                         let lang = if let Some(word) = language { word } else { "" };
-                        write!(self, "#+begin_export {}", lang)?;
+                        write!(self, "#+begin_src {}", lang)?;
                         for (key, val) in parameters {
                             write!(self, " :{} {}", key, val)?;
                         }
