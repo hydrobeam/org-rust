@@ -552,7 +552,16 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             Expr::PlainList(inner) => {
                 let tag = match inner.kind {
                     ListKind::Unordered => "ul",
-                    ListKind::Ordered(_) => "ol",
+                    ListKind::Ordered(counter_kind) => match counter_kind {
+                        org_parser::element::CounterKind::Letter(c) => {
+                            if c.is_ascii_uppercase() {
+                                r#"ol type="A""#
+                            } else {
+                                r#"ol type="a""#
+                            }
+                        }
+                        org_parser::element::CounterKind::Number(_) => r#"ol type="1""#,
+                    },
                     ListKind::Descriptive => "dd",
                 };
                 write!(self, "<{tag}")?;
