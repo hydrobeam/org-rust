@@ -1,6 +1,5 @@
 use anyhow::bail;
 use std::borrow::Cow;
-use std::env::current_dir;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -10,7 +9,6 @@ use utils::mkdir_recursively;
 use clap::Parser;
 
 use crate::cli::Backend;
-use crate::utils::switch_dir;
 mod cli;
 mod types;
 mod utils;
@@ -169,19 +167,21 @@ fn run() -> anyhow::Result<()> {
             backend.export(&parser_output, &mut exported_content)?;
 
             if let Some(template_path) = parser_output.keywords.get("template_path") {
-                let prev =
-                    current_dir().map_err(|e| CliError::from(e).with_cause("failed to getcwd"))?;
-                // file_path ought to exist and can't be the root since it's been read from.
-                // no error possible
+                // evaluate relative paths if needed
+                let template_path = Path::new(template_path);
+                let template_path: Cow<Path> = if template_path.is_relative() {
+                    file_path
+                        .parent()
+                        .unwrap()
+                        .join(template_path)
+                        .canonicalize()?
+                        .into()
+                } else {
+                    template_path.into()
+                };
 
-                // HACK: switch dirs to allow template file finding using relative paths
-                let target_dir = file_path.parent().unwrap();
-
-                switch_dir(&target_dir)?;
                 exported_content =
-                    process_template(template_path, &exported_content, &parser_output)?;
-
-                switch_dir(&prev)?;
+                    process_template(&template_path, &exported_content, &parser_output)?;
             }
 
             // the destination we are writing to
@@ -276,14 +276,13 @@ fn run() -> anyhow::Result<()> {
 }
 
 fn process_template(
-    template_path: &str,
+    template_path: &Path,
     exported_content: &str,
     parser: &org_parser::Parser,
 ) -> Result<String, CliError> {
-    let f = Path::new(template_path);
-    let mut template_contents = std::fs::read_to_string(f).map_err(|e| {
+    let mut template_contents = std::fs::read_to_string(template_path).map_err(|e| {
         CliError::from(e)
-            .with_path(f)
+            .with_path(template_path)
             .with_cause("error with opening template file")
     })?;
 

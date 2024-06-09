@@ -32,12 +32,6 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     ret
 }
 
-pub fn switch_dir(path: &Path) -> Result<(), CliError> {
-    std::env::set_current_dir(&path).map_err(|e| {
-        CliError::from(e).with_cause(&format!("failed to chdir to {}", path.display()))
-    })
-}
-
 pub fn mkdir_recursively(path: &Path) -> Result<(), CliError> {
     std::fs::create_dir_all(path).map_err(|e| {
         CliError::from(e)
