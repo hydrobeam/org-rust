@@ -88,12 +88,12 @@ impl<'a> PathReg<'a> {
             }
             POUND => {
                 // custom-id
-                return PathReg::CustomId(cursor.clamp(cursor.index + 1, cursor.len() - 1));
+                return PathReg::CustomId(cursor.clamp(cursor.index + 1, cursor.len()));
             }
             LPAREN => {
                 // FIXME: breaks on ()
                 if cursor[cursor.len() - 1] == RPAREN {
-                    return PathReg::Coderef(cursor.clamp(cursor.index + 1, cursor.len() - 1));
+                    return PathReg::Coderef(cursor.clamp(cursor.index + 1, cursor.len()));
                 }
             }
             chr => {
