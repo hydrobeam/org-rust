@@ -1,3 +1,4 @@
+use org_exporter::ConfigOptions;
 use org_exporter::Exporter;
 use org_exporter::Html;
 use org_exporter::Org;
@@ -42,14 +43,14 @@ impl WasmExport {
     #[wasm_bindgen]
     pub fn to_org(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Org::export_buf(s, &mut self.string_buf).unwrap();
+        Org::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
         JsValue::from_str(&self.string_buf)
     }
 
     #[wasm_bindgen]
     pub fn to_html(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Html::export_buf(s, &mut self.string_buf).unwrap();
+        Html::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
         JsValue::from_str(&self.string_buf)
     }
 }

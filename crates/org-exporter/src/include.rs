@@ -24,13 +24,15 @@
 //! :block.
 
 use org_parser::parse_org;
+use std::borrow::Cow;
 use std::fs::read_to_string;
 use std::ops::Range;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use org_parser::element::HeadingLevel;
 
 use crate::types::ExporterInner;
+use crate::ConfigOptions;
 
 /// Block types that correspond directly to types within the parser.
 #[derive(Debug)]
@@ -188,7 +190,13 @@ pub(crate) fn include_handle<'a>(
     let ret = InclParams::new(value)?;
     // REVIEW: little uncomfortable reding the full string in before
     // processing lines
-    let mut out_str = read_to_string(ret.file)?;
+    let target_path: Cow<Path> = if let Some(v) = writer.config_opts().file_path().as_ref() {
+        // TODO: error handling
+        v.parent().unwrap().join(ret.file).canonicalize()?.into()
+    } else {
+        ret.file.into()
+    };
+    let mut out_str = read_to_string(target_path)?;
     if let Some(lines) = ret.lines {
         out_str = out_str
             .lines()

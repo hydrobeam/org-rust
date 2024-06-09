@@ -15,7 +15,7 @@ use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{Exporter, ExporterInner};
+use crate::types::{ConfigOptions, Exporter, ExporterInner};
 use phf::phf_set;
 
 // file types we can wrap an `img` around
@@ -67,6 +67,7 @@ pub struct Html<'buf> {
     // used footnotes
     footnotes: Vec<NodeID>,
     footnote_ids: HashMap<NodeID, usize>,
+    conf: ConfigOptions,
 }
 
 /// Wrapper around strings that need to be properly HTML escaped.
@@ -111,23 +112,32 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
 }
 
 impl<'buf> Exporter<'buf> for Html<'buf> {
-    fn export(input: &str) -> core::result::Result<String, fmt::Error> {
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error> {
         let mut buf = String::new();
-        Html::export_buf(input, &mut buf)?;
+        Html::export_buf(input, &mut buf, conf)?;
         Ok(buf)
     }
 
-    fn export_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> Result {
+    fn export_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+        conf: ConfigOptions,
+    ) -> Result {
         let parsed: Parser<'_> = parse_org(input);
-        Html::export_tree(&parsed, buf)
+        Html::export_tree(&parsed, buf, conf)
     }
 
-    fn export_tree<'inp, T: fmt::Write>(parsed: &Parser, buf: &'buf mut T) -> fmt::Result {
+    fn export_tree<'inp, T: fmt::Write>(
+        parsed: &Parser,
+        buf: &'buf mut T,
+        conf: ConfigOptions,
+    ) -> fmt::Result {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
+            conf,
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
@@ -143,6 +153,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
+            conf: ConfigOptions::default(),
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)
@@ -737,6 +748,10 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
     fn backend_name() -> &'static str {
         "html"
     }
+
+    fn config_opts(&self) -> &ConfigOptions {
+        &self.conf
+    }
 }
 
 // Writers for generic attributes
@@ -848,12 +863,14 @@ impl fmt::Write for Html<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use pretty_assertions::{assert_eq, assert_ne};
     use pretty_assertions::assert_eq;
 
+    fn html_export(input: &str) -> core::result::Result<String, fmt::Error> {
+        Html::export(input, ConfigOptions::default())
+    }
     #[test]
     fn combined_macros() -> fmt::Result {
-        let a = Html::export(
+        let a = html_export(
             r"#+macro: poem hiii $1 $2 text
 {{{poem(cool,three)}}}
 ",
@@ -872,7 +889,7 @@ hiii cool three text
 
     #[test]
     fn keyword_macro() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
      #+title: hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 {{{keyword(title)}}}
@@ -884,14 +901,14 @@ hiii cool three text
             r"<p>
 hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 </p>
-"
+",
         );
         Ok(())
     }
 
     #[test]
     fn line_break() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r" abc\\
 ",
         )?;
@@ -903,10 +920,10 @@ abc
 <br>
 
 </p>
-"
+",
         );
 
-        let n = Html::export(
+        let n = html_export(
             r" abc\\   q
 ",
         )?;
@@ -916,24 +933,24 @@ abc
             r"<p>
 abc\\   q
 </p>
-"
+",
         );
         Ok(())
     }
 
     #[test]
     fn horizontal_rule() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"-----
 ",
         )?;
 
-        let b = Html::export(
+        let b = html_export(
             r"                -----
 ",
         )?;
 
-        let c = Html::export(
+        let c = html_export(
             r"      -------------------------
 ",
         )?;
@@ -942,7 +959,7 @@ abc\\   q
         assert_eq!(b, c);
         assert_eq!(a, c);
 
-        let nb = Html::export(
+        let nb = html_export(
             r"                ----
 ",
         )?;
@@ -952,7 +969,7 @@ abc\\   q
             r"<p>
 ----
 </p>
-"
+",
         );
 
         Ok(())
@@ -960,7 +977,7 @@ abc\\   q
 
     #[test]
     fn correct_cache() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 - one
 - two
@@ -977,7 +994,7 @@ abc &+ 10\\
 
     #[test]
     fn html_unicode() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"a é😳
 ",
         )?;
@@ -995,7 +1012,7 @@ a é😳
 
     #[test]
     fn list_counter_set() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 1. [@4] wordsss??
 ",
@@ -1009,13 +1026,13 @@ wordsss??
 </p>
 </li>
 </ol>
-"#
+"#,
         );
         Ok(())
     }
     #[test]
     fn anon_footnote() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 hi [fn:next:coolio]
 ",
@@ -1052,7 +1069,7 @@ coolio</div>
 
     #[test]
     fn footnote_heading() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 hello [fn:1]
 
@@ -1098,7 +1115,7 @@ world
     #[test]
     fn footnote_order() -> Result {
         // tests dupes too
-        let a = Html::export(
+        let a = html_export(
             r#"
 hi [fn:dupe] cool test [fn:coolnote]  [fn:dupe:inlinefootnote]
 coolest [fn:1] again [fn:1]
@@ -1188,7 +1205,7 @@ coolio</div>
 
     #[test]
     fn esoteric_footnotes() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 And anonymous ones [fn::mysterious]
 
@@ -1244,7 +1261,7 @@ mysterious</div>
 
     #[test]
     fn file_link() -> Result {
-        let a = Html::export(r"[[file:html.org][hi]]")?;
+        let a = html_export(r"[[file:html.org][hi]]")?;
 
         assert_eq!(
             a,
@@ -1259,7 +1276,7 @@ mysterious</div>
 
     #[test]
     fn file_link_image() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 [[file:bmc.jpg]]
 ",
@@ -1276,7 +1293,7 @@ mysterious</div>
 
     #[test]
     fn basic_link_image() -> Result {
-        let a = Html::export(
+        let a = html_export(
             r"
 [[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
 ",
@@ -1294,7 +1311,7 @@ mysterious</div>
 
     #[test]
     fn unspecified_link() -> Result {
-        let a = Html::export(r"[[./hello]]")?;
+        let a = html_export(r"[[./hello]]")?;
 
         assert_eq!(
             a,

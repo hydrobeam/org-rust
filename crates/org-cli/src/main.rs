@@ -1,4 +1,5 @@
 use anyhow::bail;
+use org_exporter::ConfigOptions;
 use std::borrow::Cow;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
@@ -164,7 +165,8 @@ fn run() -> anyhow::Result<()> {
                     }
                 }
             }
-            backend.export(&parser_output, &mut exported_content)?;
+            let conf = ConfigOptions::new(Some(file_path.to_path_buf()));
+            backend.export(&parser_output, &mut exported_content, conf)?;
 
             if let Some(template_path) = parser_output.keywords.get("template_path") {
                 // evaluate relative paths if needed

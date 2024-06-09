@@ -1,5 +1,5 @@
-use clap::{Parser, ValueEnum, ValueHint};
-use org_exporter::Exporter;
+use clap::{ArgAction, Parser, ValueEnum, ValueHint};
+use org_exporter::{ConfigOptions, Exporter};
 use serde::Deserialize;
 
 #[derive(Parser, Deserialize, Default)]
@@ -50,10 +50,11 @@ impl Backend {
         self,
         parsed: &org_parser::Parser,
         buf: &mut String,
+        conf: ConfigOptions
     ) -> Result<(), core::fmt::Error> {
         match self {
-            Backend::Html => org_exporter::Html::export_tree(parsed, buf),
-            Backend::Org => org_exporter::Org::export_tree(parsed, buf),
+            Backend::Html => org_exporter::Html::export_tree(parsed, buf, conf),
+            Backend::Org => org_exporter::Org::export_tree(parsed, buf, conf),
         }
     }
 
