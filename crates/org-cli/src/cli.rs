@@ -28,9 +28,15 @@ pub struct Cli {
 
     /// Path to config file
     ///
-    /// CLI params are preferred over config-file params
+    /// CLI params are preferred over config file params
     #[arg(short, long, value_hint = ValueHint::FilePath)]
     pub config: Option<String>,
+
+    /// Display details of the program's execution
+    ///
+    /// Prints files that are being processed / copied
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    pub verbose: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize)]

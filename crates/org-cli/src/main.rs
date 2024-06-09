@@ -56,6 +56,12 @@ fn run() -> anyhow::Result<()> {
         cli_params.input
     };
 
+    let verbose = if cli_params.verbose {
+        cli_params.verbose
+    } else {
+        config_params.verbose
+    };
+
     let backend = match backend {
         Some(b) => b,
         None => Backend::default(),
@@ -122,7 +128,9 @@ fn run() -> anyhow::Result<()> {
 
     // main loop to export files
     for file_path in &paths {
-        writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
+        if verbose {
+            writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
+        }
         if file_path.extension().is_some_and(|x| x == "org") {
             let mut input_file = std::fs::File::open(file_path)
                 .map_err(|e| CliError::from(e).with_path(&file_path))?;
@@ -210,11 +218,13 @@ fn run() -> anyhow::Result<()> {
                         .with_cause("error in writing to destination file")
                 })?;
             opened.write(&exported_content.as_bytes())?;
-            writeln!(
-                stdout,
-                " -- processed: {}\n",
-                full_output_path.canonicalize()?.display()
-            )?
+            if verbose {
+                writeln!(
+                    stdout,
+                    " -- processed: {}\n",
+                    full_output_path.canonicalize()?.display()
+                )?
+            }
         } else {
             // if not org, do nothing and just copy it
             let stripped_path = if let InpType::Dir(src_dir) = src {
@@ -233,24 +243,29 @@ fn run() -> anyhow::Result<()> {
                         fs::remove_dir_all(&full_output_path)?;
                     }
                     std::os::unix::fs::symlink(t, &full_output_path)?;
-                    writeln!(
-                        stdout,
-                        " -- symlinked: {}\n",
-                        &full_output_path.canonicalize()?.display()
-                    )
+                    if verbose {
+                        writeln!(
+                            stdout,
+                            " -- symlinked: {}\n",
+                            &full_output_path.canonicalize()?.display()
+                        )
+                        .map_err(|e| CliError::from(e))?;
+                    }
                 } else {
                     fs::copy(file_path, &full_output_path).map_err(|e| {
                         CliError::from(e)
                             .with_path(&file_path)
                             .with_cause("error in copying file to destination")
                     })?;
-                    writeln!(
-                        stdout,
-                        " -- copied: {}\n",
-                        &full_output_path.canonicalize()?.display()
-                    )
+                    if verbose {
+                        writeln!(
+                            stdout,
+                            " -- copied: {}\n",
+                            &full_output_path.canonicalize()?.display()
+                        )
+                        .map_err(|e| CliError::from(e))?;
+                    }
                 }
-                .map_err(|e| CliError::from(e))?;
             }
         }
         file_contents.clear();
