@@ -297,14 +297,14 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
                             return Ok(());
                         }
-                        write!(self, "<pre")?;
+                        write!(self, "<pre>")?;
+                        write!(self, "<code")?;
+                        self.class("src")?;
                         if let Some(lang) = language {
-                            self.class(&format!("src src-{}", lang))?;
-                        } else {
-                            self.class(&format!("src"))?;
+                            self.class(&format!("src-{}", lang))?;
                         }
                         self.prop(node)?;
-                        writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
+                        writeln!(self, ">\n{}</pre></code>", HtmlEscape(contents))?;
                     }
                     Block::Verse {
                         parameters,
