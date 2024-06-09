@@ -483,7 +483,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
                     // FIXME: proper error handling
+                    write!(self, r#"<div class="org-include""#)?;
+                    self.prop(node)?;
+                    write!(self, ">")?;
                     include_handle(inner.val, self).unwrap();
+                    write!(self, "</div>")?;
                 }
             }
             Expr::LatexEnv(inner) => {
