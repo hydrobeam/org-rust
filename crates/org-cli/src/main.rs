@@ -199,12 +199,12 @@ fn run() -> anyhow::Result<()> {
                         .with_cause("error with opening template file")
                 })?;
                 // exported_content =
-                let mut t = Template::form_template(
+                let mut t = Template::new(
                     &parser_output,
                     &template_path,
                     &template_contents,
                     &exported_content,
-                )?;
+                );
                 exported_content = t.process()?;
             }
 
