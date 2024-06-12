@@ -4,11 +4,13 @@ use std::borrow::Cow;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use template::Template;
 use types::{CliError, InpType, OutType};
 use utils::mkdir_recursively;
 
 use clap::Parser;
 
+mod template;
 use crate::cli::Backend;
 mod cli;
 mod types;
@@ -165,6 +167,7 @@ fn run() -> anyhow::Result<()> {
                     }
                 }
             }
+
             let conf = ConfigOptions::new(Some(file_path.to_path_buf()));
             backend.export(&parser_output, &mut exported_content, conf)?;
 
@@ -176,14 +179,33 @@ fn run() -> anyhow::Result<()> {
                         .parent()
                         .unwrap()
                         .join(template_path)
-                        .canonicalize()?
+                        .canonicalize()
+                        .map_err(|e| {
+                            CliError::from(e)
+                                .with_path(&file_path.parent().unwrap().join(template_path))
+                                .with_cause(&format!(
+                                    "Failed to locate template_path from: {}",
+                                    file_path.display()
+                                ))
+                        })?
                         .into()
                 } else {
                     template_path.into()
                 };
 
-                exported_content =
-                    process_template(&template_path, &exported_content, &parser_output)?;
+                let template_contents = std::fs::read_to_string(&template_path).map_err(|e| {
+                    CliError::from(e)
+                        .with_path(&template_path)
+                        .with_cause("error with opening template file")
+                })?;
+                // exported_content =
+                let mut t = Template::form_template(
+                    &parser_output,
+                    &template_path,
+                    &template_contents,
+                    &exported_content,
+                )?;
+                exported_content = t.process()?;
             }
 
             // the destination we are writing to
@@ -275,86 +297,4 @@ fn run() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn process_template(
-    template_path: &Path,
-    exported_content: &str,
-    parser: &org_parser::Parser,
-) -> Result<String, CliError> {
-    let mut template_contents = std::fs::read_to_string(template_path).map_err(|e| {
-        CliError::from(e)
-            .with_path(template_path)
-            .with_cause("error with opening template file")
-    })?;
-
-    // the regex is checked at compile time and won't exceed the size limits + is valid
-    let re = regex::Regex::new(r#"\{\{\{(.*)\}\}\}"#).unwrap();
-
-    let mut matches = Vec::new();
-    // collect all matches to {{{.*}}} regex - things we want to replace with keywords
-    for captured in re.captures_iter(&template_contents) {
-        if let Some(res) = captured.get(1) {
-            // we expand the range of the capture to include the {{{}}}
-            let start = res.start() - 3;
-            let end = res.end() + 3;
-            let mut extract = res.as_str();
-            let kw: Cow<str>;
-
-            if extract == "content" {
-                kw = exported_content.into();
-            } else {
-                let mut default_val = None;
-                if let Some(ind) = extract.find('|') {
-                    let (left, right) = extract.split_at(ind);
-                    extract = left;
-                    default_val = Some(&right[1..]); // drop |
-                }
-
-                // &* needed because: https://stackoverflow.com/a/65550108
-                kw = if let Some(&val) = parser.keywords.get(&*extract) {
-                    val.into()
-                } else {
-                    if let Some(val) = default_val {
-                        val.to_owned().into()
-                    } else {
-                        eprintln!(r#"warning: "{}" not found in keywords"#, extract);
-                        "".into()
-                    }
-                };
-            }
-            matches.push((start, end, kw));
-        }
-    }
-    // process: we take all our matches and replace them with their respective hits as needed.
-    // however, the indices change as we replace a section of the original string, so we keep
-    // track of an offset which determines how much the start/end indicies must be adjusted
-    //
-    // demo:
-    // {{{a}}} -> hi.         the new string is smaller, so offset is decreased.
-    // {{{a}}} -> long-string the new string is larger, so offset is increased
-    //
-    // REVIEW: this process is probably slow, maybe a faster solution?
-
-    // offset calculators
-    let mut offset = 0;
-    let mut diff;
-    let mut old_len;
-    let mut new_len;
-
-    for (start, end, kw) in matches {
-        // "content" is a special case keyword
-        let start = (start as isize + offset) as usize;
-        let end = (end as isize + offset) as usize;
-
-        template_contents.replace_range(start..end, &kw);
-
-        // old_len is length of extract + 6 from {{{}}}
-        old_len = (end - start) as isize;
-        new_len = kw.len() as isize;
-        diff = new_len - old_len;
-        offset += diff;
-    }
-
-    Ok(template_contents)
 }
