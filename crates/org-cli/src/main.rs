@@ -6,7 +6,7 @@ use std::io::{stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use template::Template;
 use types::{CliError, InpType, OutType};
-use utils::mkdir_recursively;
+use utils::{mkdir_recursively, relative_path_from};
 
 use clap::Parser;
 
@@ -33,7 +33,7 @@ fn run() -> anyhow::Result<()> {
         let conf = read_to_string(path).map_err(|e| {
             CliError::from(e)
                 .with_path(path)
-                .with_cause(&format!("failed to read config file: {}", path.display()))
+                .with_cause("error while reading config file")
         })?;
 
         config_params = toml::from_str(&conf)?;
@@ -142,6 +142,7 @@ fn run() -> anyhow::Result<()> {
             });
 
             let mut parser_output = org_parser::parse_org(&file_contents);
+
             // convert .org links to .extension links
             for item in parser_output.pool.iter_mut() {
                 if let org_parser::Expr::RegularLink(expr) = &mut item.obj {
@@ -171,34 +172,16 @@ fn run() -> anyhow::Result<()> {
             let conf = ConfigOptions::new(Some(file_path.to_path_buf()));
             backend.export(&parser_output, &mut exported_content, conf)?;
 
+            // handle a template (if needed)
             if let Some(template_path) = parser_output.keywords.get("template_path") {
                 // evaluate relative paths if needed
-                let template_path = Path::new(template_path);
-                let template_path: Cow<Path> = if template_path.is_relative() {
-                    file_path
-                        .parent()
-                        .unwrap()
-                        .join(template_path)
-                        .canonicalize()
-                        .map_err(|e| {
-                            CliError::from(e)
-                                .with_path(&file_path.parent().unwrap().join(template_path))
-                                .with_cause(&format!(
-                                    "Failed to locate template_path from: {}",
-                                    file_path.display()
-                                ))
-                        })?
-                        .into()
-                } else {
-                    template_path.into()
-                };
-
+                let template_path = relative_path_from(file_path, Path::new(template_path))?;
                 let template_contents = std::fs::read_to_string(&template_path).map_err(|e| {
                     CliError::from(e)
                         .with_path(&template_path)
                         .with_cause("error with opening template file")
                 })?;
-                // exported_content =
+
                 let mut t = Template::new(
                     &parser_output,
                     &template_path,
@@ -222,7 +205,7 @@ fn run() -> anyhow::Result<()> {
                     let stripped_path = if let InpType::Dir(src_dir) = src {
                         file_path.strip_prefix(src_dir)?
                     } else {
-                        unreachable!()
+                        unreachable!("outtype can only be dir if inptype was dir")
                     };
                     full_output_path = dest_path.join(stripped_path);
                     full_output_path.set_extension(backend.extension());
@@ -231,7 +214,7 @@ fn run() -> anyhow::Result<()> {
 
             mkdir_recursively(&full_output_path.parent().unwrap())?;
             // truncate is needed to fully overwrite file contents
-            let mut opened = OpenOptions::new()
+            OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
@@ -240,8 +223,9 @@ fn run() -> anyhow::Result<()> {
                     CliError::from(e)
                         .with_path(&full_output_path)
                         .with_cause("error in writing to destination file")
-                })?;
-            opened.write(&exported_content.as_bytes())?;
+                })?
+                .write(exported_content.as_bytes())?;
+
             if verbose {
                 writeln!(
                     stdout,
@@ -251,11 +235,13 @@ fn run() -> anyhow::Result<()> {
             }
         } else {
             // if not org, do nothing and just copy it
-            let stripped_path = if let InpType::Dir(src_dir) = src {
-                file_path.strip_prefix(src_dir)?
-            } else {
-                unreachable!()
+            let stripped_path = match src {
+                InpType::File(f) => {
+                    bail!("passed non .org file: {}. exiting...", f.display())
+                }
+                InpType::Dir(src_dir) => file_path.strip_prefix(src_dir)?,
             };
+
             if let OutType::Dir(dest_path) = dest {
                 let full_output_path = dest_path.join(stripped_path);
                 mkdir_recursively(full_output_path.parent().unwrap())?;

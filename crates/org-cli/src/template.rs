@@ -1,11 +1,13 @@
+use crate::{types::CliError, utils::relative_path_from};
 use org_parser::Parser;
-use std::path::Path;
+use std::{fs::read_to_string, path::Path};
 
 #[derive(Debug)]
 enum Command<'a> {
     If(&'a str),
     Endif,
     Else,
+    Include(&'a str),
 }
 
 impl<'a> Command<'a> {
@@ -13,8 +15,10 @@ impl<'a> Command<'a> {
         extract = extract.trim();
         if let Some(ind) = extract.find(" ") {
             let (command, value) = extract.split_at(ind);
+            let value = value.trim();
             match command {
-                "if" => Some(Command::If(value.trim())),
+                "if" => Some(Command::If(value)),
+                "include" => Some(Command::Include(value)),
                 _ => {
                     eprintln!("invalid command: {}", command);
                     None
@@ -29,7 +33,6 @@ impl<'a> Command<'a> {
         }
     }
 }
-use crate::types::CliError;
 
 #[derive(Clone, Copy, Debug)]
 enum LogicItem {
@@ -131,6 +134,7 @@ impl<'a, 'template> Template<'a, 'template> {
                                                 break;
                                             }
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
@@ -184,6 +188,25 @@ impl<'a, 'template> Template<'a, 'template> {
                                 .with_path(self.template_path)
                                 .with_cause("Unexpected endif block in template"))?
                         }
+                    }
+                    Command::Include(file) => {
+                        let include_path =
+                            relative_path_from(&self.template_path, Path::new(file))?;
+                        let included_template = read_to_string(&include_path).map_err(|e| {
+                            CliError::from(e)
+                                .with_path(&include_path)
+                                .with_cause(&format!(
+                                    "failed to read included file within template file: {}",
+                                    self.template_path.display()
+                                ))
+                        })?;
+                        let mut t = Template::new(
+                            self.p,
+                            &include_path,
+                            &included_template,
+                            self.exported_content,
+                        );
+                        local_items.push_str(&t.process()?);
                     }
                 }
             } else if let Some(ind) = extract.find("|") {

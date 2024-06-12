@@ -1,4 +1,7 @@
-use std::path::{Component, Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Component, Path, PathBuf},
+};
 
 use crate::types::CliError;
 
@@ -38,4 +41,32 @@ pub fn mkdir_recursively(path: &Path) -> Result<(), CliError> {
             .with_path(path)
             .with_cause(&format!("failed to create directory {}", path.display()))
     })
+}
+
+pub fn relative_path_from<'a, 'b>(
+    src: &'a Path,
+    added: &'b Path,
+) -> Result<Cow<'b, Path>, CliError> {
+    if added.is_relative() {
+        Ok(src
+            .parent()
+            .ok_or(
+                CliError::new()
+                    .with_path(src)
+                    .with_cause("no parent directory found"),
+            )?
+            .join(added)
+            .canonicalize()
+            .map_err(|e| {
+                CliError::from(e)
+                    .with_path(&src.parent().unwrap().join(added))
+                    .with_cause(&format!(
+                        "Failed to locate path from: {}",
+                        src.display()
+                    ))
+            })?
+            .into())
+    } else {
+        Ok(added.into())
+    }
 }

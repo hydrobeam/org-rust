@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-use crate::utils::normalize_path;
-
 #[derive(Debug)]
 pub enum InpType<'a> {
     File(&'a Path),
@@ -18,7 +16,7 @@ pub enum OutType<'a> {
 /// Adding extra information to errors.
 #[derive(Error, Debug)]
 pub enum CliError {
-    #[error("Logic Error")]
+    #[error("Error")]
     Logic,
     #[error("{0}")]
     Io(#[from] std::io::Error),
