@@ -194,11 +194,7 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
     cursor.is_index_valid()?;
     cursor.skip_ws();
 
-    if cursor.curr() != LBRACK && cursor.peek(1)? != b'@' {
-        Err(MatchError::InvalidLogic)?
-    }
-
-    cursor.index += 2;
+    cursor.word("[@")?;
 
     let num_match = cursor.fn_while(|chr| chr.is_ascii_alphanumeric())?;
 
@@ -267,7 +263,7 @@ fn parse_tag(mut cursor: Cursor) -> Result<Match<&str>> {
     })
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CheckBox {
     /// [-]
     Intermediate,
@@ -296,7 +292,7 @@ impl CheckBox {
         // 012
         // [ ]
         if cursor.curr() != LBRACK && cursor.peek(2)? != RBRACK {
-            return Err(MatchError::EofError);
+            return Err(MatchError::InvalidLogic);
         }
 
         Ok(Match {
@@ -314,7 +310,29 @@ impl CheckBox {
 
 #[cfg(test)]
 mod tests {
-    // use crate::parse_org;
+    use crate::{expr_in_pool, parse_org};
 
-    // use super::*;
+    use super::*;
+    #[test]
+    fn checkbox() {
+        // FIXME: panics without newline
+        let input = "- [X]\n";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert_eq!(item.check_box, Some(CheckBox::On))
+    }
+
+    #[test]
+    fn counter_set() {
+        // FIXME: panics without newline
+        let input = "- [@1] \n";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert_eq!(item.counter_set, Some("1"));
+
+        let input = "- [@43] \n";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert_eq!(item.counter_set, Some("43"))
+    }
 }

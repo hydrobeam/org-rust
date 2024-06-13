@@ -188,7 +188,7 @@ impl<'a> Parseable<'a> for Block<'a> {
         } else {
             let mut contents: Vec<NodeID> = Vec::new();
             let reserve_id = parser.pool.reserve_id();
-            // janky
+            // REVIEW: janky
             let mut temp_cursor = cursor.cut_off(loc);
             while let Ok(element_id) =
                 // use default parseopts since it wouldn't make sense for the contents

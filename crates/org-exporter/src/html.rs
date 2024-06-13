@@ -1327,4 +1327,39 @@ mysterious</div>
 
         Ok(())
     }
+
+    #[test]
+    fn checkbox() -> Result {
+        let a = html_export("- [X]\n")?;
+
+        assert_eq!(
+            a,
+            r#"<ul>
+<li class="on"></li>
+</ul>
+"#
+        );
+
+        let b = html_export("- [ ]\n")?;
+
+        assert_eq!(
+            b,
+            r#"<ul>
+<li class="off"></li>
+</ul>
+"#
+        );
+
+        let c = html_export("- [-]\n")?;
+
+        assert_eq!(
+            c,
+            r#"<ul>
+<li class="trans"></li>
+</ul>
+"#
+        );
+
+        Ok(())
+    }
 }
