@@ -12,12 +12,9 @@ Can use ~attr_BACKEND~ to set attributes within your document,
 
 ~#+NAME:~ will also allow linking to the affiliated element:
 
-#+CAPTION: demonstration:
-Look at the this [[rad]] table
+Look at the the [[rad]] table above!
 
-
-
-
+# inline styling
 #+begin_export html
 <style>
 [black] {

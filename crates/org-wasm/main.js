@@ -30,6 +30,7 @@ import affiliated_string from "./static/affiliated.org";
 import default_string from "./static/default.org";
 import footnotes_string from "./static/footnotes.org";
 import images_string from "./static/images.org";
+import showcase_string from "./static/feature_showcase.org"
 
 let currElem = view_dict["rendered"];
 
@@ -120,6 +121,12 @@ function select_func(val) {
     case "default": {
       editor.dispatch({
         changes: { from: 0, to: editor.state.doc.length, insert: default_string },
+      });
+      break;
+    }
+    case "showcase": {
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: showcase_string },
       });
       break;
     }

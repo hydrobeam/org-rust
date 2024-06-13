@@ -1,50 +1,11 @@
-#+macro: greet Hello /$1/, nice typing... *$1*.
-* Basic Heading
+* Org-Rust
+This is a parser and exporter for [[https://orgmode.org/][Org-mode]], powered by [[https://github.com/hydrobeam/org-rust][Org-Rust]].
 
-{{{greet(user)}}}
+The editor is running the parser locally within your browser using WebAssembly and the syntax highlighting is generated from the parse tree too!
 
-** Child Heading
+Be sure to check out some of the default presets:
 
-1. https://plain_links.com.
-  - <mailto:okiedokie@cool.com>
-    * src_python{(technically) inline_src}
-
-|tables!|[[targets][links to output target]]
-|another|row
-
-2. [@2] [[Child Heading]]
-  - \aleph \leftarrow entities
-
-#+begin_export html
-<style type="text/css" media="screen">
-table, th, td {
-  border: 1px solid;
-}
-</style>
-#+end_export
-
-
-- +does+
-- *it*
-- /all/
-- ~code~
-- =code, again..=
-- /so _nested_, *t^o_o*./
-
-emojis :flushed: :tada: :sunglasses:
-
-\begin{align}
-x &+ 4\\
-abc &+ 10\\
-\end{align}
-outputs MathML, little janky atm (might switch to katex..?)
-
-Target here: <<targets>>\\
-
-
-# doesn't look the best, imo
------
-
-#+begin_src rust
-nothing styled for source blocks yet, too.
-#+end_src
+- *Showcase*: shows off (most of) what Org-Rust can do
+- *Footnotes*: highlights the footnotes feature
+- *Affiliated Keywords*: shows how to attach specific attributes to objects
+- *Images*: playing around with images!

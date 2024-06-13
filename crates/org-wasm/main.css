@@ -18,7 +18,6 @@ button {
   cursor: pointer;
   padding: 6px 6px;
   transition: 0.3s;
-  font-size: 1vw;
   white-space: nowrap;
   flex: 1;
 }
@@ -93,7 +92,7 @@ iframe {
 }
 
 #editor-view {
-  height: 85svh;
+  height: 94svh;
   display: grid;
   grid-template-columns: 50% 50%;
   grid-template-areas: "input view";
@@ -101,23 +100,10 @@ iframe {
 }
 
 body {
-  margin-left: 80px;
-  margin-right: 80px;
-  margin-top: 40px;
+  margin: 0;
   line-height: 1.4;
-  font-size: 1.75em;
-  padding: 0 10px;
+  font-size: 1.25em;
   background-color: rgb(250, 250, 250);
-}
-
-header {
-  height: 65dvh;
-  padding-top: 1em;
-  padding-bottom: 1em;
-}
-
-header h1 {
-  margin-bottom: 0em;
 }
 
 header p {
@@ -127,31 +113,29 @@ header p {
   color: #7e8170;
 }
 
+header {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
+    align-items: baseline;
+    flex-direction: row;
+    margin: 0;
+}
+
 h1,
 h2,
 h3,
 header {
-  margin-bottom: 0.1em;
   font-weight: 600;
   background-image: linear-gradient(to bottom right, #13223f, #139323);
   color: transparent;
   background-clip: text;
   -webkit-background-clip: text;
+  margin: 0;
+  margin-bottom: 0.25em;
 }
 
-h1 {
-  font-size: 6.5em;
-}
-
-h2 {
-  font-size: 4em;
-}
-
-h3 {
-  font-size: 2em;
-}
-
-@media (max-width: 1000px) {
+@media (max-width: 850px) {
   #editor-view {
     grid-template-columns: 100%;
     grid-template-areas:
@@ -164,11 +148,6 @@ h3 {
     height: auto;
   }
   body {
-    margin: 5px;
-    margin-top: 0px;
     font-size: 1.125em;
-  }
-  .tab button {
-    font-size: 0.55em;
   }
 }

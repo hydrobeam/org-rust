@@ -34,6 +34,14 @@ Then for the site itself (output will be found at `/dist`):
 npm run deploy
 ```
 
+or alternatively:
+
+```
+npm run demo
+```
+
+for dev builds.
+
 `/dist` can then be served as is.
 
 ### Other

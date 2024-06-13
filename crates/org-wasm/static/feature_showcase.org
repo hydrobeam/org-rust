@@ -1,0 +1,45 @@
+#+macro: greet Hello /$1/, nice typing... *$1*.
+* Basic Heading
+
+{{{greet(user)}}}
+
+** Child Heading
+
+1. https://plain_links.com.
+  - links within angle brackets: <mailto:okiedokie@cool.com>
+    * src_python{inline source code}
+
+|tables!|[[targets][link to another item in the document: "targets"]]
+|another|row
+
+2. [@2] link to [[Child Heading]]
+  - \aleph \leftarrow entities
+
+#+begin_export html
+<style type="text/css" media="screen">
+table, th, td {
+  border: 1px solid;
+}
+</style>
+#+end_export
+
+- +does+
+- *it*
+- /all/
+- ~code~
+- =code, again..=
+- /so _nested_, *t^o_o*./
+- emojis :flushed: :tada: :sunglasses:
+
+Math blocks using mathml:
+
+\begin{align}
+x &+ 4\\
+abc &+ 10\\
+\end{align}
+
+Target here: <<targets>>\\
+
+#+begin_src rust
+can optionally use highlight.js for easy code block styling
+#+end_src

@@ -1,8 +1,14 @@
 * Parsing Approach
 
-The parser was implemented manually without the use of parser combinator libraries to keep dependencies low and to have more flexibility with the implementation and performance.
+A quick summary of important points:
 
-The parsing strategy is to try to (almost) consecutively apply each potential item's ~parse~ method, and determine if it returns a successful result. If the result is is not successful,
+- The parser is zero-copy doesn't duplicate the source string in the generated AST.
+- Parsing takes advantage of caching any successful sub-parses to minimize backtracking.
+- Nodes are stored in an index-based arena (a ~Vec~) for more straightforward iteration and lifetime management
+
+-----
+
+At a high level, the parsing strategy is to try to (almost) consecutively apply each potential item's ~parse~ method, and determine if it returns a successful result. If the result is is not successful,
 either move on to the next available item, or the default parser.
 
 For elements, the default parser is ~Paragraph::parse~ and for objects, the default parser is ~parse_text()~.
@@ -10,37 +16,34 @@ For elements, the default parser is ~Paragraph::parse~ and for objects, the defa
 We match based on the first character to decide which item's parser to try. For example, if we match on ~#~, we'd first try ~Block::parse()~, then ~Keyword::parse()~ and so on. If we match on ~|~, we'd first try ~Table::parse()~, then move on to the default parser (~Paragraph::parse()~). This approach allows us to skip trying most of the parsing functions for a given input.
 
 The typical transition is:
-1. ~parse_org()~: entry point to the parser, runs ~parse_element~ in a loop
+1. ~parse_org()~: entry point to the parser, runs ~parse_element~ in a loop.
 2. ~parse_element()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Elements][elements]]
-3. ~Paragraph::parse()~: handles the default [[https://orgmode.org/worg/dev/org-syntax-edited.html#Paragraphs][paragraph]] element,
+3. ~Paragraph::parse()~: if no specific elements are found: handle the default [[https://orgmode.org/worg/dev/org-syntax-edited.html#Paragraphs][paragraph]] element. Paragraphs contain objects. Runs ~parse_object()~ in a loop.
 4. ~parse_object()~: parses [[https://orgmode.org/worg/dev/org-syntax-edited.html#Objects][objects]]
 5. ~parse_text()~: if no objects are recognized, interpret them as text
 
+The parser was implemented manually without the use of parser combinator libraries to keep dependencies low and to have more flexibility with the implementation and performance.
 
 ** Overall
 
-~Parseable~ is the trait that provides the ~parse()~ method for each element/object. It returns a ~NodeID~. Corresponding to the element having been placed inside the ~NodePool~.
+~Parseable~ is the trait that provides the ~parse()~ method for each element/object struct. It returns a ~NodeID~. Corresponding to the element that was placed inside the ~NodePool~.
 
 ~NodePool~ is the index arena that ~Node~'s are stored in. Using an arena helps simplify lifetimes and provides easy iteration over all elements in the AST. We pass a mutable reference to the arena to each within each ~parse()~ to fill it up when needed.
-
 
 Each ~Node~ contains an ~Expr~ (which maps to an actual AST item) and additional metadata, which is useful during parsing / exporting.
 
 We take in a ~&str~ and turn it into a byte array (~&[u8]~) with a ~Cursor~. ~Cursor~ has some helpful utility functions implemented to make the parsing functions easier to write and more legible. We also avoid re-allocating the input this way.
-
-
 ** Caching
-
 The parsing function we attempt to use can make significant progress into parsing, even accumulating child nodes of its own before failing (such as in the case of improperly closed markup).
 So in theory, we'd be heavily backtracking and re-parsing elements we've already seen!
 
-To avoid this, we try to cache the progress we've made within each parsing function (like a packrat parser).
+To avoid this, we try to cache the progress we've made within each parsing function (like a [[packrat]] parser).
 Not all progress can be cached, especially in the case of "state changes", like in a ~#+begin_src~ block where the contents aren't org.
 This isn't a big deal for non cache-able elements since they're quicker to parse.
 
 * Resources
 
- - Helpful for understanding how a packrat parser works:
+ - Helpful for understanding how a <<packrat>> parser works:
    https://blog.bruce-hill.com/packrat-parsing-from-scratch
 
  - Motivation behind going for a flattened arena-based AST:

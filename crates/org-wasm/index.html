@@ -11,20 +11,18 @@
 
 <body>
     <header>
-        <h1>Org-Rust</h1>
-        <p role="doc-subtitle">A parser & document exporter for <a href="https://orgmode.org">Org-Mode</a>.
-            Written in Rust.</p>
+        <div class="dummy-element"></div>
+        <h2>Org-Rust Live Editor</h2>
+        <div id="vimbutton">
+            <input type="checkbox" name="vim" id="vim" />
+            <label for="vim">Vim Mode</label>
+        </div>
     </header>
-
-    <h2>Editor</h2>
-    <p>Try out the live editor below!
-        The syntax highlighting is generated from the output of the parser ;)</p>
-    <input type="checkbox" name="vim" id="vim" />
-    <label for="vim">Vim Mode</label>
     <div id="editor-view">
         <div class="input-area">
             <div class="tab">
                 <button class="contentlinks" value="default">Default</button>
+                <button class="contentlinks" value="showcase">Showcase</button>
                 <button class="contentlinks" value="footnotes">Footnotes</button>
                 <button class="contentlinks" value="affiliated">Affiliated Keywords</button>
                 <button class="contentlinks" value="images">Images</button>
@@ -43,19 +41,8 @@
             <pre id="raw" class="tabcontent"></pre>
         </div>
     </div>
-
-    <h2>More Info</h2>
-    <ul>
-        <li>The editor is powered by Web-Assembly and executes the parser directly from your browser!</li>
-        <li>The parser is zero-copy doesn't duplicate the source string in the generated AST.</li>
-        <li>Parsing takes advantage of caching any successful sub-parses to minimize backtracking.</li>
-        <li>Nodes are stored in an index-based arena (a <code>Vec</code>) for more straightforward
-            iteration and lifetime management.</li>
-    </ul>
-
     <p>
-        Progress
-        is documented at the <a href="https://github.com/hydrobeam/org-rust">
+        Progress is documented at the <a href="https://github.com/hydrobeam/org-rust">
             <code>Org-Rust</code></a> repository.
     </p>
 
