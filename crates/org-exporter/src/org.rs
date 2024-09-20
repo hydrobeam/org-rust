@@ -57,7 +57,11 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
 }
 
 impl<'buf> ExporterInner<'buf> for Org<'buf> {
-    fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> fmt::Result {
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+        conf: ConfigOptions,
+    ) -> fmt::Result {
         let parsed = org_parser::parse_macro_call(input);
 
         let mut obj = Org {
@@ -549,10 +553,10 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 write!(self, "<<{}>>", inner.0)?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call) {
+                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
                     match macro_contents {
                         Cow::Owned(p) => {
-                            Org::export_macro_buf(&p, self)?;
+                            Org::export_macro_buf(&p, self, self.config_opts().clone())?;
                         }
                         Cow::Borrowed(r) => {
                             write!(self, "{r}")?;
@@ -645,11 +649,13 @@ mod tests {
 
     #[test]
     fn basic_org_export() -> Result {
-        let out_str = org_export(r"** one two
+        let out_str = org_export(
+            r"** one two
 three
 *four*
 
-")?;
+",
+        )?;
 
         assert_eq!(
             out_str,
@@ -663,7 +669,8 @@ three *four*
 
     #[test]
     fn fancy_list_export() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
     + one two three
     four five six
 
@@ -671,7 +678,8 @@ three *four*
     + three
     + four
     +five
-")?;
+",
+        )?;
 
         assert_eq!(
             a,
@@ -838,11 +846,13 @@ more content here this is a pargraph
 
     #[test]
     fn less() -> Result {
-        let out = org_export(r"* [#1] abc :c:
+        let out = org_export(
+            r"* [#1] abc :c:
 ** [#1] descendant headline :a:b:
 *** [#2] inherit the tags
 ** [#3] different level
-")?;
+",
+        )?;
 
         assert_eq!(
             out,
@@ -858,7 +868,8 @@ more content here this is a pargraph
 
     #[test]
     fn list_export() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 - one
   - two
                             - three
@@ -866,7 +877,8 @@ more content here this is a pargraph
                   - five
 - six
  - seven
-")?;
+",
+        )?;
 
         println!("{a}");
         assert_eq!(
@@ -887,7 +899,8 @@ more content here this is a pargraph
 
     #[test]
     fn basic_list_export() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 - one
   - two
 - three
@@ -896,7 +909,8 @@ more content here this is a pargraph
  - six
    - seven
 - eight
-")?;
+",
+        )?;
 
         println!("{a}");
         assert_eq!(
@@ -918,8 +932,8 @@ more content here this is a pargraph
 
     #[test]
     fn list_words() -> Result {
-        let b = org_export("ine")?;
-        let a: String = org_export(r"
+        let a: String = org_export(
+            r"
 1. item 1
    abcdef
 
@@ -930,7 +944,8 @@ more content here this is a pargraph
 
 2. [X] item 2
    - aome tag :: item 2.1
-")?;
+",
+        )?;
 
         println!("{a}");
 
@@ -957,12 +972,14 @@ more content here this is a pargraph
 
     #[test]
     fn table_export() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 |one|two|
 |three|four|
 |five|six|seven|
 |eight
-")?;
+",
+        )?;
 
         assert_eq!(
             a,
@@ -979,7 +996,8 @@ more content here this is a pargraph
 
     #[test]
     fn table_export_hrule() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 |one|two|
 |-
 |three|four|
@@ -988,7 +1006,8 @@ more content here this is a pargraph
 |-
 |swagg|long the
 |okay| _underline_| ~fake| _fake|
-")?;
+",
+        )?;
 
         println!("{a}");
         assert_eq!(
@@ -1011,7 +1030,8 @@ more content here this is a pargraph
 
     #[test]
     fn indented_table() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 - zero
     |one|two|
     |-
@@ -1022,7 +1042,8 @@ more content here this is a pargraph
     |swagg|long the
     |okay| _underline_| ~fake| _fake|
 - ten
-")?;
+",
+        )?;
 
         assert_eq!(
             a,
@@ -1045,12 +1066,14 @@ more content here this is a pargraph
 
     #[test]
     fn proper_list_indent() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 - one
 - four
   - one
   - two
-")?;
+",
+        )?;
 
         assert_eq!(
             a,
@@ -1066,11 +1089,13 @@ more content here this is a pargraph
 
     #[test]
     fn heading_list_not() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 - one
 - four
 * one
-")?;
+",
+        )?;
 
         // make sure * one is not interpreted as another element of the list,
         // instead as a separate heading (if it was another element, we'd have three -'s
@@ -1119,8 +1144,10 @@ more content here this is a pargraph
 "
         );
 
-        let b = org_export(r"sample_text^bunchoftextnowhite!,lkljas
- after")?;
+        let b = org_export(
+            r"sample_text^bunchoftextnowhite!,lkljas
+ after",
+        )?;
 
         assert_eq!(
             b,
@@ -1148,8 +1175,10 @@ more content here this is a pargraph
 "
         );
 
-        let b = org_export(r"sample_{text}_bunchoftextnowhite!,lkljas
- after")?;
+        let b = org_export(
+            r"sample_{text}_bunchoftextnowhite!,lkljas
+ after",
+        )?;
 
         assert_eq!(
             b,
@@ -1200,7 +1229,8 @@ more content here this is a pargraph
 
     #[test]
     fn lblock_plus_list() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 -
    #+begin_src
 
@@ -1211,7 +1241,8 @@ meowwwwwwwwww
    #+end_src
 
 -
-")?;
+",
+        )?;
         println!("{a}");
 
         Ok(())
@@ -1232,7 +1263,8 @@ meowwwwwwwwww
 
     #[test]
     fn drawer() -> Result {
-        let a = org_export(r"
+        let a = org_export(
+            r"
 :NAME:
 
 *words*
@@ -1245,7 +1277,8 @@ meowwwwwwwwww
 
 four
 :end:
-")?;
+",
+        )?;
         assert_eq!(
             a,
             r"

@@ -43,7 +43,11 @@ pub(crate) trait ExporterInner<'buf> {
     ///
     /// Exporting macros entails creating a new context and parsing objects,
     /// as opposed to elements.
-    fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> fmt::Result;
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+        conf: ConfigOptions,
+    ) -> fmt::Result;
     /// Primary exporting routine.
     ///
     /// This method is called recursively until every `Node` in the tree is exhausted.

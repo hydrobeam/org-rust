@@ -90,9 +90,10 @@ impl<'a> Parseable<'a> for Keyword<'a> {
         match key_word.obj.to_ascii_lowercase().as_str() {
             "macro" => {
                 if let Ok(mac) = MacroDef::parse(cursor) {
+                    // HACK: we're duplicating the mac object
                     let nam = mac.obj.name;
-                    let id = parser.pool.alloc(mac.obj, start, mac.end, parent);
-                    parser.macros.insert(nam, id);
+                    let id = parser.pool.alloc(mac.obj.clone(), start, mac.end, parent);
+                    parser.macros.insert(nam, mac.obj);
                     return Ok(id);
                 }
             }

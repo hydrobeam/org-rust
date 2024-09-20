@@ -190,15 +190,20 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     }
     write!(writer, "</li>")
 }
+
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
-    fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> Result {
+    fn export_macro_buf<'inp, T: fmt::Write>(
+        input: &'inp str,
+        buf: &'buf mut T,
+        conf: ConfigOptions,
+    ) -> Result {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
-            conf: ConfigOptions::default(),
+            conf,
         };
 
         obj.export_rec(&parsed.pool.root_id(), &parsed)
@@ -716,10 +721,10 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 )?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call) {
+                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
                     match macro_contents {
                         Cow::Owned(p) => {
-                            Html::export_macro_buf(&p, self)?;
+                            Html::export_macro_buf(&p, self, self.config_opts().clone())?;
                         }
                         Cow::Borrowed(r) => {
                             write!(self, "{}", HtmlEscape(r))?;
@@ -1406,5 +1411,24 @@ mysterious</div>
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn words_with_line_breaks() {
+        let a = r#"
+
+#+kw: hi
+
+* yeah
+hello
+
+{{{keyword(kw)}}}
+
+content
+
+here
+"#;
+        dbg!(html_export(a));
+        assert_eq!(html_export(a).unwrap(), "love!");
     }
 }

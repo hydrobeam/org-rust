@@ -107,7 +107,7 @@ pub struct Parser<'a> {
     pub(crate) target_occurences: HashMap<Rc<str>, usize>,
 
     /// A map of macro names to their corresponding [`MacroDef`]s
-    pub macros: HashMap<&'a str, NodeID>,
+    pub macros: HashMap<&'a str, MacroDef<'a>>,
 
     /// A map storing basic the key/val content of [`Keyword`]s.
     ///
@@ -927,6 +927,8 @@ impl<'a> std::fmt::Debug for Expr<'a> {
     }
 }
 
+// this is unused, a mockup of a way to classify objects as a way of verifying what can go
+// in certain elements
 #[allow(unused)]
 mod object {
     use bitflags::bitflags;
