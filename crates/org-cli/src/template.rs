@@ -66,7 +66,8 @@ impl<'a, 'template> Template<'a, 'template> {
     }
     pub fn process(&mut self) -> Result<String, CliError> {
         // the regex is checked at compile time and won't exceed the size limits + is valid
-        let re = regex::Regex::new(r#"\{\{\{(.*)\}\}\}"#).unwrap();
+        // ? => not greedy
+        let re = regex::Regex::new(r#"\{\{\{(.*?)\}\}\}"#).unwrap();
         // collect all matches to {{{.*}}} regex - things we want to replace with keywords
         let mut captures = re.captures_iter(&self.template_contents).map(|capture| {
             let mtch = capture.get(1).unwrap();
