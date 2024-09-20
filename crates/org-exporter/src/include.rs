@@ -27,7 +27,7 @@ use org_parser::parse_org;
 use std::borrow::Cow;
 use std::fs::read_to_string;
 use std::ops::Range;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use org_parser::element::HeadingLevel;
 

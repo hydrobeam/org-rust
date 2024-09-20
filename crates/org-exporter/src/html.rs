@@ -16,6 +16,7 @@ use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
 use crate::types::{ConfigOptions, Exporter, ExporterInner};
+use crate::utils::{process_toc, Options, TocItem};
 use phf::phf_set;
 
 // file types we can wrap an `img` around
@@ -140,11 +141,55 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
             conf,
         };
 
+        let opts = Options::handle_opts(parsed).unwrap();
+        if let Ok(tocs) = process_toc(parsed, &opts) {
+            write!(
+                obj,
+                r#"<nav id="table-of-contents" role="doc-toc">
+<h2>Table Of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+"#
+            )?;
+            write!(obj, "<ul>")?;
+            for toc in tocs {
+                toc_rec(&parsed, &mut obj, &toc, 1)?;
+            }
+            write!(obj, "</ul>")?;
+            write!(obj, r#"</div></nav>"#)?;
+        }
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         obj.exp_footnotes(&parsed)
     }
 }
 
+
+fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
+    parser: &Parser,
+    writer: &mut T,
+    parent: &TocItem,
+    curr_level: u8,
+) -> Result {
+    write!(writer, "<li>")?;
+    if curr_level < parent.level {
+        write!(writer, "<ul>")?;
+        toc_rec(&parser, writer, parent, curr_level + 1)?;
+        write!(writer, "</ul>")?;
+    } else {
+        write!(writer, r#"<a href=#{}>"#, parent.target)?;
+        for id in parent.name {
+            writer.export_rec(id, parser)?;
+        }
+        write!(writer, "</a>")?;
+        if !parent.children.is_empty() {
+            write!(writer, "<ul>")?;
+            for child in &parent.children {
+                toc_rec(&parser, writer, child, curr_level + 1)?;
+            }
+            write!(writer, "</ul>")?;
+        }
+    }
+    write!(writer, "</li>")
+}
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(input: &'inp str, buf: &'buf mut T) -> Result {
         let parsed = parse_macro_call(input);
