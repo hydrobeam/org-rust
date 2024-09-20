@@ -215,7 +215,9 @@ impl<'a, 'template> Template<'a, 'template> {
                 local_items.push_str(if let Some(val) = self.p.keywords.get(l) {
                     val
                 } else {
-                    r
+                    //  the split resutls in "abc|123" being split like l = abc, r = |123
+                    //  so we toss the first byte :>
+                    &r[1..]
                 })
             } else if let Some(kw) = self.p.keywords.get(extract) {
                 local_items.push_str(kw);
