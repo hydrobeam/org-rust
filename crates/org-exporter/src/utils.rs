@@ -23,18 +23,19 @@ impl Options {
             let ret = options.split_ascii_whitespace();
             let mut toc = None;
             for optpair in ret {
-                let (opt, val) = optpair.split_once(':').ok_or("errrorororro")?;
-                match opt {
-                    "toc" => {
-                        toc = if val == "nil" {
-                            None
-                        } else if let Some(num) = val.parse::<u8>().ok() {
-                            Some(num)
-                        } else {
-                            Some(6)
-                        };
+                if let Some((opt, val)) = optpair.split_once(':') {
+                    match opt {
+                        "toc" => {
+                            toc = if val == "nil" {
+                                None
+                            } else if let Ok(num) = val.parse::<u8>() {
+                                Some(num)
+                            } else {
+                                Some(6)
+                            };
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
 
@@ -77,7 +78,7 @@ pub(crate) fn process_toc<'a>(
                 tocs.push(handle_babies(
                     parser,
                     heading,
-                    node.id_target.clone().unwrap(),
+                    node.id_target.clone(),
                     global_toc_level,
                 ));
             }
@@ -105,7 +106,7 @@ pub(crate) fn process_toc<'a>(
 fn handle_babies<'a>(
     p: &'a Parser<'a>,
     heading: &'a Heading,
-    target: Rc<str>,
+    target: Option<Rc<str>>,
     global_toc_level: u8,
 ) -> TocItem<'a> {
     let mut children_vec = Vec::new();
@@ -124,7 +125,7 @@ fn handle_babies<'a>(
                     children_vec.push(handle_babies(
                         p,
                         &heading,
-                        node.id_target.clone().unwrap(),
+                        node.id_target.clone(),
                         global_toc_level,
                     ));
                 }
@@ -139,7 +140,11 @@ fn handle_babies<'a>(
             &[]
         },
         level: heading.heading_level.into(),
-        target,
+        target: if let Some(inner) = target {
+            inner
+        } else {
+            "".into()
+        },
         children: children_vec,
     }
 }
