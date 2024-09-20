@@ -1,4 +1,6 @@
-use crate::constants::{COMMA, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, UNDERSCORE};
+use std::borrow::Cow;
+
+use crate::constants::{BACKSLASH, COMMA, HYPHEN, LPAREN, NEWLINE, RBRACE, RPAREN, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
@@ -6,7 +8,7 @@ use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacroCall<'a> {
     pub name: &'a str,
-    pub args: Vec<&'a str>,
+    pub args: Vec<Cow<'a, str>>,
 }
 
 impl<'a> Parseable<'a> for MacroCall<'a> {
@@ -43,8 +45,13 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
             LPAREN => {
                 // used to check if we have {{{name()}}} (emtpy func call)
                 cursor.next();
-                let mut arg_vec = Vec::new();
+                let mut arg_vec: Vec<Cow<str>> = Vec::new();
                 let mut prev_ind = cursor.index;
+                // use join_prev solution to avoid duplicating source string
+                // unless escaped commas are used
+                // TODO: handle abc(1\\,) case (escaping backslash used to escape comam)
+                let mut join_prev = false;
+
                 loop {
                     match cursor.try_curr()? {
                         NEWLINE => {
@@ -63,7 +70,14 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                             }
                         }
                         RPAREN => {
-                            arg_vec.push(cursor.clamp_backwards(prev_ind));
+                            if join_prev {
+                                if let Cow::Owned(a) = arg_vec.last_mut().unwrap() {
+                                    a.push_str(cursor.clamp_backwards(prev_ind));
+                                }
+                            } else {
+                                arg_vec.push(cursor.clamp_backwards(prev_ind).into());
+                            }
+
                             cursor.word(")}}}")?;
                             return Ok(parser.alloc(
                                 MacroCall {
@@ -76,7 +90,31 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                             ));
                         }
                         COMMA => {
-                            arg_vec.push(cursor.clamp_backwards(prev_ind));
+                            if cursor.peek_rev(1)? != BACKSLASH {
+                                if join_prev {
+                                    if let Cow::Owned(a) = arg_vec.last_mut().unwrap() {
+                                        a.push_str(cursor.clamp_backwards(prev_ind));
+                                    }
+                                    join_prev = false;
+                                } else {
+                                    arg_vec.push(cursor.clamp_backwards(prev_ind).into());
+                                }
+                            } else {
+                                // ditch backslash
+                                let mut pushee =
+                                    cursor.clamp(prev_ind, cursor.index - 1).to_owned();
+                                pushee.push(COMMA as char);
+
+                                if join_prev {
+                                    if let Cow::Owned(a) = arg_vec.last_mut().unwrap() {
+                                        a.push_str(&pushee);
+                                    }
+                                } else {
+                                    arg_vec.push(pushee.into());
+                                }
+                                join_prev = true;
+                            }
+
                             prev_ind = cursor.index + 1;
                         }
                         _ => {}
@@ -103,6 +141,8 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use pretty_assertions::assert_eq;
 
     use crate::{
@@ -136,7 +176,7 @@ mod tests {
             l,
             &MacroCall {
                 name: "poem",
-                args: vec!["cool", " three"]
+                args: vec!["cool".into(), " three".into()]
             }
         )
     }
@@ -193,5 +233,33 @@ mod tests {
 ";
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn macro_escape() {
+        let input = r"{{{poem(cool\, three)}}}";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "poem",
+                args: vec![Cow::Borrowed("cool, three"), ]
+            }
+        )
+    }
+
+    #[test]
+    fn macro_multiple_escape() {
+        let input = r"{{{poem(cool\, \, \, \, three)}}}";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "poem",
+                args: vec![Cow::Borrowed("cool, , , , three"), ]
+            }
+        )
     }
 }
