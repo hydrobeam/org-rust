@@ -20,7 +20,7 @@ impl<'a> Command<'a> {
                 "if" => Some(Command::If(value)),
                 "include" => Some(Command::Include(value)),
                 _ => {
-                    eprintln!("invalid command: {}", command);
+                    // eprintln!("invalid command: {}", command);
                     None
                 }
             }
@@ -80,14 +80,15 @@ impl<'a, 'template> Template<'a, 'template> {
 
     fn process_captures(
         &mut self,
-        c: &mut impl Iterator<Item = (usize, usize, &'template str)>,
+        // begin, end, extract
+        captures: &mut impl Iterator<Item = (usize, usize, &'template str)>,
         mut begin: usize,
         l: LogicItem,
     ) -> Result<String, CliError> {
         // building string to hold the processed template output
         let mut local_items: String = String::new();
 
-        while let Some((start, end, extract)) = c.next() {
+        while let Some((start, end, extract)) = captures.next() {
             self.end = end;
             local_items.push_str(&self.template_contents[begin..start]);
 
@@ -98,7 +99,7 @@ impl<'a, 'template> Template<'a, 'template> {
                     Command::If(cond) => {
                         if let Some(_) = self.p.keywords.get(&*cond) {
                             local_items.push_str(&self.process_captures(
-                                c,
+                                captures,
                                 self.end,
                                 LogicItem::If,
                             )?);
@@ -106,11 +107,12 @@ impl<'a, 'template> Template<'a, 'template> {
                             // skip till else/endif
                             // if an if is encountered, then it just increases the number of endifs we have to see.
                             let mut if_count = 0;
-                            while let (_, end2, extract2) = c.next().ok_or(
-                                CliError::new()
-                                    .with_path(self.template_path)
-                                    .with_cause("Unterminated if block in template"),
-                            )? {
+                            loop {
+                                let (_, end2, extract2) = captures.next().ok_or(
+                                    CliError::new()
+                                        .with_path(self.template_path)
+                                        .with_cause("Unterminated if block in template"),
+                                )?;
                                 if let Some(command2) = Command::check(extract2) {
                                     match command2 {
                                         Command::If(_) => {
@@ -128,7 +130,7 @@ impl<'a, 'template> Template<'a, 'template> {
                                             if if_count == 0 {
                                                 // parse else
                                                 local_items.push_str(&self.process_captures(
-                                                    c,
+                                                    captures,
                                                     end2,
                                                     LogicItem::Else,
                                                 )?);
@@ -144,11 +146,12 @@ impl<'a, 'template> Template<'a, 'template> {
                     Command::Else => {
                         if matches!(l, LogicItem::If) {
                             let mut if_count = 0;
-                            while let (_, end2, extract2) = c.next().ok_or(
-                                CliError::new()
-                                    .with_path(self.template_path)
-                                    .with_cause("Unterminated else block in template"),
-                            )? {
+                            loop {
+                                let (_, end2, extract2) = captures.next().ok_or(
+                                    CliError::new()
+                                        .with_path(self.template_path)
+                                        .with_cause("Unterminated else block in template"),
+                                )?;
                                 if let Some(c) = Command::check(extract2) {
                                     match c {
                                         Command::If(_) => {
@@ -175,7 +178,7 @@ impl<'a, 'template> Template<'a, 'template> {
                         }
 
                         local_items.push_str(&self.process_captures(
-                            c,
+                            captures,
                             self.end,
                             LogicItem::Else,
                         )?);
