@@ -15,6 +15,8 @@ pub struct Heading<'a> {
     // Org-Todo type stuff
     pub keyword: Option<&'a str>,
     pub priority: Option<Priority>,
+    // plain text of title + parsed nodeIDs
+    // store both to accomdote targets
     pub title: Option<(&'a str, Vec<NodeID>)>,
     pub tags: Option<Vec<Tag<'a>>>,
     pub properties: Option<PropertyDrawer<'a>>,
@@ -80,7 +82,6 @@ impl From<HeadingLevel> for u8 {
         }
     }
 }
-
 impl<'a> Parseable<'a> for Heading<'a> {
     fn parse(
         parser: &mut Parser<'a>,

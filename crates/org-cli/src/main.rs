@@ -1,6 +1,5 @@
 use anyhow::bail;
 use org_exporter::ConfigOptions;
-use std::borrow::Cow;
 use std::fs::{self, read_to_string, OpenOptions};
 use std::io::{stdout, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -92,9 +91,6 @@ fn run() -> anyhow::Result<()> {
         }
     };
 
-    let mut file_contents = String::new();
-    let mut exported_content = String::new();
-
     // vecs that hold dirs/files that need to be processed
     let mut paths = Vec::new();
     let mut dirs = Vec::new();
@@ -127,6 +123,9 @@ fn run() -> anyhow::Result<()> {
     // PERF: avoid overloading syscalls if lots of files are processed
     let mut stdout = BufWriter::new(stdout());
 
+    let mut file_contents = String::new();
+    let mut exported_content = String::new();
+
     // main loop to export files
     for file_path in &paths {
         if verbose {
@@ -139,7 +138,7 @@ fn run() -> anyhow::Result<()> {
                 CliError::from(e)
                     .with_path(file_path)
                     .with_cause("failed to read input file")
-            });
+            })?;
 
             let mut parser_output = org_parser::parse_org(&file_contents);
 
@@ -147,14 +146,6 @@ fn run() -> anyhow::Result<()> {
             for item in parser_output.pool.iter_mut() {
                 if let org_parser::Expr::RegularLink(expr) = &mut item.obj {
                     match &mut expr.path.obj {
-                        org_parser::object::PathReg::PlainLink(l) => {
-                            let p = &mut l.path;
-                            if let Some(v) = p.strip_suffix(".org") {
-                                let mut v = v.to_owned();
-                                v.push_str(backend.extension());
-                                *p = v.into();
-                            }
-                        }
                         org_parser::object::PathReg::File(l)
                         | org_parser::object::PathReg::Unspecified(l) => {
                             if let Some(v) = l.strip_suffix(".org") {

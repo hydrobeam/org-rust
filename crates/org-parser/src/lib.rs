@@ -82,13 +82,14 @@ pub fn parse_org(input: &str) -> Parser<'_> {
 /// An alternative entry point to the parser for parsing macros.
 ///
 /// Unlike [`parse_org`], this function parses objects, not elements.
-pub fn parse_macro_call(input: &str) -> Parser {
+pub fn parse_macro_call<'a>(input: &'a str) -> Parser<'a> {
     let mut cursor = Cursor::new(input.as_bytes());
     let parse_opts = ParseOpts::default();
     let mut pool = NodePool::new();
     let parent = pool.reserve_id();
     let mut content_vec: Vec<NodeID> = Vec::new();
 
+    // FIXME: pass in keywords + macros
     let mut parser = Parser {
         pool,
         cache: NodeCache::new(),
