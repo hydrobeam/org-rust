@@ -141,27 +141,27 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
             conf,
         };
 
-        let opts = Options::handle_opts(parsed).unwrap();
-        if let Ok(tocs) = process_toc(parsed, &opts) {
-            write!(
-                obj,
-                r#"<nav id="table-of-contents" role="doc-toc">
+        if let Ok(opts) = Options::handle_opts(parsed) {
+            if let Ok(tocs) = process_toc(parsed, &opts) {
+                write!(
+                    obj,
+                    r#"<nav id="table-of-contents" role="doc-toc">
 <h2>Table Of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 "#
-            )?;
-            write!(obj, "<ul>")?;
-            for toc in tocs {
-                toc_rec(&parsed, &mut obj, &toc, 1)?;
+                )?;
+                write!(obj, "<ul>")?;
+                for toc in tocs {
+                    toc_rec(&parsed, &mut obj, &toc, 1)?;
+                }
+                write!(obj, "</ul>")?;
+                write!(obj, r#"</div></nav>"#)?;
             }
-            write!(obj, "</ul>")?;
-            write!(obj, r#"</div></nav>"#)?;
         }
         obj.export_rec(&parsed.pool.root_id(), &parsed)?;
         obj.exp_footnotes(&parsed)
     }
 }
-
 
 fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     parser: &Parser,
