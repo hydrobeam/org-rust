@@ -777,7 +777,13 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     self.footnotes.push(target_id);
                     foot_len + 1
                 });
-
+                // FIXME/REVIEW:
+                // 1. why does this exist
+                // 2. if this clause is activated then
+                // it's not properly handled when writing out footnote defs
+                // 3. when does this proc
+                // 4. sigh
+                //
                 // prevent duplicate ids:
                 // node ids are guaranteed to be unique
                 let fn_id = if index != foot_len + 1 {

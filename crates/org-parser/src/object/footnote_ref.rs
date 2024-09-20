@@ -69,7 +69,7 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                                 parser.pool[*id].parent = Some(new_id)
                             }
 
-                            return Ok(parser.alloc_with_id(
+                            let ret_id = parser.alloc_with_id(
                                 Self {
                                     label: if label_match.obj.is_empty() {
                                         None
@@ -82,7 +82,11 @@ impl<'a> Parseable<'a> for FootnoteRef<'a> {
                                 cursor.index + 1,
                                 parent,
                                 new_id,
-                            ));
+                            );
+                            if !label_match.obj.is_empty() {
+                                parser.footnotes.insert(label_match.obj, ret_id);
+                            }
+                            return Ok(ret_id);
                         }
                         ret @ Err(_) => {
                             return ret;
