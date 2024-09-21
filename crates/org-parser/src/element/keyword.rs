@@ -2,7 +2,7 @@ use crate::constants::{DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
 use crate::types::{process_attrs, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::Match;
+use crate::utils::{bytes_to_str, Match};
 
 use super::Paragraph;
 
@@ -83,6 +83,11 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             ));
         }
         let key_word = cursor.fn_until(|chr: u8| chr == b':' || chr.is_ascii_whitespace())?;
+        // TODO warning
+        // not valid: #+: ...
+        if key_word.len() == 0 {
+            Err(MatchError::InvalidLogic)?
+        }
         cursor.index = key_word.end;
         cursor.word(":")?;
 
@@ -98,9 +103,13 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 }
             }
             "name" => {
-                let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
-                cursor.index = val.end;
+                let prev = cursor.index;
+                cursor.adv_till_byte(NEWLINE);
+                // not mentioned in the spec, but org-element trims
+                let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index].trim_ascii());
+
                 cursor.next();
+                let end_index = cursor.index;
 
                 let child_id = loop {
                     if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
@@ -109,15 +118,14 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                             // skip affiliated objects
                             cursor.index = node.end;
                         } else {
-                            parser.pool[child_id].id_target =
-                                Some(parser.generate_target(val.obj.trim()));
+                            parser.pool[child_id].id_target = Some(parser.generate_target(val));
                             break Some(child_id);
                         }
                     } else {
                         break None;
                     };
                 };
-                let ret_id = parser.alloc(Affiliated::Name(child_id), start, val.end + 1, parent);
+                let ret_id = parser.alloc(Affiliated::Name(child_id), start, end_index, parent);
 
                 return Ok(ret_id);
             }
@@ -155,18 +163,19 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             _ => {}
         }
 
-        let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
-        // TODO: use an fn_until_inclusive to not have to add 1 to the end
-        // (we want to eat the ending nl too)
-        parser.keywords.insert(key_word.obj, val.obj.trim());
+        let prev = cursor.index;
+        cursor.adv_till_byte(NEWLINE);
+        // not mentioned in the spec, but org-element trims
+        let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index].trim_ascii());
+
+        parser.keywords.insert(key_word.obj, val);
         Ok(parser.alloc(
             Keyword {
                 key: key_word.obj,
-                // not mentioned in the spec, but org-element trims
-                val: val.obj.trim(),
+                val,
             },
             start,
-            val.end + 1,
+            cursor.index + 1,
             parent,
         ))
     }
@@ -195,7 +204,7 @@ impl<'a> MacroDef<'a> {
         cursor.skip_ws();
         // A string starting with a alphabetic character followed by any number of
         // alphanumeric characters, hyphens and underscores (-_).
-        if !cursor.curr().is_ascii_alphabetic() || cursor.curr() == NEWLINE {
+        if !cursor.try_curr()?.is_ascii_alphabetic() || cursor.curr() == NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
 
@@ -206,7 +215,7 @@ impl<'a> MacroDef<'a> {
 
         cursor.skip_ws();
         // macro with no body?
-        if cursor.curr() == NEWLINE {
+        if cursor.try_curr()? == NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
 
@@ -215,7 +224,7 @@ impl<'a> MacroDef<'a> {
         let mut ret_vec: Vec<ArgNumOrText> = Vec::new();
         let mut num_args = 0;
         loop {
-            match cursor.curr() {
+            match cursor.try_curr()? {
                 DOLLAR => {
                     if cursor.peek(1)?.is_ascii_digit() {
                         ret_vec.push(ArgNumOrText::Text(cursor.clamp_backwards(prev_ind)));
@@ -258,7 +267,11 @@ impl<'a> MacroDef<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{element::Keyword, expr_in_pool, node_in_pool, parse_org, types::Expr};
+    use crate::{
+        element::{Affiliated, Keyword},
+        expr_in_pool, node_in_pool, parse_org,
+        types::Expr,
+    };
 
     #[test]
     fn basic_keyword() {
@@ -360,6 +373,67 @@ yeah
 "#;
 
         let parsed = parse_org(input);
-        parsed.print_tree();
+        let cap = expr_in_pool!(parsed, Affiliated).unwrap();
+
+        match cap {
+            Affiliated::Caption(Some(child), id) => {
+                let Expr::Paragraph(para) = &parsed.pool[*id].obj else {
+                    unreachable!()
+                };
+                let Expr::Bold(bold_obj) = &parsed.pool[para.0[0]].obj else {
+                    unreachable!()
+                };
+                let Expr::Plain(letters) = &parsed.pool[bold_obj.0[0]].obj else {
+                    unreachable!()
+                };
+                assert_eq!(letters, &"hi");
+
+                let Expr::Paragraph(para) = &parsed.pool[*child].obj else {
+                    unreachable!()
+                };
+
+                let Expr::Plain(letters) = &parsed.pool[para.0[0]].obj else {
+                    unreachable!()
+                };
+                assert_eq!(letters, &"yeah");
+            }
+            _ => {
+                panic!("oops")
+            }
+        }
+    }
+
+    #[test]
+    fn affiliated_name() {
+        let input = r"
+
+#+CAPTION: this is a list
+#+NAME: yes_my_list
+- yes
+
+#+name: yes_my_list
+[[yes_my_list]]
+";
+
+        let parsed = parse_org(input);
+        assert_eq!(
+            parsed.targets.get("yes_my_list").unwrap(),
+            &"yes_my_list".into()
+        );
+        assert_eq!(parsed.target_occurences.get("yes_my_list").unwrap(), &1);
+        // parsed.print_tree();
+    }
+
+    #[test]
+    fn macro_eof() {
+        let i1 = r"#+macro:";
+        let i2 = r"#+macro: name";
+        let i3 = r"#+macro: name ";
+        let i4 = r"#+macro: name thing";
+        let inps = vec![i1, i2, i3, i4];
+        inps.iter().for_each(|x| {
+            parse_org(x);
+        });
     }
 }
+
