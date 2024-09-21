@@ -30,7 +30,6 @@ impl<'a> Parseable<'a> for Drawer<'a> {
         parse_opts: ParseOpts,
     ) -> Result<NodeID> {
         let start = cursor.index;
-        cursor.curr_valid()?;
         cursor.skip_ws();
         cursor.word(":")?;
 
@@ -43,7 +42,7 @@ impl<'a> Parseable<'a> for Drawer<'a> {
         cursor.index = name_match.end;
         cursor.word(":")?;
         cursor.skip_ws();
-        if cursor.curr() != NEWLINE {
+        if cursor.try_curr()? != NEWLINE {
             return Err(MatchError::InvalidLogic);
         }
         cursor.next();
@@ -99,7 +98,7 @@ pub(crate) fn parse_property(mut cursor: Cursor) -> Result<Match<PropertyDrawer>
 
     cursor.word(":")?;
     cursor.skip_ws();
-    if cursor.curr() != NEWLINE {
+    if cursor.try_curr()? != NEWLINE {
         return Err(MatchError::InvalidLogic);
     }
     cursor.next();
