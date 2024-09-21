@@ -61,10 +61,12 @@ impl<'a> Parseable<'a> for Item<'a> {
         // if the last element was a \n, that means we're starting on a new line
         // so we are Not on a list line.
         cursor.skip_ws();
-        if cursor.try_curr()? == NEWLINE {
-            cursor.next();
-        } else {
-            parse_opts.list_line = true;
+        if let Ok(item) = cursor.try_curr() {
+            if item == NEWLINE {
+                cursor.next()
+            } else {
+                parse_opts.list_line = true;
+            }
         }
 
         // used to restore index to the previous position in the event of two
@@ -191,16 +193,14 @@ impl BulletKind {
 // - [@4]
 fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
     let start = cursor.index;
-    cursor.is_index_valid()?;
     cursor.skip_ws();
-
     cursor.word("[@")?;
 
     let num_match = cursor.fn_while(|chr| chr.is_ascii_alphanumeric())?;
 
     cursor.index = num_match.end;
 
-    // TODO: errors on eof
+    // cursor.curr() is valid because num_match above ensures we're at a valid point
     if cursor.curr() != RBRACK {
         Err(MatchError::InvalidLogic)?;
     }
@@ -315,8 +315,7 @@ mod tests {
     use super::*;
     #[test]
     fn checkbox() {
-        // FIXME: panics without newline
-        let input = "- [X]\n";
+        let input = "- [X]";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
         assert_eq!(item.check_box, Some(CheckBox::On))
@@ -324,15 +323,60 @@ mod tests {
 
     #[test]
     fn counter_set() {
-        // FIXME: panics without newline
-        let input = "- [@1] \n";
+        let input = "- [@1]";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
         assert_eq!(item.counter_set, Some("1"));
 
-        let input = "- [@43] \n";
+        let input = "- [@43]";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
         assert_eq!(item.counter_set, Some("43"))
+    }
+
+    #[test]
+    fn no_newline_hyphen() {
+        let input = "-";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Plain).unwrap();
+        assert_eq!(item, &"-");
+    }
+    #[test]
+    fn hyphen_space() {
+        let input = "- ";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+    }
+
+    #[test]
+    fn hyphen_lbrack() {
+        let input = "- [";
+        let ret = parse_org(input);
+        let plain = expr_in_pool!(ret, Plain).unwrap();
+        assert_eq!(plain, &"[");
+    }
+    #[test]
+    fn hyphen_ltag() {
+        let input = "- [@";
+        let ret = parse_org(input);
+        let plain = expr_in_pool!(ret, Plain).unwrap();
+        assert_eq!(plain, &"[@");
+    }
+    #[test]
+    fn item_ordered_start() {
+        let input = "1. ";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(1))));
+
+        let input = "17. ";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(17))));
+
+        let input = "a. ";
+        let ret = parse_org(input);
+        let item = expr_in_pool!(ret, Item).unwrap();
+        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Letter(b'a'))));
     }
 }
