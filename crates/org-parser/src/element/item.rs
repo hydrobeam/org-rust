@@ -236,7 +236,7 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
 fn parse_tag(mut cursor: Cursor) -> Result<Match<&str>> {
     // - [@A] [X] | our tag is here :: remainder
     let start = cursor.index;
-    cursor.is_index_valid()?;
+    cursor.curr_valid()?;
     cursor.skip_ws();
 
     let end = loop {
@@ -286,12 +286,12 @@ impl From<&CheckBox> for &str {
 impl CheckBox {
     fn parse(mut cursor: Cursor) -> Result<Match<CheckBox>> {
         let start = cursor.index;
-        cursor.is_index_valid()?;
         cursor.skip_ws();
         // we're at a LBRACK in theory here
         // 012
         // [ ]
-        if cursor.curr() != LBRACK && cursor.peek(2)? != RBRACK {
+
+        if cursor.try_curr()? != LBRACK || cursor.peek(2)? != RBRACK {
             return Err(MatchError::InvalidLogic);
         }
 

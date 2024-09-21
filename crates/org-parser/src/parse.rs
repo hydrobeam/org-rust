@@ -26,7 +26,7 @@ pub(crate) fn parse_element<'a>(
         return Ok(*id);
     }
 
-    cursor.is_index_valid()?;
+    cursor.curr_valid()?;
     // means a newline checking thing called this, and newline breaks all
     // table rows
     if parse_opts.markup.contains(MarkupKind::Table) {

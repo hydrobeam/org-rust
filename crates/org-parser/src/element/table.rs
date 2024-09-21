@@ -90,7 +90,7 @@ impl<'a> Parseable<'a> for TableRow {
         // TODO: doesn't play well with lists
         // should break if the indentation is not even for the next element in the list
         // but shouldn't break otherwise
-        cursor.is_index_valid()?;
+        cursor.curr_valid()?;
         cursor.skip_ws();
         cursor.word("|")?;
 
