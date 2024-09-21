@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::constants::{COLON, NEWLINE, RBRACK, SPACE, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
@@ -128,32 +130,13 @@ impl<'a> Parseable<'a> for Heading<'a> {
 
         // try to trim whitespace off the beginning and end of the area
         // we're searching
-        let mut title_end = tag_match.start;
-        while cursor[title_end] == SPACE && title_end > cursor.index {
-            title_end -= 1;
-        }
-        let mut temp_cursor = cursor.cut_off(title_end + 1);
 
-        let mut target = None;
-        // FIXME: currently repeating work trimming hte beginning at skip_ws and with trim_start
-        let title = if bytes_to_str(temp_cursor.rest()).trim_start().is_empty() {
-            None
+        let (title, target) = if let Ok((title, target)) =
+            Heading::parse_title(parser, cursor, tag_match.start, reserved_id, parse_opts)
+        {
+            (title, target)
         } else {
-            let mut title_vec: Vec<NodeID> = Vec::new();
-
-            temp_cursor.skip_ws();
-            let title_start = temp_cursor.index;
-            while let Ok(title_id) =
-                parse_object(parser, temp_cursor, Some(reserved_id), parse_opts)
-            {
-                title_vec.push(title_id);
-                temp_cursor.move_to(parser.pool[title_id].end);
-            }
-
-            let title_entry = cursor.clamp(title_start, title_end + 1);
-            target = Some(parser.generate_target(title_entry));
-
-            Some((title_entry, title_vec))
+            (None, None)
         };
 
         // jump past the newline
@@ -354,15 +337,63 @@ impl<'a> Heading<'a> {
         }
         // we reached the start element, without hitting a space. no tags
     }
+
+    fn parse_title(
+        parser: &mut Parser<'a>,
+        cursor: Cursor<'a>,
+        mut title_end: usize,
+        reserved_id: NodeID,
+        parse_opts: ParseOpts,
+    ) -> Result<(Option<(&'a str, Vec<NodeID>)>, Option<Rc<str>>)> {
+        while let Some(item) = cursor.get(title_end).copied() {
+            if item == SPACE && title_end > cursor.index {
+                title_end -= 1;
+            } else {
+                break;
+            }
+        }
+        // alternative impl that does not accept titles that experience EOF, keeping here temporarily for posterity
+        // while cursor.get(title_end).ok_or(MatchError::EofError).copied()? == SPACE
+        //     && title_end > cursor.index
+        // {
+        //     title_end -= 1;
+        // }
+
+        let top_off = (title_end + 1).min(cursor.byte_arr.len());
+        let mut temp_cursor = cursor.cut_off(top_off);
+
+        // FIXME: currently repeating work trimming the beginning at skip_ws and with trim_start
+        if bytes_to_str(temp_cursor.rest()).trim_start().is_empty() {
+            Ok((None, None))
+        } else {
+            let mut title_vec: Vec<NodeID> = Vec::new();
+
+            temp_cursor.skip_ws();
+            let title_start = temp_cursor.index;
+            while let Ok(title_id) =
+                parse_object(parser, temp_cursor, Some(reserved_id), parse_opts)
+            {
+                title_vec.push(title_id);
+                temp_cursor.move_to(parser.pool[title_id].end);
+            }
+
+            let title_entry = cursor.clamp(title_start, top_off);
+            let target = Some(parser.generate_target(title_entry));
+
+            Ok((Some((title_entry, title_vec)), target))
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
 
-    use crate::element::PropertyDrawer;
-    use crate::parse_org;
+    use crate::element::{HeadingLevel, PropertyDrawer, Tag};
+    use crate::node_pool::make_node_id;
     use crate::types::Expr;
+    use crate::{expr_in_pool, parse_org};
+    use pretty_assertions::assert_eq;
 
     use super::Heading;
 
@@ -430,8 +461,22 @@ mod tests {
     #[test]
     fn headline_title() {
         let inp = "*         title                                                \n";
-
-        dbg!(parse_org(inp));
+        let item = get_head(inp);
+        assert_eq!(
+            item,
+            Heading {
+                heading_level: HeadingLevel::One,
+                keyword: None,
+                priority: None,
+                title: Some((
+                    "title                                                \n",
+                    vec![make_node_id(2)]
+                )),
+                tags: None,
+                properties: None,
+                children: None
+            }
+        );
     }
 
     #[test]
@@ -473,31 +518,61 @@ mod tests {
     }
 
     #[test]
-    fn headline_tag() {
-        let inp = "* meow :tagone:\n";
+    fn headline_tag_one() {
+        let inp = "* cat :tagone:\n";
+        let head = get_head(inp);
 
-        dbg!(parse_org(inp));
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: None,
+                priority: None,
+                title: Some(("cat", vec![make_node_id(2)])),
+                tags: Some(vec![Tag::Raw("tagone")]),
+                properties: None,
+                children: None,
+            }
+        );
     }
 
     #[test]
-    fn headline_tags() {
-        let inp = "* meow :tagone:tagtwo:\n";
+    fn headline_tag_two() {
+        let inp = "* test :tagone:tagtwo:\n";
+        let head = get_head(inp);
 
-        dbg!(parse_org(inp));
+        assert_eq!(
+            head,
+            Heading {
+                heading_level: crate::element::HeadingLevel::One,
+                keyword: None,
+                priority: None,
+                title: Some(("test", vec![make_node_id(2)])),
+                tags: Some(vec![Tag::Raw("tagtwo"), Tag::Raw("tagone")]),
+                properties: None,
+                children: None,
+            }
+        );
     }
 
     #[test]
-    fn headline_tags_bad() {
-        let inp = "* meow one:tagone:tagtwo:\n";
+    fn headline_tag_bad_one() {
+        let inp = "* abc one:tagone:tagtwo:\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+        let head = expr_in_pool!(parsed, Heading).unwrap();
+        assert_eq!(head.title.as_ref().unwrap().0, "abc one:tagone:tagtwo:\n");
+        assert_eq!(head.tags.as_ref(), None);
     }
 
     #[test]
-    fn headline_tags_bad2() {
-        let inp = "* meow :tagone::\n";
+    fn headline_tag_bad_two() {
+        let inp = "* abc :tagone::\n";
 
-        dbg!(parse_org(inp));
+        let parsed = parse_org(inp);
+        let head = expr_in_pool!(parsed, Heading).unwrap();
+        assert_eq!(head.title.as_ref().unwrap().0, "abc :tagone::\n");
+        assert_eq!(head.tags.as_ref(), None);
     }
 
     #[test]
@@ -597,5 +672,34 @@ aaaa";
 
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn only_stars() {
+        let input = r"*** ";
+        let p = parse_org(input);
+        let item = expr_in_pool!(p, Heading).unwrap();
+
+        assert_eq!(item.heading_level, HeadingLevel::Three);
+    }
+
+    #[test]
+    fn only_stars_and_title() {
+        let input = "*** g";
+        let p = parse_org(input);
+        let item = expr_in_pool!(p, Heading).unwrap();
+
+        assert_eq!(
+            item,
+            &Heading {
+                heading_level: HeadingLevel::Three,
+                keyword: None,
+                priority: None,
+                title: Some(("g", vec![make_node_id(2)])),
+                tags: None,
+                properties: None,
+                children: None
+            }
+        );
     }
 }
