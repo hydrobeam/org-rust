@@ -16,7 +16,7 @@ pub(crate) fn parse_node_property<'a>(
     properties: &mut PropertyDrawer<'a>,
     // end index
 ) -> Result<usize> {
-    cursor.is_index_valid()?;
+    cursor.curr_valid()?;
     let start = cursor.index;
     cursor.skip_ws();
     cursor.word(":")?;

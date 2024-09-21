@@ -273,7 +273,7 @@ impl<'a> Cursor<'a> {
             .ok_or(MatchError::EofError)
     }
 
-    pub fn is_index_valid(&self) -> Result<()> {
+    pub fn curr_valid(&self) -> Result<()> {
         if self.index < self.byte_arr.len() {
             Ok(())
         } else {
@@ -291,8 +291,12 @@ impl<'a> Cursor<'a> {
     }
 
     pub fn skip_ws(&mut self) {
-        while self.curr() == SPACE {
-            self.next();
+        while let Ok(curr_item) = self.try_curr() {
+            if self.curr() == SPACE {
+                self.next()
+            } else {
+                break;
+            }
         }
     }
 
