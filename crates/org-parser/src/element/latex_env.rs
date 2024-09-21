@@ -27,7 +27,7 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
         let name = name_match.obj;
 
         let a = format!(r"(?m)^[ \t]*\\end{{{name}}}[\t ]*$");
-        // HACK: i simplt cannot figure out how to properly escape the curls in the regex.
+        // HACK/FIXME: i simply cannot figure out how to properly escape the curls in the regex.
         // always getting hit with:
         // error: repetition quantifier expects a valid decimal
         let a = a.replace("{", r"\{");

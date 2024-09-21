@@ -612,21 +612,21 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 }
             }
             Expr::PlainList(inner) => {
-                let tag = match inner.kind {
-                    ListKind::Unordered => "ul",
+                let (tag, desc) = match inner.kind {
+                    ListKind::Unordered => ("ul", ""),
                     ListKind::Ordered(counter_kind) => match counter_kind {
                         org_parser::element::CounterKind::Letter(c) => {
                             if c.is_ascii_uppercase() {
-                                r#"ol type="A""#
+                                ("ol", r#" type="A""#)
                             } else {
-                                r#"ol type="a""#
+                                ("ol", r#" type="a""#)
                             }
                         }
-                        org_parser::element::CounterKind::Number(_) => r#"ol type="1""#,
+                        org_parser::element::CounterKind::Number(_) => ("ol",r#" type="1""#),
                     },
-                    ListKind::Descriptive => "dd",
+                    ListKind::Descriptive => ("dd", ""),
                 };
-                write!(self, "<{tag}")?;
+                write!(self, "<{tag}{desc}")?;
                 self.prop(node)?;
                 writeln!(self, ">")?;
                 for id in &inner.children {
@@ -935,9 +935,7 @@ mod tests {
 
         assert_eq!(
             a,
-            r"<p>
-hiii cool three text
-</p>
+            r"<p>hiii cool three text</p>
 "
         );
 
@@ -955,9 +953,7 @@ hiii cool three text
 
         assert_eq!(
             a,
-            r"<p>
-hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-</p>
+            r"<p>hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii</p>
 ",
         );
         Ok(())
@@ -972,10 +968,8 @@ hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 
         assert_eq!(
             a,
-            r"<p>
-abc
+            r"<p>abc
 <br>
-
 </p>
 ",
         );
@@ -987,9 +981,7 @@ abc
 
         assert_eq!(
             n,
-            r"<p>
-abc\\   q
-</p>
+            r"<p>abc\\   q</p>
 ",
         );
         Ok(())
@@ -1023,9 +1015,7 @@ abc\\   q
 
         assert_eq!(
             nb,
-            r"<p>
-----
-</p>
+            r"<p>----</p>
 ",
         );
 
@@ -1058,9 +1048,7 @@ abc &+ 10\\
 
         assert_eq!(
             a,
-            r"<p>
-a é😳
-</p>
+            r"<p>a é😳</p>
 "
         );
 
@@ -1077,10 +1065,8 @@ a é😳
 
         assert_eq!(
             a,
-            r#"<ol>
-<li value="4"><p>
-wordsss??
-</p>
+            r#"<ol type="1">
+<li value="4"><p>wordsss??</p>
 </li>
 </ol>
 "#,
@@ -1091,17 +1077,17 @@ wordsss??
     fn anon_footnote() -> Result {
         let a = html_export(
             r"
-hi [fn:next:coolio]
+hi [fn:next:coolio] yeah [fn:next]
 ",
         )?;
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
             a,
-            r##"<p>
-hi <sup>
+            r##"<p>hi <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
+</sup> yeah <sup>
+    <a id="fnr.1.6" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup></p>
 
 <div id="footnotes">
     <style>
@@ -1139,11 +1125,9 @@ hello [fn:1]
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
             a,
-            r##"<p>
-hello <sup>
+            r##"<p>hello <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
+</sup></p>
 <h1 id="footnotes">Footnotes</h1>
 
 <div id="footnotes">
@@ -1159,9 +1143,7 @@ hello <sup>
 <sup>
     <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
 </sup>
-<p>
-world
-</p>
+<p>world</p>
 </div>
   </div>
 </div>"##
@@ -1193,8 +1175,7 @@ novel [fn:next:coolio]
         // had to change 1.7 to 1.8 to pass the test
         assert_eq!(
             a,
-            r##"<p>
-hi <sup>
+            r##"<p>hi <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
 </sup> cool test <sup>
     <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
@@ -1204,13 +1185,10 @@ hi <sup>
     <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
 </sup> again <sup>
     <a id="fnr.3.13" href="#fn.3" class="footref" role="doc-backlink">3</a>
-</sup>
-</p>
-<p>
-novel <sup>
+</sup></p>
+<p>novel <sup>
     <a id="fnr.4" href="#fn.4" class="footref" role="doc-backlink">4</a>
-</sup>
-</p>
+</sup></p>
 <h2 id="footnotes">Footnotes</h2>
 
 <div id="footnotes">
@@ -1226,27 +1204,21 @@ novel <sup>
 <sup>
     <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
 </sup>
-<p>
-abcdef
-</p>
+<p>abcdef</p>
 </div>
 
 <div class="footdef">
 <sup>
     <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
 </sup>
-<p>
-words babby
-</p>
+<p>words babby</p>
 </div>
 
 <div class="footdef">
 <sup>
     <a id="fn.3" href= "#fnr.3" role="doc-backlink">3</a>
 </sup>
-<p>
-hi
-</p>
+<p>hi</p>
 </div>
 
 <div class="footdef">
@@ -1274,19 +1246,13 @@ bad [fn:]
 
         assert_eq!(
             a,
-            r##"<p>
-And anonymous ones <sup>
+            r##"<p>And anonymous ones <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
-<p>
-what <sup>
+</sup></p>
+<p>what <sup>
     <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
-</sup>
-</p>
-<p>
-bad [fn:]
-</p>
+</sup></p>
+<p>bad [fn:]</p>
 
 <div id="footnotes">
     <style>
@@ -1322,9 +1288,7 @@ mysterious</div>
 
         assert_eq!(
             a,
-            r#"<p>
-<a href="html.org">hi</a>
-</p>
+            r#"<p><a href="html.org">hi</a></p>
 "#
         );
 
@@ -1372,9 +1336,7 @@ mysterious</div>
 
         assert_eq!(
             a,
-            r##"<p>
-<a href="./hello">./hello</a>
-</p>
+            r##"<p><a href="./hello">./hello</a></p>
 "##
         );
 
@@ -1431,7 +1393,6 @@ content
 
 here
 "#;
-        dbg!(html_export(a));
-        assert_eq!(html_export(a).unwrap(), "love!");
+        assert_eq!(html_export(a).unwrap(), "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n");
     }
 }
