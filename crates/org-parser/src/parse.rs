@@ -37,7 +37,7 @@ pub(crate) fn parse_element<'a>(
     let mut indented_loc = cursor.index;
     let mut new_opts = parse_opts;
     loop {
-        let byte = cursor[indented_loc];
+        let byte = *cursor.get(indented_loc).ok_or(MatchError::InvalidLogic)?;
         if byte.is_ascii_whitespace() {
             if byte == NEWLINE {
                 return Ok(parser.alloc(Expr::BlankLine, cursor.index, indented_loc + 1, parent));
@@ -106,19 +106,30 @@ pub(crate) fn parse_element<'a>(
             }
         }
         HYPHEN => {
-            {
+            let hrule_parse = |parser: &mut Parser,
+                               mut cursor: Cursor,
+                               parent: Option<NodeID>,
+                               _new_opts: ParseOpts|
+             -> Result<NodeID> {
                 // handle Hrule: at least 5 consecutive hyphens
                 let start = cursor.index;
-                while HYPHEN == cursor.curr() {
-                    cursor.next();
+                while let Ok(curr_item) = cursor.try_curr() {
+                    if HYPHEN == curr_item {
+                        cursor.next();
+                    } else {
+                        break;
+                    }
                 }
-                if NEWLINE == cursor.curr() && cursor.index - start >= 5 {
+                if NEWLINE == cursor.try_curr()? && cursor.index - start >= 5 {
                     return Ok(parser.alloc(Expr::HorizontalRule, start, cursor.index + 1, parent));
                 } else {
-                    cursor.index = start;
+                    Err(MatchError::InvalidLogic)
                 }
-            }
-            if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
+            };
+
+            if let ret @ Ok(_) = hrule_parse(parser, cursor, parent, new_opts) {
+                return ret;
+            } else if let ret @ Ok(_) = PlainList::parse(parser, cursor, parent, new_opts) {
                 return ret;
             }
         }
@@ -362,4 +373,54 @@ fn parse_text<'a>(
     }
 
     parser.alloc(cursor.clamp_backwards(start), start, cursor.index, parent)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{expr_in_pool, parse_org};
+
+    use super::*;
+
+    #[test]
+    fn check_valid_hrule() {
+        let src = "------\n";
+        let parsed = parse_org(src);
+
+        let hrule = parsed
+            .pool
+            .iter()
+            .find_map(|x| {
+                if let Expr::HorizontalRule = &x.obj {
+                    Some(x)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+    }
+    #[test]
+    fn check_invalid_hrule() {
+        let src = "--------s\n";
+        let parsed = parse_org(src);
+
+        let hrule = parsed.pool.iter().find_map(|x| {
+            if let Expr::HorizontalRule = &x.obj {
+                Some(x)
+            } else {
+                None
+            }
+        });
+        if let Some(_) = hrule {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    #[should_panic] // would like this not to panic, but indentation / leading spaces are weird right now
+    fn only_spaces() {
+        let src = "   ";
+        let parsed = parse_org(src);
+        let plain = expr_in_pool!(parsed, Plain).unwrap();
+        assert_eq!(plain, &"   " );
+    }
 }
