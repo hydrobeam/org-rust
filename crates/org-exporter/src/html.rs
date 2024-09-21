@@ -541,18 +541,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 }
             }
             Expr::LatexEnv(inner) => {
-                let ret = latex_to_mathml(
-                    &format!(
-                        r"\begin{{{0}}}
+                let formatted = &format!(
+                    r"\begin{{{0}}}
 {1}
 \end{{{0}}}
 ",
-                        inner.name, inner.contents
-                    ),
-                    DisplayStyle::Block,
-                )
-                .unwrap();
-                writeln!(self, "{ret}")?;
+                    inner.name, inner.contents
+                );
+                let ret = latex_to_mathml(&formatted, DisplayStyle::Block);
+                writeln!(self, "{}", if let Ok(val) = &ret { val } else { formatted })?;
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
