@@ -94,15 +94,22 @@ impl<'a> Parseable<'a> for TableRow {
         cursor.skip_ws();
         cursor.word("|")?;
 
+        // we deliberately avoid erroring out of the function from here
+        // in the case of "|EOF" since we need to allocate a node to tell the parent
+        // that we've successfully read past the "|"
+        // otherwise, Table will allocate in the cache with zero progress, and cause an infinite loop
+
         // implies horizontal rule
         // |-
-        if cursor.try_curr()? == HYPHEN {
-            // adv_till_byte handles eof
-            cursor.adv_till_byte(b'\n');
-            // cursor.index + 1 to start at the next | on the next line
-            return Ok(parser
-                .pool
-                .alloc(Self::Rule, start, cursor.index + 1, parent));
+        if let Ok(val) = cursor.try_curr() {
+            if val == HYPHEN {
+                // adv_till_byte handles eof
+                cursor.adv_till_byte(b'\n');
+                // cursor.index + 1 to start at the next | on the next line
+                return Ok(parser
+                    .pool
+                    .alloc(Self::Rule, start, cursor.index + 1, parent));
+            }
         }
 
         let mut children: Vec<NodeID> = Vec::new();
@@ -111,9 +118,12 @@ impl<'a> Parseable<'a> for TableRow {
             children.push(table_cell_id);
 
             cursor.index = node_item.end;
-            // REVIEW: use try_curr in case of table ending at eof?
-            if cursor.curr() == NEWLINE {
-                cursor.next();
+            if let Ok(val) = cursor.try_curr() {
+                if val == NEWLINE {
+                    cursor.next();
+                    break;
+                }
+            } else {
                 break;
             }
         }
@@ -126,7 +136,7 @@ impl<'a> Parseable<'a> for TableRow {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_org;
+    use crate::{expr_in_pool, parse_org, Expr};
 
     #[test]
     fn basic_table() {
@@ -151,8 +161,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    // we don't handle the eof case for table cells /shrug/
     fn table_eof_2() {
         let input = r"
 |one|two|
@@ -265,13 +273,12 @@ word
         pool.print_tree();
     }
 
-    // #[test]
-    // #[should_panic]
-    // fn table_no_start() {
-    //     let input = r"|";
+    #[test]
+    fn table_no_start() {
+        let input = r"|";
 
-    //     let pool = parse_org(input);
-
-    //     pool.pool.root().print_tree(&pool);
-    // }
+        let pool = parse_org(input);
+        let tab = expr_in_pool!(pool, Table).unwrap();
+        assert_eq!(tab.rows, 1);
+    }
 }
