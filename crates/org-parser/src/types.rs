@@ -64,7 +64,7 @@ pub(crate) fn process_attrs<'a>(
                 // allows for non-breaking colons:
                 // #+attr_html: :style border:2px solid black
                 loop {
-                    match cursor.curr() {
+                    match cursor.try_curr()? {
                         NEWLINE => break,
                         COLON => {
                             if cursor.peek_rev(1)?.is_ascii_whitespace() {
