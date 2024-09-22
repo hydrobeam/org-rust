@@ -1,5 +1,7 @@
+use crate::constants::NEWLINE;
 use crate::node_pool::NodeID;
 use crate::types::{Cursor, ParseOpts, Parseable, Parser, Result};
+use crate::utils::bytes_to_str;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Comment<'a>(pub &'a str);
@@ -13,12 +15,12 @@ impl<'a> Parseable<'a> for Comment<'a> {
     ) -> Result<NodeID> {
         let start = cursor.index;
         if cursor.peek(1)?.is_ascii_whitespace() {
-            // skip past "# "
-            cursor.advance(2);
-            let content = cursor.fn_until(|chr: u8| chr == b'\n')?;
+            let prev = cursor.index;
+            cursor.adv_till_byte(NEWLINE);
+            let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index]);
             // TODO: use an fn_until_inclusive to not have to add 1 to the end
             // (we want to eat the ending nl too)
-            Ok(parser.alloc(Self(content.obj), start, content.end + 1, parent))
+            Ok(parser.alloc(Self(val), start, cursor.index + 1, parent))
         } else {
             Err(crate::types::MatchError::InvalidLogic)
         }
@@ -33,6 +35,16 @@ mod tests {
     #[test]
     fn basic_comment() {
         let inp = "# this is a comment\n";
+
+        let parsed = parse_org(inp);
+
+        let l = expr_in_pool!(parsed, Comment).unwrap();
+        assert_eq!(l.0, "this is a comment")
+    }
+
+    #[test]
+    fn comment_eof() {
+        let inp = "# this is a comment";
 
         let parsed = parse_org(inp);
 
