@@ -200,7 +200,7 @@ function toggleView(name, button_name) {
 }
 
 function reparse() {
-  const result = parse_func(editor.state.doc.toString().concat("\n"));
+  const result = parse_func(editor.state.doc.toString());
   // actually changing srcdoc causes extreme white flashing.
   // updating the iframe like this is much better
   if (currElem === view_dict["rendered"]) {

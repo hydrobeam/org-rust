@@ -113,7 +113,7 @@ pub(crate) fn keyword_file<'a>(
         temp_path
             .canonicalize()
             .map_err(|e| FileError {
-                context: "failed to locate file".into(),
+                context: "Error during macro invocation of kw-file. ".into(),
                 path: temp_path,
                 source: e,
             })?
@@ -123,7 +123,7 @@ pub(crate) fn keyword_file<'a>(
     };
 
     let out_str = read_to_string(&target_path).map_err(|e| FileError {
-        context: "failed to read file".into(),
+        context: "Error during macro invocation of kw-file. ".into(),
         path: target_path.into(),
         source: e,
     })?;
@@ -137,11 +137,11 @@ pub(crate) fn keyword_file<'a>(
 
 #[derive(Error, Debug)]
 pub enum MacroError {
-    #[error("no matching value found for keyword, {kw}")]
+    #[error("no matching value found for keyword `{kw}`")]
     Keyword { kw: String },
     #[error("expected {expected} params, received {received} instead")]
     InvalidParameters { expected: usize, received: usize },
-    #[error("macro: {name}, does not exist")]
+    #[error("call to invalid macro `{name}`")]
     UndefinedMacro { name: String },
     #[error("{0}")]
     IoError(#[from] FileError),

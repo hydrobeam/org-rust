@@ -43,15 +43,20 @@ impl WasmExport {
     #[wasm_bindgen]
     pub fn to_org(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Org::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
-        JsValue::from_str(&self.string_buf)
+        match Org::export_buf(s, &mut self.string_buf, ConfigOptions::default()) {
+            Ok(_) => JsValue::from_str(&self.string_buf),
+            Err(e) => JsValue::from_str(&e.to_string()),
+        }
     }
 
     #[wasm_bindgen]
     pub fn to_html(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Html::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
-        JsValue::from_str(&self.string_buf)
+
+        match Html::export_buf(s, &mut self.string_buf, ConfigOptions::default()) {
+            Ok(_) => JsValue::from_str(&self.string_buf),
+            Err(e) => JsValue::from_str(&e.to_string()),
+        }
     }
 }
 
