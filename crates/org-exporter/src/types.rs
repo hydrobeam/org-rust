@@ -1,6 +1,6 @@
 use core::fmt;
 use org_parser::{NodeID, Parser};
-use std::{ops::Range, path::PathBuf};
+use std::{fmt::Display, ops::Range, path::PathBuf};
 use thiserror::Error;
 
 pub(crate) type Result<T> = core::result::Result<T, ExportError>;
@@ -33,7 +33,7 @@ pub enum LogicErrorKind {
 }
 
 #[derive(Debug, Error)]
-#[error("{context} {path}: {source}")]
+#[error("{context}`{path}`: {source}")]
 pub struct FileError {
     pub context: String,
     pub path: PathBuf,

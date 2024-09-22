@@ -197,7 +197,7 @@ pub(crate) fn include_handle<'a>(
         temp_path
             .canonicalize()
             .map_err(|e| FileError {
-                context: "failed to locate file".into(),
+                context: "".into(),
                 path: temp_path,
                 source: e,
             })?
@@ -206,7 +206,7 @@ pub(crate) fn include_handle<'a>(
         ret.file.into()
     };
     let mut out_str = read_to_string(&target_path).map_err(|e| FileError {
-        context: "failed to read file".into(),
+        context: "".into(),
         path: target_path.into(),
         source: e,
     })?;
