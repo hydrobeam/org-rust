@@ -40,4 +40,4 @@ mod utils;
 
 pub use html::Html;
 pub use org::Org;
-pub use types::{Exporter, ConfigOptions};
+pub use types::{ConfigOptions, ExportError, Exporter};

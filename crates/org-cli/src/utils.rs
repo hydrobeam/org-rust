@@ -8,7 +8,7 @@ use crate::types::CliError;
 // a fs::canonicalize that doesnt care for existince. used for error handling
 // yanked straight from:
 // https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-pub fn normalize_path(path: &Path) -> PathBuf {
+pub fn _normalize_path(path: &Path) -> PathBuf {
     let mut components = path.components().peekable();
     let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
         components.next();
