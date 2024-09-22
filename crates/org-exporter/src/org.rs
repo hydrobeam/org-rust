@@ -4,7 +4,8 @@ use std::fmt::Write;
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{ConfigOptions, Exporter, ExporterInner};
+use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind, Result};
+use crate::ExportError;
 use org_parser::element::{Block, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::object::{LatexFragment, PlainOrRec};
 
@@ -22,10 +23,11 @@ pub struct Org<'buf> {
     indentation_level: u8,
     on_newline: bool,
     conf: ConfigOptions,
+    // errors: Vec<ExportError>,
 }
 
 impl<'buf> Exporter<'buf> for Org<'buf> {
-    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error> {
+    fn export(input: &str, conf: ConfigOptions) -> Result<String> {
         let mut buf = String::new();
         Org::export_buf(input, &mut buf, conf)?;
         Ok(buf)
@@ -35,7 +37,7 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let parsed = parse_org(input);
         Org::export_tree(&parsed, buf, conf)
     }
@@ -44,7 +46,7 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let mut obj = Org {
             buf,
             indentation_level: 0,
@@ -61,7 +63,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let parsed = org_parser::parse_macro_call(input);
 
         let mut obj = Org {
@@ -74,8 +76,9 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
         obj.export_rec(&parsed.pool.root_id(), &parsed)
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> fmt::Result {
-        match &parser.pool[*node_id].obj {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result<()> {
+        let node = &parser.pool[*node_id];
+        match &node.obj {
             Expr::Root(inner) => {
                 for id in inner {
                     self.export_rec(id, parser)?;
@@ -338,8 +341,10 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
             }
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
-                    // FIXME: proper error handling
-                    include_handle(inner.val, self).unwrap();
+                    include_handle(inner.val, self).map_err(|e| ExportError::LogicError {
+                        span: node.start..node.end,
+                        source: LogicErrorKind::Include(e),
+                    })?;
                 }
             }
             Expr::LatexEnv(inner) => {
@@ -553,14 +558,20 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 write!(self, "<<{}>>", inner.0)?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
-                    match macro_contents {
-                        Cow::Owned(p) => {
-                            Org::export_macro_buf(&p, self, self.config_opts().clone())?;
+                let macro_contents =
+                    macro_handle(parser, macro_call, self.config_opts()).map_err(|e| {
+                        ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Macro(e),
                         }
-                        Cow::Borrowed(r) => {
-                            write!(self, "{r}")?;
-                        }
+                    })?;
+
+                match macro_contents {
+                    Cow::Owned(p) => {
+                        Org::export_macro_buf(&p, self, self.config_opts().clone())?;
+                    }
+                    Cow::Borrowed(r) => {
+                        write!(self, "{r}")?;
                     }
                 }
             }
@@ -640,15 +651,15 @@ impl<'buf> fmt::Write for Org<'buf> {
 mod tests {
     use super::*;
 
-    use fmt::Result;
+    use crate::types::Result;
     use pretty_assertions::assert_eq;
 
-    fn org_export(input: &str) -> core::result::Result<String, fmt::Error> {
+    fn org_export(input: &str) -> Result<String> {
         Org::export(input, ConfigOptions::default())
     }
 
     #[test]
-    fn basic_org_export() -> Result {
+    fn basic_org_export() -> Result<()> {
         let out_str = org_export(
             r"** one two
 three
@@ -668,7 +679,7 @@ three *four*
     }
 
     #[test]
-    fn fancy_list_export() -> Result {
+    fn fancy_list_export() -> Result<()> {
         let a = org_export(
             r"
     + one two three
@@ -698,14 +709,14 @@ four five six
     }
 
     #[test]
-    fn test_link_export() -> Result {
+    fn test_link_export() -> Result<()> {
         let out = org_export("[[https://swag.org][meowww]]")?;
         println!("{out}");
         Ok(())
     }
 
     #[test]
-    fn test_beeg() -> Result {
+    fn test_beeg() -> Result<()> {
         let out = org_export(
             r"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:
 more content here this is a pargraph
@@ -845,7 +856,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn less() -> Result {
+    fn less() -> Result<()> {
         let out = org_export(
             r"* [#1] abc :c:
 ** [#1] descendant headline :a:b:
@@ -867,7 +878,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn list_export() -> Result {
+    fn list_export() -> Result<()> {
         let a = org_export(
             r"
 - one
@@ -898,7 +909,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn basic_list_export() -> Result {
+    fn basic_list_export() -> Result<()> {
         let a = org_export(
             r"
 - one
@@ -931,7 +942,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn list_words() -> Result {
+    fn list_words() -> Result<()> {
         let a: String = org_export(
             r"
 1. item 1
@@ -971,7 +982,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn table_export() -> Result {
+    fn table_export() -> Result<()> {
         let a = org_export(
             r"
 |one|two|
@@ -995,7 +1006,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn table_export_hrule() -> Result {
+    fn table_export_hrule() -> Result<()> {
         let a = org_export(
             r"
 |one|two|
@@ -1029,7 +1040,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn indented_table() -> Result {
+    fn indented_table() -> Result<()> {
         let a = org_export(
             r"
 - zero
@@ -1065,7 +1076,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn proper_list_indent() -> Result {
+    fn proper_list_indent() -> Result<()> {
         let a = org_export(
             r"
 - one
@@ -1088,7 +1099,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn heading_list_not() -> Result {
+    fn heading_list_not() -> Result<()> {
         let a = org_export(
             r"
 - one
@@ -1112,7 +1123,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn proper_link() -> Result {
+    fn proper_link() -> Result<()> {
         let a = org_export(r"[[abc][one]]")?;
 
         assert_eq!(
@@ -1125,7 +1136,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn link_odd() -> Result {
+    fn link_odd() -> Result<()> {
         let a = org_export("[aayyyy][one]]")?;
         assert_eq!(
             a,
@@ -1136,7 +1147,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn superscript() -> Result {
+    fn superscript() -> Result<()> {
         let a = org_export(r"sample_text^{\gamma}")?;
         assert_eq!(
             a,
@@ -1167,7 +1178,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn subscript() -> Result {
+    fn subscript() -> Result<()> {
         let a = org_export(r"sample_text_{\gamma}")?;
         assert_eq!(
             a,
@@ -1198,7 +1209,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn plain_link() -> Result {
+    fn plain_link() -> Result<()> {
         let a = org_export("https://cool.com abc rest")?;
 
         assert_eq!(
@@ -1210,7 +1221,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn newline_literal_markup() -> Result {
+    fn newline_literal_markup() -> Result<()> {
         let a = org_export(
             r"- test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
 - text that isn't disappearing!
@@ -1228,7 +1239,7 @@ more content here this is a pargraph
     }
 
     #[test]
-    fn lblock_plus_list() -> Result {
+    fn lblock_plus_list() -> Result<()> {
         let a = org_export(
             r"
 -
@@ -1249,7 +1260,7 @@ meowwwwwwwwww
     }
 
     #[test]
-    fn markup_enclosed_in_bracks() -> Result {
+    fn markup_enclosed_in_bracks() -> Result<()> {
         let a = org_export(r"[_enclosed text here_]")?;
 
         assert_eq!(
@@ -1262,7 +1273,7 @@ meowwwwwwwwww
     }
 
     #[test]
-    fn drawer() -> Result {
+    fn drawer() -> Result<()> {
         let a = org_export(
             r"
 :NAME:

@@ -5,7 +5,7 @@
 use core::fmt;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Result, Write};
+use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
@@ -15,8 +15,9 @@ use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{ConfigOptions, Exporter, ExporterInner};
+use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind, Result};
 use crate::utils::{process_toc, Options, TocItem};
+use crate::ExportError;
 use phf::phf_set;
 
 // file types we can wrap an `img` around
@@ -83,7 +84,7 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
     // we can iterate over bytes since it's not possible for
     // an ascii character to appear in the codepoint of another larger char
     // if we see an ascii, then it's guaranteed to be valid
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut prev_pos = 0;
         // there are other characters we could escape, but memchr caps out at 3
         // the really important one is `<`, and then also probably &
@@ -113,7 +114,7 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
 }
 
 impl<'buf> Exporter<'buf> for Html<'buf> {
-    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error> {
+    fn export(input: &str, conf: ConfigOptions) -> Result<String> {
         let mut buf = String::new();
         Html::export_buf(input, &mut buf, conf)?;
         Ok(buf)
@@ -123,7 +124,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result {
+    ) -> Result<()> {
         let parsed: Parser<'_> = parse_org(input);
         Html::export_tree(&parsed, buf, conf)
     }
@@ -132,7 +133,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
@@ -168,7 +169,7 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     writer: &mut T,
     parent: &TocItem,
     curr_level: u8,
-) -> Result {
+) -> Result<()> {
     write!(writer, "<li>")?;
     if curr_level < parent.level {
         write!(writer, "<ul>")?;
@@ -188,7 +189,9 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
             write!(writer, "</ul>")?;
         }
     }
-    write!(writer, "</li>")
+    write!(writer, "</li>")?;
+
+    Ok(())
 }
 
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
@@ -196,7 +199,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result {
+    ) -> Result<()> {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
@@ -209,7 +212,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         obj.export_rec(&parsed.pool.root_id(), &parsed)
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result<()> {
         // avoid parsing this node
         if self.nox.contains(node_id) {
             return Ok(());
@@ -532,11 +535,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             }
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
-                    // FIXME: proper error handling
                     write!(self, r#"<div class="org-include""#)?;
                     self.prop(node)?;
                     write!(self, ">")?;
-                    include_handle(inner.val, self).unwrap();
+
+                    // TODO have vec to store errors instead of blowing up
+                    include_handle(inner.val, self).map_err(|e| ExportError::LogicError {
+                        span: node.start..node.end,
+                        source: LogicErrorKind::Include(e),
+                    })?;
                     write!(self, "</div>")?;
                 }
             }
@@ -622,7 +629,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                                 ("ol", r#" type="a""#)
                             }
                         }
-                        org_parser::element::CounterKind::Number(_) => ("ol",r#" type="1""#),
+                        org_parser::element::CounterKind::Number(_) => ("ol", r#" type="1""#),
                     },
                     ListKind::Descriptive => ("dd", ""),
                 };
@@ -718,14 +725,20 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 )?;
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
-                    match macro_contents {
-                        Cow::Owned(p) => {
-                            Html::export_macro_buf(&p, self, self.config_opts().clone())?;
+                let macro_contents =
+                    macro_handle(parser, macro_call, self.config_opts()).map_err(|e| {
+                        ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Macro(e),
                         }
-                        Cow::Borrowed(r) => {
-                            write!(self, "{}", HtmlEscape(r))?;
-                        }
+                    })?;
+
+                match macro_contents {
+                    Cow::Owned(p) => {
+                        Html::export_macro_buf(&p, self, self.config_opts().clone())?;
+                    }
+                    Cow::Borrowed(r) => {
+                        write!(self, "{}", HtmlEscape(r))?;
                     }
                 }
             }
@@ -814,7 +827,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 // Writers for generic attributes
 impl<'buf> Html<'buf> {
     /// Adds a property
-    fn prop(&mut self, node: &Node) -> Result {
+    fn prop(&mut self, node: &Node) -> Result<()> {
         // if the target needs an id
         if let Some(tag_contents) = node.id_target.as_ref() {
             write!(self, r#" id="{tag_contents}""#)?;
@@ -830,15 +843,17 @@ impl<'buf> Html<'buf> {
         Ok(())
     }
 
-    fn class(&mut self, name: &str) -> Result {
-        write!(self, r#" class="{name}""#)
+    fn class(&mut self, name: &str) -> Result<()> {
+        write!(self, r#" class="{name}""#)?;
+        Ok(())
     }
 
-    fn attr(&mut self, key: &str, val: &str) -> Result {
-        write!(self, r#" {}="{}""#, key, HtmlEscape(val))
+    fn attr(&mut self, key: &str, val: &str) -> Result<()> {
+        write!(self, r#" {}="{}""#, key, HtmlEscape(val))?;
+        Ok(())
     }
 
-    fn exp_footnotes(&mut self, parser: &Parser) -> Result {
+    fn exp_footnotes(&mut self, parser: &Parser) -> Result<()> {
         if self.footnotes.is_empty() {
             return Ok(());
         }
@@ -907,12 +922,13 @@ impl<'buf> Html<'buf> {
             }
             write!(self, r#"</div>"#)?;
         }
-        write!(self, "\n  </div>\n</div>")
+        write!(self, "\n  </div>\n</div>")?;
+        Ok(())
     }
 }
 
 impl fmt::Write for Html<'_> {
-    fn write_str(&mut self, s: &str) -> Result {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         self.buf.write_str(s)
     }
 }
@@ -922,11 +938,11 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn html_export(input: &str) -> core::result::Result<String, fmt::Error> {
+    fn html_export(input: &str) -> Result<String> {
         Html::export(input, ConfigOptions::default())
     }
     #[test]
-    fn combined_macros() -> fmt::Result {
+    fn combined_macros() -> Result<()> {
         let a = html_export(
             r"#+macro: poem hiii $1 $2 text
 {{{poem(cool,three)}}}
@@ -943,7 +959,7 @@ mod tests {
     }
 
     #[test]
-    fn keyword_macro() -> Result {
+    fn keyword_macro() -> Result<()> {
         let a = html_export(
             r"
      #+title: hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
@@ -960,7 +976,7 @@ mod tests {
     }
 
     #[test]
-    fn line_break() -> Result {
+    fn line_break() -> Result<()> {
         let a = html_export(
             r" abc\\
 ",
@@ -988,7 +1004,7 @@ mod tests {
     }
 
     #[test]
-    fn horizontal_rule() -> Result {
+    fn horizontal_rule() -> Result<()> {
         let a = html_export(
             r"-----
 ",
@@ -1023,7 +1039,7 @@ mod tests {
     }
 
     #[test]
-    fn correct_cache() -> Result {
+    fn correct_cache() -> Result<()> {
         let a = html_export(
             r"
 - one
@@ -1040,7 +1056,7 @@ abc &+ 10\\
     }
 
     #[test]
-    fn html_unicode() -> Result {
+    fn html_unicode() -> Result<()> {
         let a = html_export(
             r"a é😳
 ",
@@ -1056,7 +1072,7 @@ abc &+ 10\\
     }
 
     #[test]
-    fn list_counter_set() -> Result {
+    fn list_counter_set() -> Result<()> {
         let a = html_export(
             r"
 1. [@4] wordsss??
@@ -1074,7 +1090,7 @@ abc &+ 10\\
         Ok(())
     }
     #[test]
-    fn anon_footnote() -> Result {
+    fn anon_footnote() -> Result<()> {
         let a = html_export(
             r"
 hi [fn:next:coolio] yeah [fn:next]
@@ -1111,7 +1127,7 @@ coolio</div>
     }
 
     #[test]
-    fn footnote_heading() -> Result {
+    fn footnote_heading() -> Result<()> {
         let a = html_export(
             r"
 hello [fn:1]
@@ -1152,7 +1168,7 @@ hello [fn:1]
     }
 
     #[test]
-    fn footnote_order() -> Result {
+    fn footnote_order() -> Result<()> {
         // tests dupes too
         let a = html_export(
             r#"
@@ -1233,7 +1249,7 @@ coolio</div>
     }
 
     #[test]
-    fn esoteric_footnotes() -> Result {
+    fn esoteric_footnotes() -> Result<()> {
         let a = html_export(
             r"
 And anonymous ones [fn::mysterious]
@@ -1283,7 +1299,7 @@ mysterious</div>
     }
 
     #[test]
-    fn file_link() -> Result {
+    fn file_link() -> Result<()> {
         let a = html_export(r"[[file:html.org][hi]]")?;
 
         assert_eq!(
@@ -1296,7 +1312,7 @@ mysterious</div>
     }
 
     #[test]
-    fn file_link_image() -> Result {
+    fn file_link_image() -> Result<()> {
         let a = html_export(
             r"
 [[file:bmc.jpg]]
@@ -1313,7 +1329,7 @@ mysterious</div>
     }
 
     #[test]
-    fn basic_link_image() -> Result {
+    fn basic_link_image() -> Result<()> {
         let a = html_export(
             r"
 [[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
@@ -1331,7 +1347,7 @@ mysterious</div>
     }
 
     #[test]
-    fn unspecified_link() -> Result {
+    fn unspecified_link() -> Result<()> {
         let a = html_export(r"[[./hello]]")?;
 
         assert_eq!(
@@ -1344,7 +1360,7 @@ mysterious</div>
     }
 
     #[test]
-    fn checkbox() -> Result {
+    fn checkbox() -> Result<()> {
         let a = html_export("- [X]\n")?;
 
         assert_eq!(
@@ -1393,6 +1409,9 @@ content
 
 here
 "#;
-        assert_eq!(html_export(a).unwrap(), "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n");
+        assert_eq!(
+            html_export(a).unwrap(),
+            "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n"
+        );
     }
 }

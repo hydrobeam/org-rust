@@ -26,13 +26,14 @@
 use org_parser::parse_org;
 use std::borrow::Cow;
 use std::fs::read_to_string;
+use std::num::ParseIntError;
 use std::ops::Range;
 use std::path::Path;
+use thiserror::Error;
 
 use org_parser::element::HeadingLevel;
 
-use crate::types::ExporterInner;
-use crate::ConfigOptions;
+use crate::types::{ExportError, ExporterInner, FileError};
 
 /// Block types that correspond directly to types within the parser.
 #[derive(Debug)]
@@ -59,13 +60,13 @@ pub(crate) struct InclParams<'a> {
 
 impl<'a> InclParams<'a> {
     // TODO; make error handling less... weird
-    fn new(value: &'a str) -> Result<Self, Box<dyn std::error::Error>> {
+    fn new(value: &'a str) -> Result<Self, IncludeError> {
         // peekable so we don't accidentally consume :kwarg params when expecting
         // positional arguments
         let mut params = value.split(" ").peekable();
 
         let provided_path;
-        let file_chunk = params.next().ok_or("No file provided")?;
+        let file_chunk = params.next().ok_or(IncludeError::NoFile)?;
 
         // TODO: searching through file
         // account for search options
@@ -100,7 +101,7 @@ impl<'a> InclParams<'a> {
                     };
                     IncludeBlock::Src { lang }
                 }
-                _ => Err(format!("Invalid block name {}", potential_block))?,
+                _ => Err(IncludeError::UnsupportedBlock(potential_block.into()))?,
             })
         } else {
             None
@@ -128,9 +129,9 @@ impl<'a> InclParams<'a> {
                         let start: usize;
                         let end: usize;
 
-                        let hyphen_ind = not_kwarg
-                            .find('-')
-                            .ok_or("Lines pattern does not contain '-'")?;
+                        let hyphen_ind = not_kwarg.find('-').ok_or(IncludeError::InvalidSyntax(
+                            "Lines pattern does not contain '-'".into(),
+                        ))?;
 
                         start = if hyphen_ind == 0 {
                             0
@@ -158,11 +159,11 @@ impl<'a> InclParams<'a> {
                             4 => Some(HeadingLevel::Four),
                             5 => Some(HeadingLevel::Five),
                             6 => Some(HeadingLevel::Six),
-                            _ => Err(format!("Invalid heading level {}", temp))?,
+                            _ => Err(IncludeError::InvalidMinLevel { received: temp })?,
                         };
                     }
                 }
-                _ => Err(format!("Invalid kwarg name {}", kwarg))?,
+                _ => Err(IncludeError::UnsupportedKwarg(kwarg.into()))?,
             }
         }
 
@@ -186,17 +187,29 @@ impl<'a> InclParams<'a> {
 pub(crate) fn include_handle<'a>(
     value: &str,
     writer: &mut impl ExporterInner<'a>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> core::result::Result<(), IncludeError> {
     let ret = InclParams::new(value)?;
     // REVIEW: little uncomfortable reding the full string in before
     // processing lines
     let target_path: Cow<Path> = if let Some(v) = writer.config_opts().file_path().as_ref() {
         // TODO: error handling
-        v.parent().unwrap().join(ret.file).canonicalize()?.into()
+        let temp_path = v.parent().unwrap().join(ret.file);
+        temp_path
+            .canonicalize()
+            .map_err(|e| FileError {
+                context: "failed to locate file".into(),
+                path: temp_path,
+                source: e,
+            })?
+            .into()
     } else {
         ret.file.into()
     };
-    let mut out_str = read_to_string(target_path)?;
+    let mut out_str = read_to_string(&target_path).map_err(|e| FileError {
+        context: "failed to read file".into(),
+        path: target_path.into(),
+        source: e,
+    })?;
     if let Some(lines) = ret.lines {
         out_str = out_str
             .lines()
@@ -262,7 +275,31 @@ pub(crate) fn include_handle<'a>(
     // TODO: only-contents
 
     parsed = parse_org(&feed_str);
-    writer.export_rec(&parsed.pool.root_id(), &parsed)?;
+    writer
+        .export_rec(&parsed.pool.root_id(), &parsed)
+        .map_err(|e| Box::new(e))?;
 
     Ok(())
+}
+
+#[derive(Debug, Error)]
+pub enum IncludeError {
+    #[error("Invalid include syntax: {0}")]
+    InvalidSyntax(String),
+    #[error("No file provided")]
+    NoFile,
+    #[error("block `{0}` is not one of [export, example, src]")]
+    UnsupportedBlock(String),
+    #[error("kwarg `{0}` is not one of [:only-contents, :lines, :minlevel]")]
+    UnsupportedKwarg(String),
+    #[error("lines provided are not in base 10: {0}")]
+    LinesError(#[from] ParseIntError),
+    #[error("expected a minlevel of 1-6, received: {received}")]
+    InvalidMinLevel { received: usize },
+    #[error("minlevel was not a number: {0}")]
+    NotStringMinlevel(String),
+    #[error("{0}")]
+    IoError(#[from] FileError),
+    #[error("{0}")]
+    FileExport(#[from] Box<ExportError>),
 }
