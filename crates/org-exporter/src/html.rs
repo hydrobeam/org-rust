@@ -15,11 +15,16 @@ use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind, Result};
+use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind};
 use crate::utils::{process_toc, Options, TocItem};
 use crate::ExportError;
 use phf::phf_set;
 
+macro_rules! w {
+    ($dst:expr, $($arg:tt)*) => {
+        $dst.write_fmt(format_args!($($arg)*)).expect("writing to buffer during export failed")
+    };
+}
 // file types we can wrap an `img` around
 static IMAGE_TYPES: phf::Set<&str> = phf_set! {
     "jpeg",
@@ -164,21 +169,20 @@ fn handle_toc<'a, T: fmt::Write + ExporterInner<'a>>(
     parsed: &Parser,
     writer: &mut T,
     tocs: &Vec<TocItem>,
-) -> Result<()> {
-    write!(
+) {
+    w!(
         writer,
         r#"<nav id="table-of-contents" role="doc-toc">
 <h2>Table Of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 "#
-    )?;
-    write!(writer, "<ul>")?;
+    );
+    w!(writer, "<ul>");
     for toc in tocs {
-        toc_rec(&parsed, writer, toc, 1)?;
+        toc_rec(&parsed, writer, toc, 1);
     }
-    write!(writer, "</ul>")?;
-    write!(writer, r#"</div></nav>"#)?;
-    Ok(())
+    w!(writer, "</ul>");
+    w!(writer, r#"</div></nav>"#);
 }
 
 fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
@@ -186,29 +190,27 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     writer: &mut T,
     parent: &TocItem,
     curr_level: u8,
-) -> Result<()> {
-    write!(writer, "<li>")?;
+) {
+    w!(writer, "<li>");
     if curr_level < parent.level {
-        write!(writer, "<ul>")?;
-        toc_rec(&parser, writer, parent, curr_level + 1)?;
-        write!(writer, "</ul>")?;
+        w!(writer, "<ul>");
+        toc_rec(&parser, writer, parent, curr_level + 1);
+        w!(writer, "</ul>");
     } else {
-        write!(writer, r#"<a href=#{}>"#, parent.target)?;
+        w!(writer, r#"<a href=#{}>"#, parent.target);
         for id in parent.name {
-            writer.export_rec(id, parser)?;
+            writer.export_rec(id, parser);
         }
-        write!(writer, "</a>")?;
+        w!(writer, "</a>");
         if !parent.children.is_empty() {
-            write!(writer, "<ul>")?;
+            w!(writer, "<ul>");
             for child in &parent.children {
-                toc_rec(&parser, writer, child, curr_level + 1)?;
+                toc_rec(&parser, writer, child, curr_level + 1);
             }
-            write!(writer, "</ul>")?;
+            w!(writer, "</ul>");
         }
     }
-    write!(writer, "</li>")?;
-
-    Ok(())
+    w!(writer, "</li>");
 }
 
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
@@ -235,36 +237,36 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         }
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result<()> {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) {
         // avoid parsing this node
         if self.nox.contains(node_id) {
-            return Ok(());
+            return;
         }
         let node = &parser.pool[*node_id];
         match &node.obj {
             Expr::Root(inner) => {
                 for id in inner {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
 
-                write!(self, "<h{heading_number}",)?;
-                self.prop(node)?;
-                write!(self, ">")?;
+                w!(self, "<h{heading_number}");
+                self.prop(node);
+                w!(self, ">");
 
                 if let Some(title) = &inner.title {
                     for id in &title.1 {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
 
-                writeln!(self, "</h{heading_number}>")?;
+                w!(self, "</h{heading_number}>\n");
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
             }
@@ -276,31 +278,31 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<div")?;
-                        self.class("org-center")?;
-                        self.prop(node)?;
-                        writeln!(self, ">")?;
+                        w!(self, "<div");
+                        self.class("org-center");
+                        self.prop(node);
+                        w!(self, ">\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</div>")?;
+                        w!(self, "</div>\n");
                     }
                     Block::Quote {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<blockquote")?;
-                        self.prop(node)?;
-                        writeln!(self, ">")?;
+                        w!(self, "<blockquote");
+                        self.prop(node);
+                        w!(self, ">\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</blockquote>")?;
+                        w!(self, "</blockquote>\n");
                     }
                     Block::Special {
                         parameters,
@@ -308,26 +310,26 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         name,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         // html5 names are directly converted into tags
                         if HTML5_TYPES.contains(name) {
-                            write!(self, "<{name}")?;
-                            self.prop(node)?;
-                            writeln!(self, ">")?;
+                            w!(self, "<{name}");
+                            self.prop(node);
+                            w!(self, ">\n");
                             for id in contents {
-                                self.export_rec(id, parser)?;
+                                self.export_rec(id, parser);
                             }
-                            write!(self, "</{name}>")?;
+                            w!(self, "</{name}>");
                         } else {
-                            write!(self, "<div")?;
-                            self.prop(node)?;
-                            self.class(name)?;
-                            writeln!(self, ">")?;
+                            w!(self, "<div");
+                            self.prop(node);
+                            self.class(name);
+                            w!(self, ">\n");
                             for id in contents {
-                                self.export_rec(id, parser)?;
+                                self.export_rec(id, parser);
                             }
-                            writeln!(self, "</div>")?;
+                            w!(self, "</div>\n");
                         }
                     }
 
@@ -337,21 +339,21 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        writeln!(self, "<!--{contents}-->")?;
+                        w!(self, "<!--{contents}-->\n");
                     }
                     Block::Example {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<pre")?;
-                        self.class("example")?;
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
+                        w!(self, "<pre");
+                        self.class("example");
+                        self.prop(node);
+                        w!(self, ">\n{}</pre>\n", HtmlEscape(contents));
                     }
                     Block::Export {
                         backend,
@@ -359,10 +361,10 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         if backend.is_some_and(|x| x == Html::backend_name()) {
-                            writeln!(self, "{contents}")?;
+                            w!(self, "{contents}\n");
                         }
                     }
                     Block::Src {
@@ -371,29 +373,29 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<pre>")?;
-                        write!(self, "<code")?;
-                        self.class("src")?;
+                        w!(self, "<pre>");
+                        w!(self, "<code");
+                        self.class("src");
                         if let Some(lang) = language {
-                            self.class(&format!("src-{}", lang))?;
+                            self.class(&format!("src-{}", lang));
                         }
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</pre></code>", HtmlEscape(contents))?;
+                        self.prop(node);
+                        w!(self, ">\n{}</pre></code>\n", HtmlEscape(contents));
                     }
                     Block::Verse {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         // FIXME: apparently verse blocks contain objects...
-                        write!(self, "<p")?;
-                        self.class("verse")?;
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</p>", HtmlEscape(contents))?;
+                        w!(self, "<p");
+                        self.class("verse");
+                        self.prop(node);
+                        w!(self, ">\n{}</p>\n", HtmlEscape(contents));
                     }
                 }
             }
@@ -424,15 +426,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     }
                     PathReg::File(a) => format!("{a}"),
                 };
-                write!(self, r#"<a href="{}">"#, HtmlEscape(&path_link))?;
+                w!(self, r#"<a href="{}">"#, HtmlEscape(&path_link));
                 if let Some(children) = &inner.description {
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 } else {
-                    write!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)))?;
+                    w!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)));
                 }
-                write!(self, "</a>")?;
+                w!(self, "</a>");
             }
 
             Expr::Paragraph(inner) => {
@@ -453,14 +455,14 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         let ending_tag = link_source.split('.').last();
                         if let Some(extension) = ending_tag {
                             if IMAGE_TYPES.contains(extension) {
-                                write!(self, "<figure>\n<img")?;
-                                self.prop(node)?;
-                                write!(self, r#" src="{}""#, HtmlEscape(link_source))?;
+                                w!(self, "<figure>\n<img");
+                                self.prop(node);
+                                w!(self, r#" src="{}""#, HtmlEscape(link_source));
                                 // start writing alt (if there are children)
-                                write!(self, r#" alt=""#)?;
+                                w!(self, r#" alt=""#);
                                 if let Some(children) = &link.description {
                                     for id in children {
-                                        self.export_rec(id, parser)?;
+                                        self.export_rec(id, parser);
                                     }
                                 } else {
                                     let alt_text: Cow<str> =
@@ -469,114 +471,112 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                                         } else {
                                             link_source.into()
                                         };
-                                    write!(self, "{}", HtmlEscape(alt_text))?;
+                                    w!(self, "{}", HtmlEscape(alt_text));
                                 }
-                                write!(self, "\">\n</figure>")?;
-                                return Ok(());
+                                w!(self, "\">\n</figure>");
+                                return;
                             }
                         }
                     }
                 }
-                write!(self, "<p")?;
-                self.prop(node)?;
-                write!(self, ">")?;
+                w!(self, "<p");
+                self.prop(node);
+                w!(self, ">");
 
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</p>")?;
+                w!(self, "</p>\n");
             }
 
             Expr::Italic(inner) => {
-                write!(self, "<em>")?;
+                w!(self, "<em>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</em>")?;
+                w!(self, "</em>");
             }
             Expr::Bold(inner) => {
-                write!(self, "<b>")?;
+                w!(self, "<b>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</b>")?;
+                w!(self, "</b>");
             }
             Expr::StrikeThrough(inner) => {
-                write!(self, "<del>")?;
+                w!(self, "<del>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</del>")?;
+                w!(self, "</del>");
             }
             Expr::Underline(inner) => {
-                write!(self, "<u>")?;
+                w!(self, "<u>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</u>")?;
-                // write!(self, "<span class=underline>")?;
+                w!(self, "</u>");
+                // w!(self, "<span class=underline>")?;
                 // for id in &inner.0 {
-                //     self.export_rec(id, parser)?;
+                //     self.export_rec(id, parser);
                 // }
-                // write!(self, "</span>")?;
+                // w!(self, "</span>")?;
             }
             Expr::BlankLine => {
-                // write!(self, "\n")?;
+                // w!(self, "\n")?;
             }
             Expr::SoftBreak => {
-                write!(self, " ")?;
+                w!(self, " ");
             }
             Expr::LineBreak => {
-                writeln!(self, "\n<br>")?;
+                w!(self, "\n<br>\n");
             }
             Expr::HorizontalRule => {
-                writeln!(self, "\n<hr>")?;
+                w!(self, "\n<hr>\n");
             }
             Expr::Plain(inner) => {
-                write!(self, "{}", HtmlEscape(inner))?;
+                w!(self, "{}", HtmlEscape(inner));
             }
             Expr::Verbatim(inner) => {
-                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
+                w!(self, "<code>{}</code>", HtmlEscape(inner.0));
             }
             Expr::Code(inner) => {
-                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
+                w!(self, "<code>{}</code>", HtmlEscape(inner.0));
             }
             Expr::Comment(inner) => {
-                write!(self, "<!--{}-->", inner.0)?;
+                w!(self, "<!--{}-->", inner.0);
             }
             Expr::InlineSrc(inner) => {
-                write!(
+                w!(
                     self,
                     "<code class={}>{}</code>",
                     inner.lang,
                     HtmlEscape(inner.body)
-                )?;
+                );
                 // if let Some(args) = inner.headers {
-                //     write!(self, "[{args}]")?;
+                //     w!(self, "[{args}]")?;
                 // }
-                // write!(self, "{{{}}}", inner.body)?;
+                // w!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
-                    write!(self, r#"<div class="org-include""#)?;
-                    self.prop(node)?;
-                    write!(self, ">")?;
-
-                    // TODO have vec to store errors instead of blowing up
+                    w!(self, r#"<div class="org-include""#);
+                    self.prop(node);
+                    w!(self, ">");
 
                     if let Err(e) = include_handle(inner.val, self) {
                         self.errors().push(ExportError::LogicError {
                             span: node.start..node.end,
                             source: LogicErrorKind::Include(e),
                         });
-                        return Ok(());
+                        return;
                     }
 
                     //     .map_err(|e| ExportError::LogicError {
                     //     span: node.start..node.end,
                     //     source: LogicErrorKind::Include(e),
                     // })?;
-                    write!(self, "</div>")?;
+                    w!(self, "</div>");
                 }
             }
             Expr::LatexEnv(inner) => {
@@ -588,49 +588,57 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     inner.name, inner.contents
                 );
                 let ret = latex_to_mathml(&formatted, DisplayStyle::Block);
-                writeln!(self, "{}", if let Ok(val) = &ret { val } else { formatted })?;
+                // TODO/FIXME: this should be an error
+                w!(
+                    self,
+                    "{}\n",
+                    if let Ok(val) = &ret { val } else { formatted }
+                );
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    write!(pot_cont, r#"{name}"#)?;
+                    w!(pot_cont, r#"{name}"#);
                     if let Some(command_cont) = contents {
-                        write!(pot_cont, "{{{command_cont}}}")?;
+                        w!(pot_cont, "{{{command_cont}}}");
                     }
-                    write!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
                         "{}",
                         &latex_to_mathml(&pot_cont, DisplayStyle::Inline).unwrap(),
-                    )?;
+                    );
                 }
                 LatexFragment::Display(inner) => {
-                    writeln!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
-                        "{}",
+                        "{}\n",
                         &latex_to_mathml(inner, DisplayStyle::Block).unwrap()
-                    )?;
+                    );
                 }
                 LatexFragment::Inline(inner) => {
-                    write!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
                         "{}",
                         &latex_to_mathml(inner, DisplayStyle::Inline).unwrap()
-                    )?;
+                    );
                 }
             },
             Expr::Item(inner) => {
                 if let Some(tag) = inner.tag {
-                    write!(self, "<dt>{}</dt>", HtmlEscape(tag))?;
-                    write!(self, "<dd>")?;
+                    w!(self, "<dt>{}</dt>", HtmlEscape(tag));
+                    w!(self, "<dd>");
                     for id in &inner.children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
-                    write!(self, "</dd>")?;
+                    w!(self, "</dd>");
                 } else {
-                    write!(self, "<li")?;
+                    w!(self, "<li");
 
                     if let Some(counter) = inner.counter_set {
-                        self.attr("value", counter)?;
+                        self.attr("value", counter);
                     }
 
                     if let Some(check) = &inner.check_box {
@@ -638,16 +646,16 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             CheckBox::Intermediate => "trans",
                             CheckBox::Off => "off",
                             CheckBox::On => "on",
-                        })?;
+                        });
                     }
 
-                    write!(self, ">")?;
+                    w!(self, ">");
 
                     for id in &inner.children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
 
-                    writeln!(self, "</li>")?;
+                    w!(self, "</li>\n");
                 }
             }
             Expr::PlainList(inner) => {
@@ -665,96 +673,97 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     },
                     ListKind::Descriptive => ("dd", ""),
                 };
-                write!(self, "<{tag}{desc}")?;
-                self.prop(node)?;
-                writeln!(self, ">")?;
+                w!(self, "<{tag}{desc}");
+                self.prop(node);
+                w!(self, ">\n");
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</{tag}>")?;
+                w!(self, "</{tag}>\n");
             }
             Expr::PlainLink(inner) => {
-                write!(
+                w!(
                     self,
                     "<a href={0}:{1}>{0}:{1}</a>",
-                    inner.protocol, inner.path
-                )?;
+                    inner.protocol,
+                    inner.path
+                );
             }
             Expr::Entity(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Table(inner) => {
-                write!(self, "<table")?;
-                self.prop(node)?;
-                writeln!(self, ">")?;
+                w!(self, "<table");
+                self.prop(node);
+                w!(self, ">\n");
 
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
 
-                writeln!(self, "</table>")?;
+                w!(self, "</table>\n");
             }
 
             Expr::TableRow(inner) => {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        writeln!(self, "<tr>")?;
+                        w!(self, "<tr>\n");
                         for id in stands.iter() {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</tr>")?;
+                        w!(self, "</tr>\n");
                     }
                 }
             }
             Expr::TableCell(inner) => {
-                write!(self, "<td>")?;
+                w!(self, "<td>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</td>")?;
+                w!(self, "</td>\n");
             }
             Expr::Emoji(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Superscript(inner) => {
-                write!(self, "<sup>")?;
+                w!(self, "<sup>");
                 match &inner.0 {
                     PlainOrRec::Plain(inner) => {
-                        write!(self, "{inner}")?;
+                        w!(self, "{inner}");
                     }
                     PlainOrRec::Rec(inner) => {
                         for id in inner {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
                     }
                 }
-                write!(self, "</sup>")?;
+                w!(self, "</sup>");
             }
             Expr::Subscript(inner) => {
-                write!(self, "<sub>")?;
+                w!(self, "<sub>");
                 match &inner.0 {
                     PlainOrRec::Plain(inner) => {
-                        write!(self, "{inner}")?;
+                        w!(self, "{inner}");
                     }
                     PlainOrRec::Rec(inner) => {
                         for id in inner {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
                     }
                 }
-                write!(self, "</sub>")?;
+                w!(self, "</sub>");
             }
             Expr::Target(inner) => {
-                write!(self, "<span")?;
-                self.prop(node)?;
-                write!(self, ">")?;
-                write!(
+                w!(self, "<span");
+                self.prop(node);
+                w!(self, ">");
+                w!(
                     self,
                     "<span id={}>{}</span>",
                     parser.pool[*node_id].id_target.as_ref().unwrap(), // must exist
                     HtmlEscape(inner.0)
-                )?;
+                );
             }
             Expr::Macro(macro_call) => {
                 let macro_contents = match macro_handle(parser, macro_call, self.config_opts()) {
@@ -764,7 +773,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             span: node.start..node.end,
                             source: LogicErrorKind::Macro(e),
                         });
-                        return Ok(());
+                        return;
                     }
                 };
 
@@ -774,34 +783,34 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             Html::export_macro_buf(&p, self, self.config_opts().clone())
                         {
                             self.errors().append(&mut err_vec);
-                            return Ok(());
+                            // TODO alert for errors handled within macro
                         }
                     }
                     Cow::Borrowed(r) => {
-                        write!(self, "{}", HtmlEscape(r))?;
+                        w!(self, "{}", HtmlEscape(r));
                     }
                 }
             }
             Expr::Drawer(inner) => {
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::ExportSnippet(inner) => {
                 if inner.backend == Html::backend_name() {
-                    write!(self, "{}", inner.contents)?;
+                    w!(self, "{}", inner.contents);
                 }
             }
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_id) => {}
                 Affiliated::Caption(id, contents) => {
                     if let Some(caption_id) = id {
-                        writeln!(self, "<figure>")?;
-                        self.export_rec(caption_id, parser)?;
-                        writeln!(self, "<figcaption>")?;
-                        self.export_rec(contents, parser)?;
-                        writeln!(self, "</figcaption>")?;
-                        writeln!(self, "</figure>")?;
+                        w!(self, "<figure>\n");
+                        self.export_rec(caption_id, parser);
+                        w!(self, "<figcaption>\n");
+                        self.export_rec(contents, parser);
+                        w!(self, "</figcaption>\n");
+                        w!(self, "</figure>\n");
                         self.nox.insert(*caption_id);
                     }
                 }
@@ -842,17 +851,16 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     format!("{index}")
                 };
 
-                write!(
+                w!(
                     self,
                     r##"<sup>
     <a id="fnr.{0}" href="#fn.{1}" class="footref" role="doc-backlink">{1}</a>
 </sup>"##,
-                    fn_id, index,
-                )?;
+                    fn_id,
+                    index,
+                );
             }
         }
-
-        Ok(())
     }
 
     fn backend_name() -> &'static str {
@@ -870,35 +878,31 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 // Writers for generic attributes
 impl<'buf> Html<'buf> {
     /// Adds a property
-    fn prop(&mut self, node: &Node) -> Result<()> {
+    fn prop(&mut self, node: &Node) {
         // if the target needs an id
         if let Some(tag_contents) = node.id_target.as_ref() {
-            write!(self, r#" id="{tag_contents}""#)?;
+            w!(self, r#" id="{tag_contents}""#);
         }
 
         // attach any keys that need to be placed
         if let Some(attrs) = node.attrs.get(Html::backend_name()) {
             for (key, val) in attrs {
-                self.attr(key, val)?;
+                self.attr(key, val);
             }
         }
-
-        Ok(())
     }
 
-    fn class(&mut self, name: &str) -> Result<()> {
-        write!(self, r#" class="{name}""#)?;
-        Ok(())
+    fn class(&mut self, name: &str) {
+        w!(self, r#" class="{name}""#);
     }
 
-    fn attr(&mut self, key: &str, val: &str) -> Result<()> {
-        write!(self, r#" {}="{}""#, key, HtmlEscape(val))?;
-        Ok(())
+    fn attr(&mut self, key: &str, val: &str) {
+        w!(self, r#" {}="{}""#, key, HtmlEscape(val));
     }
 
-    fn exp_footnotes(&mut self, parser: &Parser) -> Result<()> {
+    fn exp_footnotes(&mut self, parser: &Parser) {
         if self.footnotes.is_empty() {
-            return Ok(());
+            return;
         }
 
         // get last heading, and check if its title is Footnotes,
@@ -914,7 +918,7 @@ impl<'buf> Html<'buf> {
             false
         });
 
-        writeln!(
+        w!(
             self,
             r#"
 <div id="footnotes">
@@ -922,14 +926,23 @@ impl<'buf> Html<'buf> {
     .footdef p {{
     display:inline;
     }}
-    </style>"#
-        )?;
+    </style>
+"#
+        );
 
         if heading_query.is_none() {
-            writeln!(self, r#"    <h2 class="footnotes">Footnotes</h2>"#)?;
+            w!(
+                self,
+                r#"    <h2 class="footnotes">Footnotes</h2>
+"#
+            );
         }
 
-        writeln!(self, r#"    <div id="text-footnotes">"#)?;
+        w!(
+            self,
+            r#"    <div id="text-footnotes">
+"#
+        );
 
         // FIXME
         // lifetime shenanigans making me do this.. can't figure em out
@@ -938,7 +951,7 @@ impl<'buf> Html<'buf> {
         let man = self.footnotes.clone();
         for (mut pos, def_id) in man.iter().enumerate() {
             pos += 1;
-            write!(
+            w!(
                 self,
                 r##"
 
@@ -947,26 +960,25 @@ impl<'buf> Html<'buf> {
     <a id="fn.{pos}" href= "#fnr.{pos}" role="doc-backlink">{pos}</a>
 </sup>
 "##
-            )?;
+            );
             match &parser.pool[*def_id].obj {
                 Expr::FootnoteDef(fn_def) => {
                     for child_id in &fn_def.children {
-                        self.export_rec(child_id, parser)?;
+                        self.export_rec(child_id, parser);
                     }
                 }
                 Expr::FootnoteRef(fn_ref) => {
                     if let Some(children) = fn_ref.children.as_ref() {
                         for child_id in children {
-                            self.export_rec(child_id, parser)?;
+                            self.export_rec(child_id, parser);
                         }
                     }
                 }
                 _ => (),
             }
-            write!(self, r#"</div>"#)?;
+            w!(self, r#"</div>"#);
         }
-        write!(self, "\n  </div>\n</div>")?;
-        Ok(())
+        w!(self, "\n  </div>\n</div>");
     }
 }
 
