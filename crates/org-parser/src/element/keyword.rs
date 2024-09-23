@@ -163,19 +163,18 @@ impl<'a> Parseable<'a> for Keyword<'a> {
             _ => {}
         }
 
-        let prev = cursor.index;
-        cursor.adv_till_byte(NEWLINE);
         // not mentioned in the spec, but org-element trims
-        let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index].trim_ascii());
+        let val = cursor.fn_until(|chr: u8| chr == b'\n')?;
+        let trimmed = val.obj.trim_ascii();
 
-        parser.keywords.insert(key_word.obj, val);
+        parser.keywords.insert(key_word.obj, trimmed);
         Ok(parser.alloc(
             Keyword {
                 key: key_word.obj,
-                val,
+                val: trimmed,
             },
             start,
-            cursor.index + 1,
+            val.end + 1,
             parent,
         ))
     }

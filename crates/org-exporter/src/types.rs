@@ -1,6 +1,6 @@
 use core::fmt;
 use org_parser::{NodeID, Parser};
-use std::{fmt::Display, ops::Range, path::PathBuf};
+use std::{ops::Range, path::PathBuf};
 use thiserror::Error;
 
 pub(crate) type Result<T> = core::result::Result<T, ExportError>;
@@ -54,18 +54,18 @@ impl ConfigOptions {
 /// Exporting backends must implement this trait.
 pub trait Exporter<'buf> {
     /// Writes the AST generated from the input into a `String`.
-    fn export(input: &str, conf: ConfigOptions) -> Result<String>;
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, Vec<ExportError>>;
     /// Writes the AST generated from the input into a buffer that implements `Write`.
     fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()>;
+    ) -> core::result::Result<(), Vec<ExportError>>;
     fn export_tree<T: fmt::Write>(
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()>;
+    ) -> core::result::Result<(), Vec<ExportError>>;
 
     // fn errors(&self) -> Vec<ExportError>;
     // fn warnings(&self);
@@ -81,7 +81,7 @@ pub(crate) trait ExporterInner<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()>;
+    ) -> core::result::Result<(), Vec<ExportError>>;
     /// Primary exporting routine.
     ///
     /// This method is called recursively until every `Node` in the tree is exhausted.
@@ -90,4 +90,5 @@ pub(crate) trait ExporterInner<'buf> {
     /// REVIEW: make public?
     fn backend_name() -> &'static str;
     fn config_opts(&self) -> &ConfigOptions;
+    fn errors(&mut self) -> &mut Vec<ExportError>;
 }
