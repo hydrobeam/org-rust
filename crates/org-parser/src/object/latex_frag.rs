@@ -152,7 +152,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                         return Ok(parser.alloc(entity, start, end_name_ind, parent));
                     }
 
-                    match cursor.curr() {
+                    match cursor.try_curr()? {
                         LBRACE => {
                             cursor.next();
                             loop {
@@ -471,5 +471,13 @@ c}
 
         dbg!(&pool);
         pool.print_tree();
+    }
+
+    #[test]
+    fn single_backslash_char_eof() {
+        let input = r"   \s";
+        let pool = parse_org(input);
+        let item = expr_in_pool!(pool, Plain).unwrap();
+        assert_eq!(item, &r"\s");
     }
 }

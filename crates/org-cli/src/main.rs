@@ -161,7 +161,14 @@ fn run() -> anyhow::Result<()> {
             }
 
             let conf = ConfigOptions::new(Some(file_path.to_path_buf()));
-            backend.export(&parser_output, &mut exported_content, conf)?;
+            if let Err(err_vec) = backend.export(&parser_output, &mut exported_content, conf) {
+                let mut build_str = String::new();
+                for e in err_vec {
+                    build_str.push_str(&e.to_string());
+                    build_str.push_str("\n");
+                }
+                Err(CliError::new().with_cause(&build_str))?
+            }
 
             // handle a template (if needed)
             if let Some(template_path) = parser_output.keywords.get("template_path") {

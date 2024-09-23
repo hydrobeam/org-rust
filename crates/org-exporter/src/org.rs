@@ -4,7 +4,8 @@ use std::fmt::Write;
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{ConfigOptions, Exporter, ExporterInner};
+use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind};
+use crate::ExportError;
 use org_parser::element::{Block, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::object::{LatexFragment, PlainOrRec};
 
@@ -22,10 +23,17 @@ pub struct Org<'buf> {
     indentation_level: u8,
     on_newline: bool,
     conf: ConfigOptions,
+    errors: Vec<ExportError>,
+}
+
+macro_rules! w {
+    ($dst:expr, $($arg:tt)*) => {
+        $dst.write_fmt(format_args!($($arg)*)).expect("writing to buffer during export failed")
+    };
 }
 
 impl<'buf> Exporter<'buf> for Org<'buf> {
-    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error> {
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, Vec<ExportError>> {
         let mut buf = String::new();
         Org::export_buf(input, &mut buf, conf)?;
         Ok(buf)
@@ -35,7 +43,7 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed = parse_org(input);
         Org::export_tree(&parsed, buf, conf)
     }
@@ -44,15 +52,22 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let mut obj = Org {
             buf,
             indentation_level: 0,
             on_newline: false,
             conf,
+            errors: Vec::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed)
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
     }
 }
 
@@ -61,7 +76,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed = org_parser::parse_macro_call(input);
 
         let mut obj = Org {
@@ -69,42 +84,49 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
             indentation_level: 0,
             on_newline: false,
             conf: ConfigOptions::default(),
+            errors: Vec::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed)
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> fmt::Result {
-        match &parser.pool[*node_id].obj {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) {
+        let node = &parser.pool[*node_id];
+        match &node.obj {
             Expr::Root(inner) => {
                 for id in inner {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::Heading(inner) => {
                 for _ in 0..inner.heading_level.into() {
-                    write!(self, "*")?;
+                    w!(self, "*");
                 }
-                write!(self, " ")?;
+                w!(self, " ");
 
                 if let Some(keyword) = inner.keyword {
-                    write!(self, "{keyword} ")?;
+                    w!(self, "{keyword} ");
                 }
 
                 if let Some(priority) = &inner.priority {
-                    write!(self, "[#")?;
+                    w!(self, "[#");
                     match priority {
-                        Priority::A => write!(self, "A")?,
-                        Priority::B => write!(self, "B")?,
-                        Priority::C => write!(self, "C")?,
-                        Priority::Num(num) => write!(self, "{num}")?,
+                        Priority::A => w!(self, "A"),
+                        Priority::B => w!(self, "B"),
+                        Priority::C => w!(self, "C"),
+                        Priority::Num(num) => w!(self, "{num}"),
                     };
-                    write!(self, "] ")?;
+                    w!(self, "] ");
                 }
 
                 if let Some(title) = &inner.title {
                     for id in &title.1 {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
 
@@ -113,7 +135,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 //         if let Some(sub_tags) = loc.tags.as_ref() {
                 //             for thang in sub_tags.iter().rev() {
                 //                 match thang {
-                //                     Tag::Raw(val) => write!(self, ":{val}")?,
+                //                     Tag::Raw(val) => w!(self, ":{val}"),
                 //                     Tag::Loc(id, parser) => {
                 //                         tag_search(*id, pool, self)?;
                 //                     }
@@ -128,7 +150,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                     let mut valid_out = String::new();
                     for tag in tags.iter().rev() {
                         match tag {
-                            Tag::Raw(val) => write!(&mut valid_out, ":{val}")?,
+                            Tag::Raw(val) => w!(&mut valid_out, ":{val}"),
                             Tag::Loc(_id) => {
                                 // do nothing with it
                             }
@@ -136,15 +158,15 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                     }
                     // handles the case where a parent heading has no tags
                     if !valid_out.is_empty() {
-                        write!(self, " {valid_out}:")?;
+                        w!(self, " {valid_out}:");
                     }
                 }
 
-                writeln!(self)?;
+                w!(self, "\n");
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
             }
@@ -155,44 +177,44 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         parameters,
                         contents,
                     } => {
-                        write!(self, "#+begin_center")?;
+                        w!(self, "#+begin_center");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        writeln!(self)?;
+                        w!(self, "\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "#+end_center")?;
+                        w!(self, "#+end_center\n");
                     }
                     Block::Quote {
                         parameters,
                         contents,
                     } => {
-                        writeln!(self, "#+begin_quote")?;
+                        w!(self, "#+begin_quote");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        writeln!(self)?;
+                        w!(self, "\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "#+end_quote")?;
+                        w!(self, "#+end_quote\n");
                     }
                     Block::Special {
                         parameters,
                         contents,
                         name,
                     } => {
-                        write!(self, "#+begin_{name}")?;
+                        w!(self, "#+begin_{name}");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        writeln!(self)?;
+                        w!(self, "\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "#+end_{name}")?;
+                        w!(self, "#+end_{name}\n");
                     }
 
                     // Lesser blocks
@@ -200,23 +222,23 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         parameters,
                         contents,
                     } => {
-                        write!(self, "#+begin_comment")?;
+                        w!(self, "#+begin_comment");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        write!(self, "\n{contents}")?;
-                        writeln!(self, "#+end_comment")?;
+                        w!(self, "\n{contents}");
+                        w!(self, "#+end_comment\n");
                     }
                     Block::Example {
                         parameters,
                         contents,
                     } => {
-                        write!(self, "#+begin_example")?;
+                        w!(self, "#+begin_example");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        write!(self, "\n{contents}")?;
-                        writeln!(self, "#+end_example")?;
+                        w!(self, "\n{contents}");
+                        w!(self, "#+end_example\n");
                     }
                     Block::Export {
                         backend,
@@ -224,12 +246,12 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         contents,
                     } => {
                         let back = if let Some(word) = backend { word } else { "" };
-                        write!(self, "#+begin_export {}", back)?;
+                        w!(self, "#+begin_export {}", back);
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        write!(self, "\n{contents}")?;
-                        writeln!(self, "#+end_export")?;
+                        w!(self, "\n{contents}");
+                        w!(self, "#+end_export\n");
                     }
                     Block::Src {
                         language,
@@ -237,167 +259,173 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                         contents,
                     } => {
                         let lang = if let Some(word) = language { word } else { "" };
-                        write!(self, "#+begin_src {}", lang)?;
+                        w!(self, "#+begin_src {}", lang);
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        write!(self, "\n{contents}")?;
-                        writeln!(self, "#+end_src")?;
+                        w!(self, "\n{contents}");
+                        w!(self, "#+end_src\n");
                     }
                     Block::Verse {
                         parameters,
                         contents,
                     } => {
-                        write!(self, "#+begin_verse")?;
+                        w!(self, "#+begin_verse");
                         for (key, val) in parameters {
-                            write!(self, " :{} {}", key, val)?;
+                            w!(self, " :{} {}", key, val);
                         }
-                        write!(self, "\n{contents}")?;
-                        writeln!(self, "#+end_verse")?;
+                        w!(self, "\n{contents}");
+                        w!(self, "#+end_verse\n");
                     }
                 }
             }
             Expr::RegularLink(inner) => {
-                write!(self, "[")?;
-                write!(self, "[{}]", inner.path.obj)?;
+                w!(self, "[");
+                w!(self, "[{}]", inner.path.obj);
                 if let Some(children) = &inner.description {
-                    write!(self, "[")?;
+                    w!(self, "[");
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
-                    write!(self, "]")?;
+                    w!(self, "]");
                 }
-                write!(self, "]")?;
+                w!(self, "]");
             }
 
             Expr::Paragraph(inner) => {
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self)?;
+                w!(self, "\n");
             }
 
             Expr::Italic(inner) => {
-                write!(self, "/")?;
+                w!(self, "/");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "/")?;
+                w!(self, "/");
             }
             Expr::Bold(inner) => {
-                write!(self, "*")?;
+                w!(self, "*");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "*")?;
+                w!(self, "*");
             }
             Expr::StrikeThrough(inner) => {
-                write!(self, "+")?;
+                w!(self, "+");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "+")?;
+                w!(self, "+");
             }
             Expr::Underline(inner) => {
-                write!(self, "_")?;
+                w!(self, "_");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "_")?;
+                w!(self, "_");
             }
             Expr::BlankLine => {
-                writeln!(self)?;
+                w!(self, "\n");
             }
             Expr::SoftBreak => {
-                write!(self, " ")?;
+                w!(self, " ");
             }
             Expr::LineBreak => {
-                write!(self, r#"\\"#)?;
+                w!(self, r#"\\"#);
             }
             Expr::HorizontalRule => {
-                writeln!(self, "-----")?;
+                w!(self, "-----\n");
             }
             Expr::Plain(inner) => {
-                write!(self, "{inner}")?;
+                w!(self, "{inner}");
             }
             Expr::Verbatim(inner) => {
-                write!(self, "={}=", inner.0)?;
+                w!(self, "={}=", inner.0);
             }
             Expr::Code(inner) => {
-                write!(self, "~{}~", inner.0)?;
+                w!(self, "~{}~", inner.0);
             }
             Expr::Comment(inner) => {
-                writeln!(self, "# {}", inner.0)?;
+                w!(self, "# {}\n", inner.0);
             }
             Expr::InlineSrc(inner) => {
-                write!(self, "src_{}", inner.lang)?;
+                w!(self, "src_{}", inner.lang);
                 if let Some(args) = inner.headers {
-                    write!(self, "[{args}]")?;
+                    w!(self, "[{args}]");
                 }
-                write!(self, "{{{}}}", inner.body)?;
+                w!(self, "{{{}}}", inner.body);
             }
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
-                    // FIXME: proper error handling
-                    include_handle(inner.val, self).unwrap();
+                    if let Err(e) = include_handle(inner.val, self) {
+                        self.errors().push(ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Include(e),
+                        });
+                        return;
+                    }
                 }
             }
             Expr::LatexEnv(inner) => {
-                write!(
+                w!(
                     self,
                     r"\begin{{{0}}}
 {1}
 \end{{{0}}}
 ",
-                    inner.name, inner.contents
-                )?;
+                    inner.name,
+                    inner.contents
+                );
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
-                    write!(self, r#"\{name}"#)?;
+                    w!(self, r#"\{name}"#);
                     if let Some(command_cont) = contents {
-                        write!(self, "{{{command_cont}}}")?;
+                        w!(self, "{{{command_cont}}}");
                     }
                 }
                 LatexFragment::Display(inner) => {
-                    write!(self, r"\[{inner}\]")?;
+                    w!(self, r"\[{inner}\]");
                 }
                 LatexFragment::Inline(inner) => {
-                    write!(self, r#"\({inner}\)"#)?;
+                    w!(self, r#"\({inner}\)"#);
                 }
             },
             Expr::Item(inner) => {
                 match inner.bullet {
                     BulletKind::Unordered => {
-                        write!(self, "-")?;
+                        w!(self, "-");
                     }
                     BulletKind::Ordered(counterkind) => match counterkind {
                         CounterKind::Letter(lettre) => {
-                            write!(self, "{}.", lettre as char)?;
+                            w!(self, "{}.", lettre as char);
                         }
                         CounterKind::Number(num) => {
-                            write!(self, "{num}.")?;
+                            w!(self, "{num}.");
                         }
                     },
                 }
-                write!(self, " ")?;
+                w!(self, " ");
 
                 if let Some(counter_set) = inner.counter_set {
-                    write!(self, "[@{counter_set}]")?;
+                    w!(self, "[@{counter_set}]");
                 }
 
                 if let Some(check) = &inner.check_box {
                     let val: &str = check.into();
-                    write!(self, "[{val}] ")?;
+                    w!(self, "[{val}] ");
                 }
 
                 if let Some(tag) = inner.tag {
-                    write!(self, "{tag} :: ")?;
+                    w!(self, "{tag} :: ");
                 }
 
                 self.indentation_level += 1;
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
                 self.indentation_level -= 1;
                 if self.indentation_level == 0 {
@@ -406,14 +434,14 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
             }
             Expr::PlainList(inner) => {
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::PlainLink(inner) => {
-                write!(self, "[[{}:{}]]", inner.protocol, inner.path)?;
+                w!(self, "[[{}:{}]]", inner.protocol, inner.path);
             }
             Expr::Entity(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Table(inner) => {
                 let mut build_vec: Vec<Vec<String>> = Vec::with_capacity(inner.rows);
@@ -421,7 +449,8 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 // in lists, manually retrigger it here
 
                 for _ in 0..self.indentation_level {
-                    self.buf.write_str("  ")?;
+                    // w!(self, "  ");
+                    self.buf.write_str("  ").unwrap();
                 }
                 self.on_newline = false;
 
@@ -434,13 +463,15 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                                 TableRow::Standard(stans) => {
                                     for id in stans {
                                         let mut cell_buf = String::new();
+                                        // FIXME/HACK: this is weird
                                         let mut new_obj = Org {
                                             buf: &mut cell_buf,
                                             indentation_level: self.indentation_level,
                                             on_newline: self.on_newline,
                                             conf: self.conf.clone(),
+                                            errors: Vec::new(),
                                         };
-                                        new_obj.export_rec(id, parser)?;
+                                        new_obj.export_rec(id, parser);
                                         row_vec.push(cell_buf);
                                     }
                                 }
@@ -470,20 +501,20 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 }
 
                 for row in &build_vec {
-                    write!(self, "|")?;
+                    w!(self, "|");
 
                     // is hrule
                     if row.is_empty() {
                         for (i, val) in col_widths.iter().enumerate() {
                             // + 2 to account for buffer around cells
                             for _ in 0..(*val + 2) {
-                                write!(self, "-")?;
+                                w!(self, "-");
                             }
 
                             if i == inner.cols {
-                                write!(self, "|")?;
+                                w!(self, "|");
                             } else {
-                                write!(self, "+")?;
+                                w!(self, "+");
                             }
                         }
                     } else {
@@ -492,23 +523,23 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                             let diff;
 
                             // left buffer
-                            write!(self, " ")?;
+                            w!(self, " ");
                             if let Some(strang) = cell {
                                 diff = col_width - strang.len();
-                                write!(self, "{strang}")?;
+                                w!(self, "{strang}");
                             } else {
                                 diff = *col_width;
                             };
 
                             for _ in 0..diff {
-                                write!(self, " ")?;
+                                w!(self, " ");
                             }
 
                             // right buffer + ending
-                            write!(self, " |")?;
+                            w!(self, " |");
                         }
                     }
-                    writeln!(self)?;
+                    w!(self, "\n");
                 }
             }
 
@@ -517,90 +548,102 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
             }
             Expr::TableCell(inner) => {
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::Emoji(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Superscript(inner) => match &inner.0 {
                 PlainOrRec::Plain(inner) => {
-                    write!(self, "^{{{inner}}}")?;
+                    w!(self, "^{{{inner}}}");
                 }
                 PlainOrRec::Rec(inner) => {
-                    write!(self, "^{{")?;
+                    w!(self, "^{{");
                     for id in inner {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
 
-                    write!(self, "}}")?;
+                    w!(self, "}}");
                 }
             },
             Expr::Subscript(inner) => match &inner.0 {
                 PlainOrRec::Plain(inner) => {
-                    write!(self, "_{{{inner}}}")?;
+                    w!(self, "_{{{inner}}}");
                 }
                 PlainOrRec::Rec(inner) => {
-                    write!(self, "_{{")?;
+                    w!(self, "_{{");
                     for id in inner {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
 
-                    write!(self, "}}")?;
+                    w!(self, "}}");
                 }
             },
             Expr::Target(inner) => {
-                write!(self, "<<{}>>", inner.0)?;
+                w!(self, "<<{}>>", inner.0);
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
-                    match macro_contents {
-                        Cow::Owned(p) => {
-                            Org::export_macro_buf(&p, self, self.config_opts().clone())?;
+                let macro_contents = match macro_handle(parser, macro_call, self.config_opts()) {
+                    Ok(contents) => contents,
+                    Err(e) => {
+                        self.errors().push(ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Macro(e),
+                        });
+                        return;
+                    }
+                };
+
+                match macro_contents {
+                    Cow::Owned(p) => {
+                        if let Err(mut err_vec) =
+                            Org::export_macro_buf(&p, self, self.config_opts().clone())
+                        {
+                            self.errors().append(&mut err_vec);
+                            return;
                         }
-                        Cow::Borrowed(r) => {
-                            write!(self, "{r}")?;
-                        }
+                    }
+                    Cow::Borrowed(r) => {
+                        w!(self, "{r}");
                     }
                 }
             }
             Expr::Drawer(inner) => {
-                writeln!(self, ":{}:", inner.name)?;
+                w!(self, ":{}:\n", inner.name);
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, ":end:")?;
+                w!(self, ":end:\n");
             }
             Expr::ExportSnippet(inner) => {
                 if inner.backend == "org" {
-                    write!(self, "{}", inner.contents)?;
+                    w!(self, "{}", inner.contents);
                 }
             }
             Expr::Affiliated(_) => {}
             Expr::MacroDef(_) => {}
             Expr::FootnoteDef(inner) => {
-                write!(self, r"[fn:{}] ", inner.label)?;
+                w!(self, r"[fn:{}] ", inner.label);
 
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::FootnoteRef(inner) => {
-                write!(self, r"[fn:")?;
+                w!(self, r"[fn:");
                 if let Some(label) = inner.label {
-                    write!(self, "{label}")?;
+                    w!(self, "{label}");
                 }
                 if let Some(descr) = &inner.children {
-                    write!(self, ":")?;
+                    w!(self, ":");
                     for id in descr {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
-                write!(self, "]")?;
+                w!(self, "]");
             }
         }
-
-        Ok(())
     }
 
     fn backend_name() -> &'static str {
@@ -609,6 +652,10 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
 
     fn config_opts(&self) -> &ConfigOptions {
         &self.conf
+    }
+
+    fn errors(&mut self) -> &mut Vec<ExportError> {
+        &mut self.errors
     }
 }
 
@@ -640,22 +687,21 @@ impl<'buf> fmt::Write for Org<'buf> {
 mod tests {
     use super::*;
 
-    use fmt::Result;
     use pretty_assertions::assert_eq;
 
-    fn org_export(input: &str) -> core::result::Result<String, fmt::Error> {
-        Org::export(input, ConfigOptions::default())
+    fn org_export(input: &str) -> String {
+        Org::export(input, ConfigOptions::default()).unwrap()
     }
 
     #[test]
-    fn basic_org_export() -> Result {
+    fn basic_org_export() {
         let out_str = org_export(
             r"** one two
 three
 *four*
 
 ",
-        )?;
+        );
 
         assert_eq!(
             out_str,
@@ -664,11 +710,10 @@ three *four*
 
 "
         );
-        Ok(())
     }
 
     #[test]
-    fn fancy_list_export() -> Result {
+    fn fancy_list_export() {
         let a = org_export(
             r"
     + one two three
@@ -679,7 +724,7 @@ three *four*
     + four
     +five
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -693,19 +738,16 @@ four five six
 +five
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn test_link_export() -> Result {
-        let out = org_export("[[https://swag.org][meowww]]")?;
+    fn test_link_export() {
+        let out = org_export("[[https://swag.org][meowww]]");
         println!("{out}");
-        Ok(())
     }
 
     #[test]
-    fn test_beeg() -> Result {
+    fn test_beeg() {
         let out = org_export(
             r"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:
 more content here this is a pargraph
@@ -838,21 +880,20 @@ more content here this is a pargraph
 more content here this is a pargraph
 more content here this is a pargraph
 ",
-        )?;
+        );
 
         println!("{out}");
-        Ok(())
     }
 
     #[test]
-    fn less() -> Result {
+    fn less() {
         let out = org_export(
             r"* [#1] abc :c:
 ** [#1] descendant headline :a:b:
 *** [#2] inherit the tags
 ** [#3] different level
 ",
-        )?;
+        );
 
         assert_eq!(
             out,
@@ -863,11 +904,10 @@ more content here this is a pargraph
 "
         );
         println!("{out}");
-        Ok(())
     }
 
     #[test]
-    fn list_export() -> Result {
+    fn list_export() {
         let a = org_export(
             r"
 - one
@@ -878,7 +918,7 @@ more content here this is a pargraph
 - six
  - seven
 ",
-        )?;
+        );
 
         println!("{a}");
         assert_eq!(
@@ -893,12 +933,10 @@ more content here this is a pargraph
   - seven
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn basic_list_export() -> Result {
+    fn basic_list_export() {
         let a = org_export(
             r"
 - one
@@ -910,7 +948,7 @@ more content here this is a pargraph
    - seven
 - eight
 ",
-        )?;
+        );
 
         println!("{a}");
         assert_eq!(
@@ -926,12 +964,10 @@ more content here this is a pargraph
 - eight
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn list_words() -> Result {
+    fn list_words() {
         let a: String = org_export(
             r"
 1. item 1
@@ -945,7 +981,7 @@ more content here this is a pargraph
 2. [X] item 2
    - aome tag :: item 2.1
 ",
-        )?;
+        );
 
         println!("{a}");
 
@@ -966,12 +1002,9 @@ more content here this is a pargraph
         //   - aome tag :: item 2.1
         // "
         //         );
-
-        Ok(())
     }
-
     #[test]
-    fn table_export() -> Result {
+    fn table_export() {
         let a = org_export(
             r"
 |one|two|
@@ -979,7 +1012,7 @@ more content here this is a pargraph
 |five|six|seven|
 |eight
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -990,12 +1023,10 @@ more content here this is a pargraph
 | eight |      |       |
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn table_export_hrule() -> Result {
+    fn table_export_hrule() {
         let a = org_export(
             r"
 |one|two|
@@ -1007,7 +1038,7 @@ more content here this is a pargraph
 |swagg|long the
 |okay| _underline_| ~fake| _fake|
 ",
-        )?;
+        );
 
         println!("{a}");
         assert_eq!(
@@ -1024,12 +1055,10 @@ more content here this is a pargraph
 "
         );
         // println!("{a}");
-
-        Ok(())
     }
 
     #[test]
-    fn indented_table() -> Result {
+    fn indented_table() {
         let a = org_export(
             r"
 - zero
@@ -1043,7 +1072,7 @@ more content here this is a pargraph
     |okay| _underline_| ~fake| _fake|
 - ten
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1060,12 +1089,10 @@ more content here this is a pargraph
 - ten
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn proper_list_indent() -> Result {
+    fn proper_list_indent() {
         let a = org_export(
             r"
 - one
@@ -1073,7 +1100,7 @@ more content here this is a pargraph
   - one
   - two
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1084,18 +1111,17 @@ more content here this is a pargraph
   - two
 "
         );
-        Ok(())
     }
 
     #[test]
-    fn heading_list_not() -> Result {
+    fn heading_list_not() {
         let a = org_export(
             r"
 - one
 - four
 * one
 ",
-        )?;
+        );
 
         // make sure * one is not interpreted as another element of the list,
         // instead as a separate heading (if it was another element, we'd have three -'s
@@ -1108,36 +1134,32 @@ more content here this is a pargraph
 * one
 "
         );
-        Ok(())
     }
 
     #[test]
-    fn proper_link() -> Result {
-        let a = org_export(r"[[abc][one]]")?;
+    fn proper_link() {
+        let a = org_export(r"[[abc][one]]");
 
         assert_eq!(
             a,
             r"[[abc][one]]
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn link_odd() -> Result {
-        let a = org_export("[aayyyy][one]]")?;
+    fn link_odd() {
+        let a = org_export("[aayyyy][one]]");
         assert_eq!(
             a,
             r"[aayyyy][one]]
 "
         );
-        Ok(())
     }
 
     #[test]
-    fn superscript() -> Result {
-        let a = org_export(r"sample_text^{\gamma}")?;
+    fn superscript() {
+        let a = org_export(r"sample_text^{\gamma}");
         assert_eq!(
             a,
             r"sample_{text}^{γ}
@@ -1147,7 +1169,7 @@ more content here this is a pargraph
         let b = org_export(
             r"sample_text^bunchoftextnowhite!,lkljas
  after",
-        )?;
+        );
 
         assert_eq!(
             b,
@@ -1155,20 +1177,18 @@ more content here this is a pargraph
 "
         );
 
-        let c = org_export(r"nowhere ^texto")?;
+        let c = org_export(r"nowhere ^texto");
 
         assert_eq!(
             c,
             r"nowhere ^texto
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn subscript() -> Result {
-        let a = org_export(r"sample_text_{\gamma}")?;
+    fn subscript() {
+        let a = org_export(r"sample_text_{\gamma}");
         assert_eq!(
             a,
             r"sample_{text}_{γ}
@@ -1178,7 +1198,7 @@ more content here this is a pargraph
         let b = org_export(
             r"sample_{text}_bunchoftextnowhite!,lkljas
  after",
-        )?;
+        );
 
         assert_eq!(
             b,
@@ -1186,36 +1206,33 @@ more content here this is a pargraph
 "
         );
 
-        let c = org_export(r"nowhere _texto")?;
+        let c = org_export(r"nowhere _texto");
 
         assert_eq!(
             c,
             r"nowhere _texto
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn plain_link() -> Result {
-        let a = org_export("https://cool.com abc rest")?;
+    fn plain_link() {
+        let a = org_export("https://cool.com abc rest");
 
         assert_eq!(
             a,
             "[[https://cool.com]] abc rest
 "
         );
-        Ok(())
     }
 
     #[test]
-    fn newline_literal_markup() -> Result {
+    fn newline_literal_markup() {
         let a = org_export(
             r"- test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
 - text that isn't disappearing!
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1223,12 +1240,10 @@ more content here this is a pargraph
 - text that isn't disappearing!
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn lblock_plus_list() -> Result {
+    fn lblock_plus_list() {
         let a = org_export(
             r"
 -
@@ -1242,27 +1257,23 @@ meowwwwwwwwww
 
 -
 ",
-        )?;
+        );
         println!("{a}");
-
-        Ok(())
     }
 
     #[test]
-    fn markup_enclosed_in_bracks() -> Result {
-        let a = org_export(r"[_enclosed text here_]")?;
+    fn markup_enclosed_in_bracks() {
+        let a = org_export(r"[_enclosed text here_]");
 
         assert_eq!(
             a,
             "[_enclosed text here_]
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn drawer() -> Result {
+    fn drawer() {
         let a = org_export(
             r"
 :NAME:
@@ -1278,7 +1289,7 @@ meowwwwwwwwww
 four
 :end:
 ",
-        )?;
+        );
         assert_eq!(
             a,
             r"
@@ -1297,7 +1308,5 @@ four
 
 "
         );
-
-        Ok(())
     }
 }

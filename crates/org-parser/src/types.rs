@@ -64,7 +64,7 @@ pub(crate) fn process_attrs<'a>(
                 // allows for non-breaking colons:
                 // #+attr_html: :style border:2px solid black
                 loop {
-                    match cursor.curr() {
+                    match cursor.try_curr()? {
                         NEWLINE => break,
                         COLON => {
                             if cursor.peek_rev(1)?.is_ascii_whitespace() {
@@ -273,7 +273,7 @@ impl<'a> Cursor<'a> {
             .ok_or(MatchError::EofError)
     }
 
-    pub fn is_index_valid(&self) -> Result<()> {
+    pub fn curr_valid(&self) -> Result<()> {
         if self.index < self.byte_arr.len() {
             Ok(())
         } else {
@@ -291,8 +291,12 @@ impl<'a> Cursor<'a> {
     }
 
     pub fn skip_ws(&mut self) {
-        while self.curr() == SPACE {
-            self.next();
+        while let Ok(curr_item) = self.try_curr() {
+            if self.curr() == SPACE {
+                self.next()
+            } else {
+                break;
+            }
         }
     }
 

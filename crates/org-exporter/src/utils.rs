@@ -181,7 +181,7 @@ ul {
 
 "#,
             ConfigOptions::default(),
-        )?;
+        ).unwrap();
         println!("{a}");
         Ok(())
     }
