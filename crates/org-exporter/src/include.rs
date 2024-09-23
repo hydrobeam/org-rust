@@ -275,9 +275,8 @@ pub(crate) fn include_handle<'a>(
     // TODO: only-contents
 
     parsed = parse_org(&feed_str);
-    writer
-        .export_rec(&parsed.pool.root_id(), &parsed)
-        .map_err(|e| Box::new(e))?;
+    // TODO/FIXME: expose these errors
+    writer.export_rec(&parsed.pool.root_id(), &parsed);
 
     Ok(())
 }

@@ -3,8 +3,6 @@ use org_parser::{NodeID, Parser};
 use std::{ops::Range, path::PathBuf};
 use thiserror::Error;
 
-pub(crate) type Result<T> = core::result::Result<T, ExportError>;
-
 use crate::{include::IncludeError, org_macros::MacroError};
 
 #[derive(Debug, Clone, Default)]
@@ -20,8 +18,6 @@ pub enum ExportError {
         span: Range<usize>,
         source: LogicErrorKind,
     },
-    #[error("{0}")]
-    WriteError(#[from] fmt::Error),
 }
 
 #[derive(Debug, Error)]
@@ -75,7 +71,7 @@ pub trait Exporter<'buf> {
 pub(crate) trait ExporterInner<'buf> {
     /// Entry point of the exporter to handle macros.
     ///
-    /// Exporting macros entails creating a new context and parsing objects,
+    /// Exporting macros entails creating a new context which parses objects,
     /// as opposed to elements.
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
@@ -85,7 +81,7 @@ pub(crate) trait ExporterInner<'buf> {
     /// Primary exporting routine.
     ///
     /// This method is called recursively until every `Node` in the tree is exhausted.
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result<()>;
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser);
     /// The canonical name of the exporting backend
     /// REVIEW: make public?
     fn backend_name() -> &'static str;
