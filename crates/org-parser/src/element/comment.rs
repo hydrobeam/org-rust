@@ -17,7 +17,7 @@ impl<'a> Parseable<'a> for Comment<'a> {
         if cursor.peek(1)?.is_ascii_whitespace() {
             let prev = cursor.index;
             cursor.adv_till_byte(NEWLINE);
-            let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index]);
+            let val = bytes_to_str(&cursor.byte_arr[(prev + 2)..cursor.index]);
             // TODO: use an fn_until_inclusive to not have to add 1 to the end
             // (we want to eat the ending nl too)
             Ok(parser.alloc(Self(val), start, cursor.index + 1, parent))

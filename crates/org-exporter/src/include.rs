@@ -300,6 +300,6 @@ pub enum IncludeError {
     NotStringMinlevel(String),
     #[error("{0}")]
     IoError(#[from] FileError),
-    #[error("{0}")]
+    #[error("failure while handling file {0}")]
     FileExport(#[from] Box<ExportError>),
 }

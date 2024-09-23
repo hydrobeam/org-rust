@@ -51,7 +51,7 @@ impl Backend {
         parsed: &org_parser::Parser,
         buf: &mut String,
         conf: ConfigOptions
-    ) -> Result<(), org_exporter::ExportError> {
+    ) -> Result<(), Vec<org_exporter::ExportError>> {
         match self {
             Backend::Html => org_exporter::Html::export_tree(parsed, buf, conf),
             Backend::Org => org_exporter::Org::export_tree(parsed, buf, conf),

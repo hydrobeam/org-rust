@@ -70,6 +70,7 @@ pub struct Html<'buf> {
     footnotes: Vec<NodeID>,
     footnote_ids: HashMap<NodeID, usize>,
     conf: ConfigOptions,
+    errors: Vec<ExportError>,
 }
 
 /// Wrapper around strings that need to be properly HTML escaped.
@@ -114,7 +115,7 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
 }
 
 impl<'buf> Exporter<'buf> for Html<'buf> {
-    fn export(input: &str, conf: ConfigOptions) -> Result<String> {
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, Vec<ExportError>> {
         let mut buf = String::new();
         Html::export_buf(input, &mut buf, conf)?;
         Ok(buf)
@@ -124,7 +125,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed: Parser<'_> = parse_org(input);
         Html::export_tree(&parsed, buf, conf)
     }
@@ -133,35 +134,51 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
+            errors: Vec::new(),
         };
 
         if let Ok(opts) = Options::handle_opts(parsed) {
             if let Ok(tocs) = process_toc(parsed, &opts) {
-                write!(
-                    obj,
-                    r#"<nav id="table-of-contents" role="doc-toc">
+                handle_toc(parsed, &mut obj, &tocs);
+            }
+        }
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        obj.exp_footnotes(&parsed);
+
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
+    }
+}
+
+fn handle_toc<'a, T: fmt::Write + ExporterInner<'a>>(
+    parsed: &Parser,
+    writer: &mut T,
+    tocs: &Vec<TocItem>,
+) -> Result<()> {
+    write!(
+        writer,
+        r#"<nav id="table-of-contents" role="doc-toc">
 <h2>Table Of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 "#
-                )?;
-                write!(obj, "<ul>")?;
-                for toc in tocs {
-                    toc_rec(&parsed, &mut obj, &toc, 1)?;
-                }
-                write!(obj, "</ul>")?;
-                write!(obj, r#"</div></nav>"#)?;
-            }
-        }
-        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&parsed)
+    )?;
+    write!(writer, "<ul>")?;
+    for toc in tocs {
+        toc_rec(&parsed, writer, toc, 1)?;
     }
+    write!(writer, "</ul>")?;
+    write!(writer, r#"</div></nav>"#)?;
+    Ok(())
 }
 
 fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
@@ -199,7 +216,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
@@ -207,9 +224,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
+            errors: Vec::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed)
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result<()> {
@@ -540,10 +563,19 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     write!(self, ">")?;
 
                     // TODO have vec to store errors instead of blowing up
-                    include_handle(inner.val, self).map_err(|e| ExportError::LogicError {
-                        span: node.start..node.end,
-                        source: LogicErrorKind::Include(e),
-                    })?;
+
+                    if let Err(e) = include_handle(inner.val, self) {
+                        self.errors().push(ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Include(e),
+                        });
+                        return Ok(());
+                    }
+
+                    //     .map_err(|e| ExportError::LogicError {
+                    //     span: node.start..node.end,
+                    //     source: LogicErrorKind::Include(e),
+                    // })?;
                     write!(self, "</div>")?;
                 }
             }
@@ -725,17 +757,25 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 )?;
             }
             Expr::Macro(macro_call) => {
-                let macro_contents =
-                    macro_handle(parser, macro_call, self.config_opts()).map_err(|e| {
-                        ExportError::LogicError {
+                let macro_contents = match macro_handle(parser, macro_call, self.config_opts()) {
+                    Ok(contents) => contents,
+                    Err(e) => {
+                        self.errors().push(ExportError::LogicError {
                             span: node.start..node.end,
                             source: LogicErrorKind::Macro(e),
-                        }
-                    })?;
+                        });
+                        return Ok(());
+                    }
+                };
 
                 match macro_contents {
                     Cow::Owned(p) => {
-                        Html::export_macro_buf(&p, self, self.config_opts().clone())?;
+                        if let Err(mut err_vec) =
+                            Html::export_macro_buf(&p, self, self.config_opts().clone())
+                        {
+                            self.errors().append(&mut err_vec);
+                            return Ok(());
+                        }
                     }
                     Cow::Borrowed(r) => {
                         write!(self, "{}", HtmlEscape(r))?;
@@ -821,6 +861,9 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 
     fn config_opts(&self) -> &ConfigOptions {
         &self.conf
+    }
+    fn errors(&mut self) -> &mut Vec<ExportError> {
+        &mut self.errors
     }
 }
 
@@ -938,49 +981,46 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn html_export(input: &str) -> Result<String> {
-        Html::export(input, ConfigOptions::default())
+    fn html_export(input: &str) -> String {
+        Html::export(input, ConfigOptions::default()).unwrap()
     }
     #[test]
-    fn combined_macros() -> Result<()> {
+    fn combined_macros() {
         let a = html_export(
             r"#+macro: poem hiii $1 $2 text
 {{{poem(cool,three)}}}
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
             r"<p>hiii cool three text</p>
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn keyword_macro() -> Result<()> {
+    fn keyword_macro() {
         let a = html_export(
             r"
      #+title: hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 {{{keyword(title)}}}
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
             r"<p>hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii</p>
 ",
         );
-        Ok(())
     }
 
     #[test]
-    fn line_break() -> Result<()> {
+    fn line_break() {
         let a = html_export(
             r" abc\\
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -993,32 +1033,31 @@ mod tests {
         let n = html_export(
             r" abc\\   q
 ",
-        )?;
+        );
 
         assert_eq!(
             n,
             r"<p>abc\\   q</p>
 ",
         );
-        Ok(())
     }
 
     #[test]
-    fn horizontal_rule() -> Result<()> {
+    fn horizontal_rule() {
         let a = html_export(
             r"-----
 ",
-        )?;
+        );
 
         let b = html_export(
             r"                -----
 ",
-        )?;
+        );
 
         let c = html_export(
             r"      -------------------------
 ",
-        )?;
+        );
 
         assert_eq!(a, b);
         assert_eq!(b, c);
@@ -1027,19 +1066,17 @@ mod tests {
         let nb = html_export(
             r"                ----
 ",
-        )?;
+        );
 
         assert_eq!(
             nb,
             r"<p>----</p>
 ",
         );
-
-        Ok(())
     }
 
     #[test]
-    fn correct_cache() -> Result<()> {
+    fn correct_cache() {
         let a = html_export(
             r"
 - one
@@ -1049,35 +1086,31 @@ mod tests {
 abc &+ 10\\
 \end{align}
 ",
-        )?;
+        );
         println!("{a}");
-
-        Ok(())
     }
 
     #[test]
-    fn html_unicode() -> Result<()> {
+    fn html_unicode() {
         let a = html_export(
             r"a é😳
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
             r"<p>a é😳</p>
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn list_counter_set() -> Result<()> {
+    fn list_counter_set() {
         let a = html_export(
             r"
 1. [@4] wordsss??
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1087,15 +1120,14 @@ abc &+ 10\\
 </ol>
 "#,
         );
-        Ok(())
     }
     #[test]
-    fn anon_footnote() -> Result<()> {
+    fn anon_footnote() {
         let a = html_export(
             r"
 hi [fn:next:coolio] yeah [fn:next]
 ",
-        )?;
+        );
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
             a,
@@ -1123,11 +1155,10 @@ coolio</div>
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn footnote_heading() -> Result<()> {
+    fn footnote_heading() {
         let a = html_export(
             r"
 hello [fn:1]
@@ -1136,7 +1167,7 @@ hello [fn:1]
 
 [fn:1] world
 ",
-        )?;
+        );
 
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
@@ -1164,11 +1195,10 @@ hello [fn:1]
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn footnote_order() -> Result<()> {
+    fn footnote_order() {
         // tests dupes too
         let a = html_export(
             r#"
@@ -1185,7 +1215,7 @@ novel [fn:next:coolio]
 [fn:coolnote] words babby
 
 "#,
-        )?;
+        );
 
         // REVIEW; investigate different nodeids with export_buf and export
         // had to change 1.7 to 1.8 to pass the test
@@ -1245,11 +1275,10 @@ coolio</div>
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn esoteric_footnotes() -> Result<()> {
+    fn esoteric_footnotes() {
         let a = html_export(
             r"
 And anonymous ones [fn::mysterious]
@@ -1258,7 +1287,7 @@ what [fn::]
 
 bad [fn:]
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1294,47 +1323,41 @@ mysterious</div>
   </div>
 </div>"##
         );
-
-        Ok(())
     }
 
     #[test]
-    fn file_link() -> Result<()> {
-        let a = html_export(r"[[file:html.org][hi]]")?;
+    fn file_link() {
+        let a = html_export(r"[[file:html.org][hi]]");
 
         assert_eq!(
             a,
             r#"<p><a href="html.org">hi</a></p>
 "#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn file_link_image() -> Result<()> {
+    fn file_link_image() {
         let a = html_export(
             r"
 [[file:bmc.jpg]]
 ",
-        )?;
+        );
         assert_eq!(
             a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
 </figure>"#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn basic_link_image() -> Result<()> {
+    fn basic_link_image() {
         let a = html_export(
             r"
 [[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1342,26 +1365,22 @@ mysterious</div>
 <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
 </figure>"#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn unspecified_link() -> Result<()> {
-        let a = html_export(r"[[./hello]]")?;
+    fn unspecified_link() {
+        let a = html_export(r"[[./hello]]");
 
         assert_eq!(
             a,
             r##"<p><a href="./hello">./hello</a></p>
 "##
         );
-
-        Ok(())
     }
 
     #[test]
-    fn checkbox() -> Result<()> {
-        let a = html_export("- [X]\n")?;
+    fn checkbox() {
+        let a = html_export("- [X]\n");
 
         assert_eq!(
             a,
@@ -1371,7 +1390,7 @@ mysterious</div>
 "#
         );
 
-        let b = html_export("- [ ]\n")?;
+        let b = html_export("- [ ]\n");
 
         assert_eq!(
             b,
@@ -1381,7 +1400,7 @@ mysterious</div>
 "#
         );
 
-        let c = html_export("- [-]\n")?;
+        let c = html_export("- [-]\n");
 
         assert_eq!(
             c,
@@ -1390,8 +1409,6 @@ mysterious</div>
 </ul>
 "#
         );
-
-        Ok(())
     }
 
     #[test]
@@ -1410,7 +1427,7 @@ content
 here
 "#;
         assert_eq!(
-            html_export(a).unwrap(),
+            html_export(a),
             "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n"
         );
     }
