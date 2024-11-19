@@ -81,5 +81,5 @@ jobs:
             |---------------------------------|------------------------|
             |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
             |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.pages-deployment-alias }}](${{ steps.deploy.outputs.pages-deployment-alias }}) |
+            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
             ---
