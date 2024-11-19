@@ -19,13 +19,14 @@ jobs:
 
       - name: debug
         run: |
+          echo ${{ github.head_ref }}
           echo ${{github.event.pull_request.base.sha}}
           echo ${{github.ref}}
 
       - name: Get Head Commit Message
         shell: bash
         id: get_head_commit_message
-        run: echo "HEAD_COMMIT_MESSAGE=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
+        run: echo "commit=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
       - name: Extract branch name
         shell: bash
@@ -79,7 +80,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ github.sha }} --commit-message ${{ github.event.workflow_run.head_commit.message }}
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ github.head_ref }} --commit-message ${{ steps.get_head_commit_message.outputs.commit }}
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
