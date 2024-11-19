@@ -12,12 +12,10 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-
 
       - name: Extract branch name
         shell: bash
@@ -54,8 +52,8 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            |<span aria-hidden="true">🔨</span> Latest commit | ${{ env.LATEST_COMMIT }} |
-            |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            | *Latest commit* | ${{ env.LATEST_COMMIT }} |
+            | *Latest deploy log* | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
             ---
 
       - name: Install rust toolchain
@@ -101,7 +99,7 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            |<span aria-hidden="true">🔨</span> Latest commit | ${{ env.LATEST_COMMIT }} |
-            |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
+            | *Latest commit* | ${{ env.LATEST_COMMIT }} |
+            | *Latest deploy log* | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            | *Deploy Preview Url* | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
             ---
