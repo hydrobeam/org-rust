@@ -14,7 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        ref: ${{ github.ref }}
+        with:
+          ref: ${{ github.ref }}
 
       - name: debug
         run: |
