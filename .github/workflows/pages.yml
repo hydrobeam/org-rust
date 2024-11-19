@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'main'
+      - "main"
 
 jobs:
   deploy:
@@ -14,7 +14,6 @@ jobs:
       deployments: write
       pull-requests: write
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -41,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.2'
+          node-version: "20.2"
 
       - name: Install wasm-pack
         run: |
@@ -78,11 +77,9 @@ jobs:
           message: |
             ### <span aria-hidden="true">✅</span> Deploy Preview ready!
 
-
             |  Name | Link |
             |---------------------------------|------------------------|
             |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
             |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.cloudflare.outputs.url }}](${{ steps.cloudflare.outputs.url }}) |
-            |<span aria-hidden="true">🌳</span> Environment | ${{ steps.cloudflare.outputs.environment }} |
+            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.deployment-url }}](${{ steps.deploy.outputs.deployment-url }}) |
             ---
