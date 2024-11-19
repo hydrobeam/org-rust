@@ -30,7 +30,7 @@ jobs:
           echo "Pull request branch: $PR_BRANCH"
 
           # Fetch the commit hash for the PR branch
-          git fetch origin $PR_BRANCH:$PR_BRANCH
+          git fetch origin $PR_BRANCH
 
           LATEST_COMMIT=$(git log -n 1 --oneline $PR_BRANCH | cut -d ' ' -f 1)
 
