@@ -12,10 +12,25 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+
+      - name: Get latest commit hash of the PR branch
+        run: |
+          # Get the latest commit hash of the source branch of the PR
+          PR_BRANCH="${{ github.head_ref }}"
+          echo "Pull request branch: $PR_BRANCH"
+
+          # Fetch the commit hash for the PR branch
+          git fetch origin $PR_BRANCH:$PR_BRANCH
+
+          LATEST_COMMIT=$(git log -n 1 --oneline $PR_BRANCH | cut -d ' ' -f 1)
+
+          echo "Latest commit hash: $LATEST_COMMIT"
+          echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: $LATEST_COMMIT
 
       - name: debug
         run: |
@@ -28,19 +43,6 @@ jobs:
         id: get_head_commit_message
         run: echo "commit=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Get latest commit hash of the PR branch
-        run: |
-          # Get the latest commit hash of the source branch of the PR
-          PR_BRANCH="${{ github.head_ref }}"
-          echo "Pull request branch: $PR_BRANCH"
-
-          # Fetch the commit hash for the PR branch
-          git fetch origin $PR_BRANCH
-
-          LATEST_COMMIT=$(git log -n 1 --oneline $PR_BRANCH | cut -d ' ' -f 1)
-
-          echo "Latest commit hash: $LATEST_COMMIT"
-          echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
 
       - name: Extract branch name
         shell: bash
