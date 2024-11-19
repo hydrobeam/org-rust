@@ -52,8 +52,8 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            | *Latest commit* | ${{ env.LATEST_COMMIT }} |
-            | *Latest deploy log* | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            | **Latest commit** | ${{ env.LATEST_COMMIT }} |
+            | **Latest deploy log** | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
             ---
 
       - name: Install rust toolchain
@@ -99,7 +99,7 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            | *Latest commit* | ${{ env.LATEST_COMMIT }} |
-            | *Latest deploy log* | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            | *Deploy Preview Url* | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
+            | **Latest commit** | ${{ env.LATEST_COMMIT }} |
+            | **Latest deploy log** | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            | **Deploy Preview Url** | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
             ---
