@@ -13,6 +13,12 @@ jobs:
       pull-requests: write
     steps:
 
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
       - name: Get latest commit hash of the PR branch
         run: |
           # Get the latest commit hash of the source branch of the PR
@@ -26,11 +32,6 @@ jobs:
 
           echo "Latest commit hash: $LATEST_COMMIT"
           echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: $LATEST_COMMIT
 
       - name: debug
         run: |
