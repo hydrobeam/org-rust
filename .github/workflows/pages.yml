@@ -9,10 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # permissions:
-    #   contents: read
-    #   deployments: write
-    #   pull-requests: write
+    permissions:
+      # contents: read
+      # deployments: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
