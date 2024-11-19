@@ -41,9 +41,8 @@ jobs:
         run: npm run deploy
 
       - name: Deploy cloudflare
-        working-directory: crates/org-wasm
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=org-rust
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust
