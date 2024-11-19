@@ -58,12 +58,14 @@ jobs:
         working-directory: crates/org-wasm
         run: npm run deploy
 
-      - name: Deploy cloudflare
-        uses: cloudflare/wrangler-action@v3
+      - name: Publish to Cloudflare
+        uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust
+          projectName: org-rust
+          directory: crates/org-wasm/dist
+          # command: pages deploy crates/org-wasm/dist --project-name=org-rust
 
       - name: Print pages-deployment-alias-url
         env:
@@ -81,5 +83,5 @@ jobs:
             |---------------------------------|------------------------|
             |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
             |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
+            |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.url }}](${{ steps.deploy.outputs.url }}) |
             ---
