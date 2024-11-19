@@ -13,11 +13,15 @@ jobs:
       pull-requests: write
     steps:
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ steps.extract_branch.outputs.branch }}
 
       - name: Get latest commit hash of the PR branch
         run: |
@@ -43,12 +47,6 @@ jobs:
         shell: bash
         id: get_head_commit_message
         run: echo "commit=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
-
-
-      - name: Extract branch name
-        shell: bash
-        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-        id: extract_branch
 
       # stolen from: https://github.com/cloudflare/pages-action/issues/16#issuecomment-1398478711
       - name: Comment deploy start
@@ -97,7 +95,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch $LATEST_COMMIT --commit-hash ${{ github.head_ref }} --commit-message "${{ steps.get_head_commit_message.outputs.commit }}"
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ github.head_ref }} --commit-message "${{ steps.get_head_commit_message.outputs.commit }}"
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
