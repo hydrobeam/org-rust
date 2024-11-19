@@ -1,0 +1,49 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deployment operation
+    steps:
+      - name: Checkout code
+      - uses: actions@checkout@v4
+
+      - name: Install rust toolchain
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.81.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.2'
+
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install npm dependencies
+        working-directory: crates/org-wasm
+        run: npm install
+
+      - name: Generate wasm binaries
+        working-directory: crates/org-wasm
+        run: wasm-pack build  --release --target bundler
+
+      - name: Deploy npm
+        working-directory: crates/org-wasm
+        run: npm run deploy
+
+      - name: Deploy cloudflare
+        working-directory: crates/org-wasm
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=org-rust
