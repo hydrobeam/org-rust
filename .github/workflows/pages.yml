@@ -28,6 +28,19 @@ jobs:
         id: get_head_commit_message
         run: echo "commit=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
+      - name: Get latest commit hash of the PR branch
+        run: |
+          # Get the latest commit hash of the source branch of the PR
+          PR_BRANCH="${{ github.head_ref }}"
+          echo "Pull request branch: $PR_BRANCH"
+
+          # Fetch the commit hash for the PR branch
+          git fetch origin $PR_BRANCH
+          LATEST_COMMIT=$(git log -n 1 --format=%H $PR_BRANCH)
+
+          echo "Latest commit hash: $LATEST_COMMIT"
+          echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
+
       - name: Extract branch name
         shell: bash
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
@@ -80,7 +93,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ github.head_ref }} --commit-message ${{ steps.get_head_commit_message.outputs.commit }}
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch $LATEST_COMMIT --commit-hash ${{ github.head_ref }} --commit-message "${{ steps.get_head_commit_message.outputs.commit }}"
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
