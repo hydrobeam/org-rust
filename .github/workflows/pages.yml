@@ -70,7 +70,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch $GIT_BRANCH
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch actions
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
