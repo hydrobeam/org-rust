@@ -12,10 +12,10 @@ jobs:
     name: Deployment operation
     steps:
       - name: Checkout code
-      - uses: actions@checkout@v4
+        uses: actions@checkout@v4
 
       - name: Install rust toolchain
-      - uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.81.0
 
