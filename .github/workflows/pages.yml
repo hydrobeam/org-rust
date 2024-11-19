@@ -36,7 +36,8 @@ jobs:
 
           # Fetch the commit hash for the PR branch
           git fetch origin $PR_BRANCH
-          LATEST_COMMIT=$(git log -n 1 --format=%H $PR_BRANCH)
+
+          LATEST_COMMIT=$(git log -n 1 --oneline $PR_BRANCH | cut -d ' ' -f 1)
 
           echo "Latest commit hash: $LATEST_COMMIT"
           echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
