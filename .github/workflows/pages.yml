@@ -42,6 +42,7 @@ jobs:
           echo ${{ github.head_ref }}
           echo ${{github.event.pull_request.base.sha}}
           echo ${{github.ref}}
+          echo $LATEST_COMMIT
 
       - name: Get Head Commit Message
         shell: bash
@@ -59,7 +60,7 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
+            |<span aria-hidden="true">🔨</span> Latest commit | ${{ env.LATEST_COMMIT }} |
             |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
             ---
 
@@ -95,7 +96,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash $LATEST_COMMIT --commit-message "${{ steps.get_head_commit_message.outputs.commit }}"
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ env.LATEST_COMMIT }} --commit-message "${{ steps.get_head_commit_message.outputs.commit }}"
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
@@ -106,7 +107,7 @@ jobs:
 
             |  Name | Link |
             |---------------------------------|------------------------|
-            |<span aria-hidden="true">🔨</span> Latest commit | $LATEST_COMMIT |
+            |<span aria-hidden="true">🔨</span> Latest commit | ${{ env.LATEST_COMMIT }} |
             |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
             |<span aria-hidden="true">😎</span> Deploy Preview Url | [${{ steps.deploy.outputs.pages-deployment-alias-url }}](${{ steps.deploy.outputs.pages-deployment-alias-url }}) |
             ---
