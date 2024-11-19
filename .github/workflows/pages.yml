@@ -17,11 +17,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set environment variables
-        run: |
-          # Short name for current branch. For PRs, use target branch (base ref)
-          GIT_BRANCH=${GITHUB_BASE_REF:-${GITHUB_REF#refs/heads/}}
-          echo "GIT_BRANCH=$GIT_BRANCH" >> $GITHUB_ENV
+    - name: Get Head Commit Message
+      id: get_head_commit_message
+      run: echo "HEAD_COMMIT_MESSAGE=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+      id: extract_branch
 
       # stolen from: https://github.com/cloudflare/pages-action/issues/16#issuecomment-1398478711
       - name: Comment deploy start
@@ -66,13 +69,11 @@ jobs:
 
       - name: Publish to Cloudflare
         id: deploy
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          directory: crates/org-wasm/dist
-          projectName: org-rust
-          # command: pages deploy  --project-name=org-rust --branch actions
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ steps.extract_branch.outputs.branch }} --commit-hash ${{ github.sha }} --commit-message ${{ github.event.workflow_run.head_commit.message }}
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
