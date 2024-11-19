@@ -243,10 +243,10 @@ impl<'a, 'template> Template<'a, 'template> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn bad_template() {}
-}
+//     #[test]
+//     fn bad_template() {}
+// }

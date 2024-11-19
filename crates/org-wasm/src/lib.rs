@@ -1,4 +1,5 @@
 use org_exporter::ConfigOptions;
+use org_exporter::ExportError;
 use org_exporter::Exporter;
 use org_exporter::Html;
 use org_exporter::Org;
@@ -43,14 +44,49 @@ impl WasmExport {
     #[wasm_bindgen]
     pub fn to_org(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Org::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
+        if let Err(err_vec) = Org::export_buf(s, &mut self.string_buf, ConfigOptions::default()) {
+            // clear here since the buf was used to store the results of the export
+            // REVIEW: maybe have an error_buf to avoid the clear here?
+            self.string_buf.clear();
+            for e in err_vec {
+                self.string_buf.push_str(&e.to_string());
+                self.string_buf.push_str("\n");
+            }
+        }
         JsValue::from_str(&self.string_buf)
     }
 
     #[wasm_bindgen]
     pub fn to_html(&mut self, s: &str) -> JsValue {
         self.string_buf.clear();
-        Html::export_buf(s, &mut self.string_buf, ConfigOptions::default()).unwrap();
+        let parsed = parse_org(s);
+
+        if let Err(err_vec) =
+            Html::export_tree(&parsed, &mut self.string_buf, ConfigOptions::default())
+        {
+            self.string_buf.clear();
+            self.string_buf.push_str("<pre><code>");
+            self.string_buf.clear();
+            for e in err_vec {
+                self.string_buf.push_str(&e.to_string());
+                self.string_buf.push_str("\n");
+            }
+            // for e in err_vec {
+            //     match e {
+            //         ExportError::LogicError { span, source } => {
+            //             self.string_buf.push_str(&source.to_string());
+            //             self.string_buf.push_str("\n\t\t");
+            //             self.string_buf.push_str(&parsed.source[span]);
+            //         }
+            //         ExportError::WriteError(f) => {
+            //             self.string_buf.push_str(&f.to_string());
+            //         }
+            //     }
+            //     // self.string_buf.push_str(&e.to_string());
+            //     self.string_buf.push_str("\n");
+            // }
+            self.string_buf.push_str("</pre></code>");
+        }
         JsValue::from_str(&self.string_buf)
     }
 }

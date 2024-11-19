@@ -5,7 +5,7 @@
 use core::fmt;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Result, Write};
+use std::fmt::Write;
 
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use memchr::memchr3_iter;
@@ -15,10 +15,16 @@ use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
 
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
-use crate::types::{ConfigOptions, Exporter, ExporterInner};
+use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind};
 use crate::utils::{process_toc, Options, TocItem};
+use crate::ExportError;
 use phf::phf_set;
 
+macro_rules! w {
+    ($dst:expr, $($arg:tt)*) => {
+        $dst.write_fmt(format_args!($($arg)*)).expect("writing to buffer during export failed")
+    };
+}
 // file types we can wrap an `img` around
 static IMAGE_TYPES: phf::Set<&str> = phf_set! {
     "jpeg",
@@ -69,6 +75,7 @@ pub struct Html<'buf> {
     footnotes: Vec<NodeID>,
     footnote_ids: HashMap<NodeID, usize>,
     conf: ConfigOptions,
+    errors: Vec<ExportError>,
 }
 
 /// Wrapper around strings that need to be properly HTML escaped.
@@ -83,7 +90,7 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
     // we can iterate over bytes since it's not possible for
     // an ascii character to appear in the codepoint of another larger char
     // if we see an ascii, then it's guaranteed to be valid
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut prev_pos = 0;
         // there are other characters we could escape, but memchr caps out at 3
         // the really important one is `<`, and then also probably &
@@ -113,7 +120,7 @@ impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
 }
 
 impl<'buf> Exporter<'buf> for Html<'buf> {
-    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error> {
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, Vec<ExportError>> {
         let mut buf = String::new();
         Html::export_buf(input, &mut buf, conf)?;
         Ok(buf)
@@ -123,7 +130,7 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed: Parser<'_> = parse_org(input);
         Html::export_tree(&parsed, buf, conf)
     }
@@ -132,35 +139,50 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let mut obj = Html {
             buf,
             nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
+            errors: Vec::new(),
         };
 
         if let Ok(opts) = Options::handle_opts(parsed) {
             if let Ok(tocs) = process_toc(parsed, &opts) {
-                write!(
-                    obj,
-                    r#"<nav id="table-of-contents" role="doc-toc">
+                handle_toc(parsed, &mut obj, &tocs);
+            }
+        }
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        obj.exp_footnotes(&parsed);
+
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
+    }
+}
+
+fn handle_toc<'a, T: fmt::Write + ExporterInner<'a>>(
+    parsed: &Parser,
+    writer: &mut T,
+    tocs: &Vec<TocItem>,
+) {
+    w!(
+        writer,
+        r#"<nav id="table-of-contents" role="doc-toc">
 <h2>Table Of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 "#
-                )?;
-                write!(obj, "<ul>")?;
-                for toc in tocs {
-                    toc_rec(&parsed, &mut obj, &toc, 1)?;
-                }
-                write!(obj, "</ul>")?;
-                write!(obj, r#"</div></nav>"#)?;
-            }
-        }
-        obj.export_rec(&parsed.pool.root_id(), &parsed)?;
-        obj.exp_footnotes(&parsed)
+    );
+    w!(writer, "<ul>");
+    for toc in tocs {
+        toc_rec(&parsed, writer, toc, 1);
     }
+    w!(writer, "</ul>");
+    w!(writer, r#"</div></nav>"#);
 }
 
 fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
@@ -168,27 +190,27 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     writer: &mut T,
     parent: &TocItem,
     curr_level: u8,
-) -> Result {
-    write!(writer, "<li>")?;
+) {
+    w!(writer, "<li>");
     if curr_level < parent.level {
-        write!(writer, "<ul>")?;
-        toc_rec(&parser, writer, parent, curr_level + 1)?;
-        write!(writer, "</ul>")?;
+        w!(writer, "<ul>");
+        toc_rec(&parser, writer, parent, curr_level + 1);
+        w!(writer, "</ul>");
     } else {
-        write!(writer, r#"<a href=#{}>"#, parent.target)?;
+        w!(writer, r#"<a href=#{}>"#, parent.target);
         for id in parent.name {
-            writer.export_rec(id, parser)?;
+            writer.export_rec(id, parser);
         }
-        write!(writer, "</a>")?;
+        w!(writer, "</a>");
         if !parent.children.is_empty() {
-            write!(writer, "<ul>")?;
+            w!(writer, "<ul>");
             for child in &parent.children {
-                toc_rec(&parser, writer, child, curr_level + 1)?;
+                toc_rec(&parser, writer, child, curr_level + 1);
             }
-            write!(writer, "</ul>")?;
+            w!(writer, "</ul>");
         }
     }
-    write!(writer, "</li>")
+    w!(writer, "</li>");
 }
 
 impl<'buf> ExporterInner<'buf> for Html<'buf> {
@@ -196,7 +218,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> Result {
+    ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
@@ -204,41 +226,47 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
+            errors: Vec::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed)
+        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        if obj.errors().is_empty() {
+            Ok(())
+        } else {
+            Err(obj.errors)
+        }
     }
 
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> Result {
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) {
         // avoid parsing this node
         if self.nox.contains(node_id) {
-            return Ok(());
+            return;
         }
         let node = &parser.pool[*node_id];
         match &node.obj {
             Expr::Root(inner) => {
                 for id in inner {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::Heading(inner) => {
                 let heading_number: u8 = inner.heading_level.into();
 
-                write!(self, "<h{heading_number}",)?;
-                self.prop(node)?;
-                write!(self, ">")?;
+                w!(self, "<h{heading_number}");
+                self.prop(node);
+                w!(self, ">");
 
                 if let Some(title) = &inner.title {
                     for id in &title.1 {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
 
-                writeln!(self, "</h{heading_number}>")?;
+                w!(self, "</h{heading_number}>\n");
 
                 if let Some(children) = &inner.children {
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 }
             }
@@ -250,31 +278,31 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<div")?;
-                        self.class("org-center")?;
-                        self.prop(node)?;
-                        writeln!(self, ">")?;
+                        w!(self, "<div");
+                        self.class("org-center");
+                        self.prop(node);
+                        w!(self, ">\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</div>")?;
+                        w!(self, "</div>\n");
                     }
                     Block::Quote {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<blockquote")?;
-                        self.prop(node)?;
-                        writeln!(self, ">")?;
+                        w!(self, "<blockquote");
+                        self.prop(node);
+                        w!(self, ">\n");
                         for id in contents {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</blockquote>")?;
+                        w!(self, "</blockquote>\n");
                     }
                     Block::Special {
                         parameters,
@@ -282,26 +310,26 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         name,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         // html5 names are directly converted into tags
                         if HTML5_TYPES.contains(name) {
-                            write!(self, "<{name}")?;
-                            self.prop(node)?;
-                            writeln!(self, ">")?;
+                            w!(self, "<{name}");
+                            self.prop(node);
+                            w!(self, ">\n");
                             for id in contents {
-                                self.export_rec(id, parser)?;
+                                self.export_rec(id, parser);
                             }
-                            write!(self, "</{name}>")?;
+                            w!(self, "</{name}>");
                         } else {
-                            write!(self, "<div")?;
-                            self.prop(node)?;
-                            self.class(name)?;
-                            writeln!(self, ">")?;
+                            w!(self, "<div");
+                            self.prop(node);
+                            self.class(name);
+                            w!(self, ">\n");
                             for id in contents {
-                                self.export_rec(id, parser)?;
+                                self.export_rec(id, parser);
                             }
-                            writeln!(self, "</div>")?;
+                            w!(self, "</div>\n");
                         }
                     }
 
@@ -311,21 +339,21 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        writeln!(self, "<!--{contents}-->")?;
+                        w!(self, "<!--{contents}-->\n");
                     }
                     Block::Example {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<pre")?;
-                        self.class("example")?;
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</pre>", HtmlEscape(contents))?;
+                        w!(self, "<pre");
+                        self.class("example");
+                        self.prop(node);
+                        w!(self, ">\n{}</pre>\n", HtmlEscape(contents));
                     }
                     Block::Export {
                         backend,
@@ -333,10 +361,10 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         if backend.is_some_and(|x| x == Html::backend_name()) {
-                            writeln!(self, "{contents}")?;
+                            w!(self, "{contents}\n");
                         }
                     }
                     Block::Src {
@@ -345,29 +373,29 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
-                        write!(self, "<pre>")?;
-                        write!(self, "<code")?;
-                        self.class("src")?;
+                        w!(self, "<pre>");
+                        w!(self, "<code");
+                        self.class("src");
                         if let Some(lang) = language {
-                            self.class(&format!("src-{}", lang))?;
+                            self.class(&format!("src-{}", lang));
                         }
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</pre></code>", HtmlEscape(contents))?;
+                        self.prop(node);
+                        w!(self, ">\n{}</pre></code>\n", HtmlEscape(contents));
                     }
                     Block::Verse {
                         parameters,
                         contents,
                     } => {
                         if parameters.get("exports").is_some_and(|&x| x == "none") {
-                            return Ok(());
+                            return;
                         }
                         // FIXME: apparently verse blocks contain objects...
-                        write!(self, "<p")?;
-                        self.class("verse")?;
-                        self.prop(node)?;
-                        writeln!(self, ">\n{}</p>", HtmlEscape(contents))?;
+                        w!(self, "<p");
+                        self.class("verse");
+                        self.prop(node);
+                        w!(self, ">\n{}</p>\n", HtmlEscape(contents));
                     }
                 }
             }
@@ -398,15 +426,15 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     }
                     PathReg::File(a) => format!("{a}"),
                 };
-                write!(self, r#"<a href="{}">"#, HtmlEscape(&path_link))?;
+                w!(self, r#"<a href="{}">"#, HtmlEscape(&path_link));
                 if let Some(children) = &inner.description {
                     for id in children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
                 } else {
-                    write!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)))?;
+                    w!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)));
                 }
-                write!(self, "</a>")?;
+                w!(self, "</a>");
             }
 
             Expr::Paragraph(inner) => {
@@ -427,14 +455,14 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         let ending_tag = link_source.split('.').last();
                         if let Some(extension) = ending_tag {
                             if IMAGE_TYPES.contains(extension) {
-                                write!(self, "<figure>\n<img")?;
-                                self.prop(node)?;
-                                write!(self, r#" src="{}""#, HtmlEscape(link_source))?;
+                                w!(self, "<figure>\n<img");
+                                self.prop(node);
+                                w!(self, r#" src="{}""#, HtmlEscape(link_source));
                                 // start writing alt (if there are children)
-                                write!(self, r#" alt=""#)?;
+                                w!(self, r#" alt=""#);
                                 if let Some(children) = &link.description {
                                     for id in children {
-                                        self.export_rec(id, parser)?;
+                                        self.export_rec(id, parser);
                                     }
                                 } else {
                                     let alt_text: Cow<str> =
@@ -443,158 +471,174 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                                         } else {
                                             link_source.into()
                                         };
-                                    write!(self, "{}", HtmlEscape(alt_text))?;
+                                    w!(self, "{}", HtmlEscape(alt_text));
                                 }
-                                write!(self, "\">\n</figure>")?;
-                                return Ok(());
+                                w!(self, "\">\n</figure>");
+                                return;
                             }
                         }
                     }
                 }
-                write!(self, "<p")?;
-                self.prop(node)?;
-                write!(self, ">")?;
+                w!(self, "<p");
+                self.prop(node);
+                w!(self, ">");
 
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</p>")?;
+                w!(self, "</p>\n");
             }
 
             Expr::Italic(inner) => {
-                write!(self, "<em>")?;
+                w!(self, "<em>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</em>")?;
+                w!(self, "</em>");
             }
             Expr::Bold(inner) => {
-                write!(self, "<b>")?;
+                w!(self, "<b>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</b>")?;
+                w!(self, "</b>");
             }
             Expr::StrikeThrough(inner) => {
-                write!(self, "<del>")?;
+                w!(self, "<del>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</del>")?;
+                w!(self, "</del>");
             }
             Expr::Underline(inner) => {
-                write!(self, "<u>")?;
+                w!(self, "<u>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                write!(self, "</u>")?;
-                // write!(self, "<span class=underline>")?;
+                w!(self, "</u>");
+                // w!(self, "<span class=underline>")?;
                 // for id in &inner.0 {
-                //     self.export_rec(id, parser)?;
+                //     self.export_rec(id, parser);
                 // }
-                // write!(self, "</span>")?;
+                // w!(self, "</span>")?;
             }
             Expr::BlankLine => {
-                // write!(self, "\n")?;
+                // w!(self, "\n")?;
             }
             Expr::SoftBreak => {
-                write!(self, " ")?;
+                w!(self, " ");
             }
             Expr::LineBreak => {
-                writeln!(self, "\n<br>")?;
+                w!(self, "\n<br>\n");
             }
             Expr::HorizontalRule => {
-                writeln!(self, "\n<hr>")?;
+                w!(self, "\n<hr>\n");
             }
             Expr::Plain(inner) => {
-                write!(self, "{}", HtmlEscape(inner))?;
+                w!(self, "{}", HtmlEscape(inner));
             }
             Expr::Verbatim(inner) => {
-                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
+                w!(self, "<code>{}</code>", HtmlEscape(inner.0));
             }
             Expr::Code(inner) => {
-                write!(self, "<code>{}</code>", HtmlEscape(inner.0))?;
+                w!(self, "<code>{}</code>", HtmlEscape(inner.0));
             }
             Expr::Comment(inner) => {
-                write!(self, "<!--{}-->", inner.0)?;
+                w!(self, "<!--{}-->", inner.0);
             }
             Expr::InlineSrc(inner) => {
-                write!(
+                w!(
                     self,
                     "<code class={}>{}</code>",
                     inner.lang,
                     HtmlEscape(inner.body)
-                )?;
+                );
                 // if let Some(args) = inner.headers {
-                //     write!(self, "[{args}]")?;
+                //     w!(self, "[{args}]")?;
                 // }
-                // write!(self, "{{{}}}", inner.body)?;
+                // w!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
                 if inner.key.to_ascii_lowercase() == "include" {
-                    // FIXME: proper error handling
-                    write!(self, r#"<div class="org-include""#)?;
-                    self.prop(node)?;
-                    write!(self, ">")?;
-                    include_handle(inner.val, self).unwrap();
-                    write!(self, "</div>")?;
+                    w!(self, r#"<div class="org-include""#);
+                    self.prop(node);
+                    w!(self, ">");
+
+                    if let Err(e) = include_handle(inner.val, self) {
+                        self.errors().push(ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Include(e),
+                        });
+                        return;
+                    }
+
+                    //     .map_err(|e| ExportError::LogicError {
+                    //     span: node.start..node.end,
+                    //     source: LogicErrorKind::Include(e),
+                    // })?;
+                    w!(self, "</div>");
                 }
             }
             Expr::LatexEnv(inner) => {
-                let ret = latex_to_mathml(
-                    &format!(
-                        r"\begin{{{0}}}
+                let formatted = &format!(
+                    r"\begin{{{0}}}
 {1}
 \end{{{0}}}
 ",
-                        inner.name, inner.contents
-                    ),
-                    DisplayStyle::Block,
-                )
-                .unwrap();
-                writeln!(self, "{ret}")?;
+                    inner.name, inner.contents
+                );
+                let ret = latex_to_mathml(&formatted, DisplayStyle::Block);
+                // TODO/FIXME: this should be an error
+                w!(
+                    self,
+                    "{}\n",
+                    if let Ok(val) = &ret { val } else { formatted }
+                );
             }
             Expr::LatexFragment(inner) => match inner {
                 LatexFragment::Command { name, contents } => {
                     let mut pot_cont = String::new();
-                    write!(pot_cont, r#"{name}"#)?;
+                    w!(pot_cont, r#"{name}"#);
                     if let Some(command_cont) = contents {
-                        write!(pot_cont, "{{{command_cont}}}")?;
+                        w!(pot_cont, "{{{command_cont}}}");
                     }
-                    write!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
                         "{}",
                         &latex_to_mathml(&pot_cont, DisplayStyle::Inline).unwrap(),
-                    )?;
+                    );
                 }
                 LatexFragment::Display(inner) => {
-                    writeln!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
-                        "{}",
+                        "{}\n",
                         &latex_to_mathml(inner, DisplayStyle::Block).unwrap()
-                    )?;
+                    );
                 }
                 LatexFragment::Inline(inner) => {
-                    write!(
+                    // TODO/FIXME: this should be an error
+                    w!(
                         self,
                         "{}",
                         &latex_to_mathml(inner, DisplayStyle::Inline).unwrap()
-                    )?;
+                    );
                 }
             },
             Expr::Item(inner) => {
                 if let Some(tag) = inner.tag {
-                    write!(self, "<dt>{}</dt>", HtmlEscape(tag))?;
-                    write!(self, "<dd>")?;
+                    w!(self, "<dt>{}</dt>", HtmlEscape(tag));
+                    w!(self, "<dd>");
                     for id in &inner.children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
-                    write!(self, "</dd>")?;
+                    w!(self, "</dd>");
                 } else {
-                    write!(self, "<li")?;
+                    w!(self, "<li");
 
                     if let Some(counter) = inner.counter_set {
-                        self.attr("value", counter)?;
+                        self.attr("value", counter);
                     }
 
                     if let Some(check) = &inner.check_box {
@@ -602,156 +646,171 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             CheckBox::Intermediate => "trans",
                             CheckBox::Off => "off",
                             CheckBox::On => "on",
-                        })?;
+                        });
                     }
 
-                    write!(self, ">")?;
+                    w!(self, ">");
 
                     for id in &inner.children {
-                        self.export_rec(id, parser)?;
+                        self.export_rec(id, parser);
                     }
 
-                    writeln!(self, "</li>")?;
+                    w!(self, "</li>\n");
                 }
             }
             Expr::PlainList(inner) => {
-                let tag = match inner.kind {
-                    ListKind::Unordered => "ul",
+                let (tag, desc) = match inner.kind {
+                    ListKind::Unordered => ("ul", ""),
                     ListKind::Ordered(counter_kind) => match counter_kind {
                         org_parser::element::CounterKind::Letter(c) => {
                             if c.is_ascii_uppercase() {
-                                r#"ol type="A""#
+                                ("ol", r#" type="A""#)
                             } else {
-                                r#"ol type="a""#
+                                ("ol", r#" type="a""#)
                             }
                         }
-                        org_parser::element::CounterKind::Number(_) => r#"ol type="1""#,
+                        org_parser::element::CounterKind::Number(_) => ("ol", r#" type="1""#),
                     },
-                    ListKind::Descriptive => "dd",
+                    ListKind::Descriptive => ("dd", ""),
                 };
-                write!(self, "<{tag}")?;
-                self.prop(node)?;
-                writeln!(self, ">")?;
+                w!(self, "<{tag}{desc}");
+                self.prop(node);
+                w!(self, ">\n");
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</{tag}>")?;
+                w!(self, "</{tag}>\n");
             }
             Expr::PlainLink(inner) => {
-                write!(
+                w!(
                     self,
                     "<a href={0}:{1}>{0}:{1}</a>",
-                    inner.protocol, inner.path
-                )?;
+                    inner.protocol,
+                    inner.path
+                );
             }
             Expr::Entity(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Table(inner) => {
-                write!(self, "<table")?;
-                self.prop(node)?;
-                writeln!(self, ">")?;
+                w!(self, "<table");
+                self.prop(node);
+                w!(self, ">\n");
 
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
 
-                writeln!(self, "</table>")?;
+                w!(self, "</table>\n");
             }
 
             Expr::TableRow(inner) => {
                 match inner {
                     TableRow::Rule => { /*skip*/ }
                     TableRow::Standard(stands) => {
-                        writeln!(self, "<tr>")?;
+                        w!(self, "<tr>\n");
                         for id in stands.iter() {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
-                        writeln!(self, "</tr>")?;
+                        w!(self, "</tr>\n");
                     }
                 }
             }
             Expr::TableCell(inner) => {
-                write!(self, "<td>")?;
+                w!(self, "<td>");
                 for id in &inner.0 {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
-                writeln!(self, "</td>")?;
+                w!(self, "</td>\n");
             }
             Expr::Emoji(inner) => {
-                write!(self, "{}", inner.mapped_item)?;
+                w!(self, "{}", inner.mapped_item);
             }
             Expr::Superscript(inner) => {
-                write!(self, "<sup>")?;
+                w!(self, "<sup>");
                 match &inner.0 {
                     PlainOrRec::Plain(inner) => {
-                        write!(self, "{inner}")?;
+                        w!(self, "{inner}");
                     }
                     PlainOrRec::Rec(inner) => {
                         for id in inner {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
                     }
                 }
-                write!(self, "</sup>")?;
+                w!(self, "</sup>");
             }
             Expr::Subscript(inner) => {
-                write!(self, "<sub>")?;
+                w!(self, "<sub>");
                 match &inner.0 {
                     PlainOrRec::Plain(inner) => {
-                        write!(self, "{inner}")?;
+                        w!(self, "{inner}");
                     }
                     PlainOrRec::Rec(inner) => {
                         for id in inner {
-                            self.export_rec(id, parser)?;
+                            self.export_rec(id, parser);
                         }
                     }
                 }
-                write!(self, "</sub>")?;
+                w!(self, "</sub>");
             }
             Expr::Target(inner) => {
-                write!(self, "<span")?;
-                self.prop(node)?;
-                write!(self, ">")?;
-                write!(
+                w!(self, "<span");
+                self.prop(node);
+                w!(self, ">");
+                w!(
                     self,
                     "<span id={}>{}</span>",
                     parser.pool[*node_id].id_target.as_ref().unwrap(), // must exist
                     HtmlEscape(inner.0)
-                )?;
+                );
             }
             Expr::Macro(macro_call) => {
-                if let Ok(macro_contents) = macro_handle(parser, macro_call, self.config_opts()) {
-                    match macro_contents {
-                        Cow::Owned(p) => {
-                            Html::export_macro_buf(&p, self, self.config_opts().clone())?;
+                let macro_contents = match macro_handle(parser, macro_call, self.config_opts()) {
+                    Ok(contents) => contents,
+                    Err(e) => {
+                        self.errors().push(ExportError::LogicError {
+                            span: node.start..node.end,
+                            source: LogicErrorKind::Macro(e),
+                        });
+                        return;
+                    }
+                };
+
+                match macro_contents {
+                    Cow::Owned(p) => {
+                        if let Err(mut err_vec) =
+                            Html::export_macro_buf(&p, self, self.config_opts().clone())
+                        {
+                            self.errors().append(&mut err_vec);
+                            // TODO alert for errors handled within macro
                         }
-                        Cow::Borrowed(r) => {
-                            write!(self, "{}", HtmlEscape(r))?;
-                        }
+                    }
+                    Cow::Borrowed(r) => {
+                        w!(self, "{}", HtmlEscape(r));
                     }
                 }
             }
             Expr::Drawer(inner) => {
                 for id in &inner.children {
-                    self.export_rec(id, parser)?;
+                    self.export_rec(id, parser);
                 }
             }
             Expr::ExportSnippet(inner) => {
                 if inner.backend == Html::backend_name() {
-                    write!(self, "{}", inner.contents)?;
+                    w!(self, "{}", inner.contents);
                 }
             }
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_id) => {}
                 Affiliated::Caption(id, contents) => {
                     if let Some(caption_id) = id {
-                        writeln!(self, "<figure>")?;
-                        self.export_rec(caption_id, parser)?;
-                        writeln!(self, "<figcaption>")?;
-                        self.export_rec(contents, parser)?;
-                        writeln!(self, "</figcaption>")?;
-                        writeln!(self, "</figure>")?;
+                        w!(self, "<figure>\n");
+                        self.export_rec(caption_id, parser);
+                        w!(self, "<figcaption>\n");
+                        self.export_rec(contents, parser);
+                        w!(self, "</figcaption>\n");
+                        w!(self, "</figure>\n");
                         self.nox.insert(*caption_id);
                     }
                 }
@@ -792,17 +851,16 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                     format!("{index}")
                 };
 
-                write!(
+                w!(
                     self,
                     r##"<sup>
     <a id="fnr.{0}" href="#fn.{1}" class="footref" role="doc-backlink">{1}</a>
 </sup>"##,
-                    fn_id, index,
-                )?;
+                    fn_id,
+                    index,
+                );
             }
         }
-
-        Ok(())
     }
 
     fn backend_name() -> &'static str {
@@ -812,38 +870,39 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
     fn config_opts(&self) -> &ConfigOptions {
         &self.conf
     }
+    fn errors(&mut self) -> &mut Vec<ExportError> {
+        &mut self.errors
+    }
 }
 
 // Writers for generic attributes
 impl<'buf> Html<'buf> {
     /// Adds a property
-    fn prop(&mut self, node: &Node) -> Result {
+    fn prop(&mut self, node: &Node) {
         // if the target needs an id
         if let Some(tag_contents) = node.id_target.as_ref() {
-            write!(self, r#" id="{tag_contents}""#)?;
+            w!(self, r#" id="{tag_contents}""#);
         }
 
         // attach any keys that need to be placed
         if let Some(attrs) = node.attrs.get(Html::backend_name()) {
             for (key, val) in attrs {
-                self.attr(key, val)?;
+                self.attr(key, val);
             }
         }
-
-        Ok(())
     }
 
-    fn class(&mut self, name: &str) -> Result {
-        write!(self, r#" class="{name}""#)
+    fn class(&mut self, name: &str) {
+        w!(self, r#" class="{name}""#);
     }
 
-    fn attr(&mut self, key: &str, val: &str) -> Result {
-        write!(self, r#" {}="{}""#, key, HtmlEscape(val))
+    fn attr(&mut self, key: &str, val: &str) {
+        w!(self, r#" {}="{}""#, key, HtmlEscape(val));
     }
 
-    fn exp_footnotes(&mut self, parser: &Parser) -> Result {
+    fn exp_footnotes(&mut self, parser: &Parser) {
         if self.footnotes.is_empty() {
-            return Ok(());
+            return;
         }
 
         // get last heading, and check if its title is Footnotes,
@@ -859,7 +918,7 @@ impl<'buf> Html<'buf> {
             false
         });
 
-        writeln!(
+        w!(
             self,
             r#"
 <div id="footnotes">
@@ -867,14 +926,23 @@ impl<'buf> Html<'buf> {
     .footdef p {{
     display:inline;
     }}
-    </style>"#
-        )?;
+    </style>
+"#
+        );
 
         if heading_query.is_none() {
-            writeln!(self, r#"    <h2 class="footnotes">Footnotes</h2>"#)?;
+            w!(
+                self,
+                r#"    <h2 class="footnotes">Footnotes</h2>
+"#
+            );
         }
 
-        writeln!(self, r#"    <div id="text-footnotes">"#)?;
+        w!(
+            self,
+            r#"    <div id="text-footnotes">
+"#
+        );
 
         // FIXME
         // lifetime shenanigans making me do this.. can't figure em out
@@ -883,7 +951,7 @@ impl<'buf> Html<'buf> {
         let man = self.footnotes.clone();
         for (mut pos, def_id) in man.iter().enumerate() {
             pos += 1;
-            write!(
+            w!(
                 self,
                 r##"
 
@@ -892,30 +960,30 @@ impl<'buf> Html<'buf> {
     <a id="fn.{pos}" href= "#fnr.{pos}" role="doc-backlink">{pos}</a>
 </sup>
 "##
-            )?;
+            );
             match &parser.pool[*def_id].obj {
                 Expr::FootnoteDef(fn_def) => {
                     for child_id in &fn_def.children {
-                        self.export_rec(child_id, parser)?;
+                        self.export_rec(child_id, parser);
                     }
                 }
                 Expr::FootnoteRef(fn_ref) => {
                     if let Some(children) = fn_ref.children.as_ref() {
                         for child_id in children {
-                            self.export_rec(child_id, parser)?;
+                            self.export_rec(child_id, parser);
                         }
                     }
                 }
                 _ => (),
             }
-            write!(self, r#"</div>"#)?;
+            w!(self, r#"</div>"#);
         }
-        write!(self, "\n  </div>\n</div>")
+        w!(self, "\n  </div>\n</div>");
     }
 }
 
 impl fmt::Write for Html<'_> {
-    fn write_str(&mut self, s: &str) -> Result {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         self.buf.write_str(s)
     }
 }
@@ -925,60 +993,51 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn html_export(input: &str) -> core::result::Result<String, fmt::Error> {
-        Html::export(input, ConfigOptions::default())
+    fn html_export(input: &str) -> String {
+        Html::export(input, ConfigOptions::default()).unwrap()
     }
     #[test]
-    fn combined_macros() -> fmt::Result {
+    fn combined_macros() {
         let a = html_export(
             r"#+macro: poem hiii $1 $2 text
 {{{poem(cool,three)}}}
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r"<p>
-hiii cool three text
-</p>
+            r"<p>hiii cool three text</p>
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn keyword_macro() -> Result {
+    fn keyword_macro() {
         let a = html_export(
             r"
      #+title: hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 {{{keyword(title)}}}
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r"<p>
-hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-</p>
+            r"<p>hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii</p>
 ",
         );
-        Ok(())
     }
 
     #[test]
-    fn line_break() -> Result {
+    fn line_break() {
         let a = html_export(
             r" abc\\
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r"<p>
-abc
+            r"<p>abc
 <br>
-
 </p>
 ",
         );
@@ -986,34 +1045,31 @@ abc
         let n = html_export(
             r" abc\\   q
 ",
-        )?;
+        );
 
         assert_eq!(
             n,
-            r"<p>
-abc\\   q
-</p>
+            r"<p>abc\\   q</p>
 ",
         );
-        Ok(())
     }
 
     #[test]
-    fn horizontal_rule() -> Result {
+    fn horizontal_rule() {
         let a = html_export(
             r"-----
 ",
-        )?;
+        );
 
         let b = html_export(
             r"                -----
 ",
-        )?;
+        );
 
         let c = html_export(
             r"      -------------------------
 ",
-        )?;
+        );
 
         assert_eq!(a, b);
         assert_eq!(b, c);
@@ -1022,21 +1078,17 @@ abc\\   q
         let nb = html_export(
             r"                ----
 ",
-        )?;
+        );
 
         assert_eq!(
             nb,
-            r"<p>
-----
-</p>
+            r"<p>----</p>
 ",
         );
-
-        Ok(())
     }
 
     #[test]
-    fn correct_cache() -> Result {
+    fn correct_cache() {
         let a = html_export(
             r"
 - one
@@ -1046,65 +1098,56 @@ abc\\   q
 abc &+ 10\\
 \end{align}
 ",
-        )?;
+        );
         println!("{a}");
-
-        Ok(())
     }
 
     #[test]
-    fn html_unicode() -> Result {
+    fn html_unicode() {
         let a = html_export(
             r"a é😳
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r"<p>
-a é😳
-</p>
+            r"<p>a é😳</p>
 "
         );
-
-        Ok(())
     }
 
     #[test]
-    fn list_counter_set() -> Result {
+    fn list_counter_set() {
         let a = html_export(
             r"
 1. [@4] wordsss??
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r#"<ol>
-<li value="4"><p>
-wordsss??
-</p>
+            r#"<ol type="1">
+<li value="4"><p>wordsss??</p>
 </li>
 </ol>
 "#,
         );
-        Ok(())
     }
     #[test]
-    fn anon_footnote() -> Result {
+    fn anon_footnote() {
         let a = html_export(
             r"
-hi [fn:next:coolio]
+hi [fn:next:coolio] yeah [fn:next]
 ",
-        )?;
+        );
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
             a,
-            r##"<p>
-hi <sup>
+            r##"<p>hi <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
+</sup> yeah <sup>
+    <a id="fnr.1.6" href="#fn.1" class="footref" role="doc-backlink">1</a>
+</sup></p>
 
 <div id="footnotes">
     <style>
@@ -1124,11 +1167,10 @@ coolio</div>
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn footnote_heading() -> Result {
+    fn footnote_heading() {
         let a = html_export(
             r"
 hello [fn:1]
@@ -1137,16 +1179,14 @@ hello [fn:1]
 
 [fn:1] world
 ",
-        )?;
+        );
 
         // just codifying what the output is here, not supposed to be set in stone
         assert_eq!(
             a,
-            r##"<p>
-hello <sup>
+            r##"<p>hello <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
+</sup></p>
 <h1 id="footnotes">Footnotes</h1>
 
 <div id="footnotes">
@@ -1162,18 +1202,15 @@ hello <sup>
 <sup>
     <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
 </sup>
-<p>
-world
-</p>
+<p>world</p>
 </div>
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn footnote_order() -> Result {
+    fn footnote_order() {
         // tests dupes too
         let a = html_export(
             r#"
@@ -1190,14 +1227,13 @@ novel [fn:next:coolio]
 [fn:coolnote] words babby
 
 "#,
-        )?;
+        );
 
         // REVIEW; investigate different nodeids with export_buf and export
         // had to change 1.7 to 1.8 to pass the test
         assert_eq!(
             a,
-            r##"<p>
-hi <sup>
+            r##"<p>hi <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
 </sup> cool test <sup>
     <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
@@ -1207,13 +1243,10 @@ hi <sup>
     <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
 </sup> again <sup>
     <a id="fnr.3.13" href="#fn.3" class="footref" role="doc-backlink">3</a>
-</sup>
-</p>
-<p>
-novel <sup>
+</sup></p>
+<p>novel <sup>
     <a id="fnr.4" href="#fn.4" class="footref" role="doc-backlink">4</a>
-</sup>
-</p>
+</sup></p>
 <h2 id="footnotes">Footnotes</h2>
 
 <div id="footnotes">
@@ -1229,27 +1262,21 @@ novel <sup>
 <sup>
     <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
 </sup>
-<p>
-abcdef
-</p>
+<p>abcdef</p>
 </div>
 
 <div class="footdef">
 <sup>
     <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
 </sup>
-<p>
-words babby
-</p>
+<p>words babby</p>
 </div>
 
 <div class="footdef">
 <sup>
     <a id="fn.3" href= "#fnr.3" role="doc-backlink">3</a>
 </sup>
-<p>
-hi
-</p>
+<p>hi</p>
 </div>
 
 <div class="footdef">
@@ -1260,11 +1287,10 @@ coolio</div>
   </div>
 </div>"##
         );
-        Ok(())
     }
 
     #[test]
-    fn esoteric_footnotes() -> Result {
+    fn esoteric_footnotes() {
         let a = html_export(
             r"
 And anonymous ones [fn::mysterious]
@@ -1273,23 +1299,17 @@ what [fn::]
 
 bad [fn:]
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
-            r##"<p>
-And anonymous ones <sup>
+            r##"<p>And anonymous ones <sup>
     <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup>
-</p>
-<p>
-what <sup>
+</sup></p>
+<p>what <sup>
     <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
-</sup>
-</p>
-<p>
-bad [fn:]
-</p>
+</sup></p>
+<p>bad [fn:]</p>
 
 <div id="footnotes">
     <style>
@@ -1315,49 +1335,41 @@ mysterious</div>
   </div>
 </div>"##
         );
-
-        Ok(())
     }
 
     #[test]
-    fn file_link() -> Result {
-        let a = html_export(r"[[file:html.org][hi]]")?;
+    fn file_link() {
+        let a = html_export(r"[[file:html.org][hi]]");
 
         assert_eq!(
             a,
-            r#"<p>
-<a href="html.org">hi</a>
-</p>
+            r#"<p><a href="html.org">hi</a></p>
 "#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn file_link_image() -> Result {
+    fn file_link_image() {
         let a = html_export(
             r"
 [[file:bmc.jpg]]
 ",
-        )?;
+        );
         assert_eq!(
             a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
 </figure>"#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn basic_link_image() -> Result {
+    fn basic_link_image() {
         let a = html_export(
             r"
 [[https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg]]
 ",
-        )?;
+        );
 
         assert_eq!(
             a,
@@ -1365,28 +1377,22 @@ mysterious</div>
 <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
 </figure>"#
         );
-
-        Ok(())
     }
 
     #[test]
-    fn unspecified_link() -> Result {
-        let a = html_export(r"[[./hello]]")?;
+    fn unspecified_link() {
+        let a = html_export(r"[[./hello]]");
 
         assert_eq!(
             a,
-            r##"<p>
-<a href="./hello">./hello</a>
-</p>
+            r##"<p><a href="./hello">./hello</a></p>
 "##
         );
-
-        Ok(())
     }
 
     #[test]
-    fn checkbox() -> Result {
-        let a = html_export("- [X]\n")?;
+    fn checkbox() {
+        let a = html_export("- [X]\n");
 
         assert_eq!(
             a,
@@ -1396,7 +1402,7 @@ mysterious</div>
 "#
         );
 
-        let b = html_export("- [ ]\n")?;
+        let b = html_export("- [ ]\n");
 
         assert_eq!(
             b,
@@ -1406,7 +1412,7 @@ mysterious</div>
 "#
         );
 
-        let c = html_export("- [-]\n")?;
+        let c = html_export("- [-]\n");
 
         assert_eq!(
             c,
@@ -1415,8 +1421,6 @@ mysterious</div>
 </ul>
 "#
         );
-
-        Ok(())
     }
 
     #[test]
@@ -1434,7 +1438,9 @@ content
 
 here
 "#;
-        dbg!(html_export(a));
-        assert_eq!(html_export(a).unwrap(), "love!");
+        assert_eq!(
+            html_export(a),
+            "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n"
+        );
     }
 }

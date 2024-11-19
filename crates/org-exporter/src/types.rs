@@ -1,12 +1,39 @@
 use core::fmt;
-use std::path::PathBuf;
-
 use org_parser::{NodeID, Parser};
+use std::{ops::Range, path::PathBuf};
+use thiserror::Error;
+
+use crate::{include::IncludeError, org_macros::MacroError};
 
 #[derive(Debug, Clone, Default)]
 pub struct ConfigOptions {
     /// Used for evaluating relative paths in #+include: statements
     file_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Error)]
+pub enum ExportError {
+    #[error("{0}-{1}: {source}", span.start, span.end)]
+    LogicError {
+        span: Range<usize>,
+        source: LogicErrorKind,
+    },
+}
+
+#[derive(Debug, Error)]
+pub enum LogicErrorKind {
+    #[error("{0}")]
+    Include(#[from] IncludeError),
+    #[error("{0}")]
+    Macro(#[from] MacroError),
+}
+
+#[derive(Debug, Error)]
+#[error("{context}`{path}`: {source}")]
+pub struct FileError {
+    pub context: String,
+    pub path: PathBuf,
+    pub source: std::io::Error,
 }
 
 impl ConfigOptions {
@@ -23,37 +50,41 @@ impl ConfigOptions {
 /// Exporting backends must implement this trait.
 pub trait Exporter<'buf> {
     /// Writes the AST generated from the input into a `String`.
-    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, fmt::Error>;
+    fn export(input: &str, conf: ConfigOptions) -> core::result::Result<String, Vec<ExportError>>;
     /// Writes the AST generated from the input into a buffer that implements `Write`.
     fn export_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result;
+    ) -> core::result::Result<(), Vec<ExportError>>;
     fn export_tree<T: fmt::Write>(
         parsed: &Parser,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result;
+    ) -> core::result::Result<(), Vec<ExportError>>;
+
+    // fn errors(&self) -> Vec<ExportError>;
+    // fn warnings(&self);
 }
 
 /// Private interface for Exporter types.
 pub(crate) trait ExporterInner<'buf> {
     /// Entry point of the exporter to handle macros.
     ///
-    /// Exporting macros entails creating a new context and parsing objects,
+    /// Exporting macros entails creating a new context which parses objects,
     /// as opposed to elements.
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
         conf: ConfigOptions,
-    ) -> fmt::Result;
+    ) -> core::result::Result<(), Vec<ExportError>>;
     /// Primary exporting routine.
     ///
     /// This method is called recursively until every `Node` in the tree is exhausted.
-    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) -> fmt::Result;
+    fn export_rec(&mut self, node_id: &NodeID, parser: &Parser);
     /// The canonical name of the exporting backend
     /// REVIEW: make public?
     fn backend_name() -> &'static str;
     fn config_opts(&self) -> &ConfigOptions;
+    fn errors(&mut self) -> &mut Vec<ExportError>;
 }

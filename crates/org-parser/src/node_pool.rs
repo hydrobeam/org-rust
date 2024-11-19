@@ -10,6 +10,11 @@ use crate::types::{Expr, Node};
 /// sequentially and cannot re-used.
 pub struct NodeID(u32);
 
+/// This exists ONLY for testing purposes
+pub(crate) fn make_node_id(id: u32) -> NodeID {
+    NodeID(id)
+}
+
 impl Display for NodeID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.0))
