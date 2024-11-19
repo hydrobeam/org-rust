@@ -14,8 +14,24 @@ jobs:
       deployments: write
       pull-requests: write
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # stolen from: https://github.com/cloudflare/pages-action/issues/16#issuecomment-1398478711
+      - name: Comment deploy start
+        if: github.event_name != 'push'
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-id: cloudflare-deploy
+          message: |
+            ### <span aria-hidden="true">🚧</span> Deploy Preview building...
+
+            |  Name | Link |
+            |---------------------------------|------------------------|
+            |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
+            |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            ---
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -55,21 +71,6 @@ jobs:
           DEPLOYMENT_ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
         run: echo $DEPLOYMENT_ALIAS_URL
 
- # stolen from: https://github.com/cloudflare/pages-action/issues/16#issuecomment-1398478711
-      - name: Comment deploy start
-        if: github.event_name != 'push'
-        uses: mshick/add-pr-comment@v2
-        with:
-          message-id: cloudflare-deploy
-          message: |
-            ### <span aria-hidden="true">🚧</span> Deploy Preview building...
-
-            |  Name | Link |
-            |---------------------------------|------------------------|
-            |<span aria-hidden="true">🔨</span> Latest commit | ${{ github.sha }} |
-            |<span aria-hidden="true">🔍</span> Latest deploy log | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
-            ---
-      - ... rest of config
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
         with:
