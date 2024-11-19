@@ -17,6 +17,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set environment variables
+        run: |
+          # Short name for current branch. For PRs, use target branch (base ref)
+          GIT_BRANCH=${GITHUB_BASE_REF:-${GITHUB_REF#refs/heads/}}
+          echo "GIT_BRANCH=$GIT_BRANCH" >> $GITHUB_ENV
+
       # stolen from: https://github.com/cloudflare/pages-action/issues/16#issuecomment-1398478711
       - name: Comment deploy start
         if: github.event_name != 'push'
@@ -64,7 +70,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch ${{ github.ref_name }}
+          command: pages deploy crates/org-wasm/dist --project-name=org-rust --branch $GIT_BRANCH
 
       - name: Comment deploy url
         uses: mshick/add-pr-comment@v2
