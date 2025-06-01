@@ -8,7 +8,6 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 import HtmlBundlerPlugin from "html-bundler-webpack-plugin";
 import TerserPlugin from 'terser-webpack-plugin';
 import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
-import HtmlMinimizerPlugin from 'html-minimizer-webpack-plugin';
 
 
 
@@ -60,11 +59,6 @@ export default {
   },
   optimization: {
     minimizer: [
-      new HtmlMinimizerPlugin(
-        {
-          minify: HtmlMinimizerPlugin.minifyHtmlNode
-        }
-      ),
       // mirroring the default webpack config
       // adding the other minimizers causes this one to not activate,
       // so be explicit about using it

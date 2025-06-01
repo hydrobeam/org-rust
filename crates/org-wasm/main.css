@@ -1,153 +1,153 @@
 :root {
-  --gutter-colour: #cce1cf;
-  --tab-hover: #bfd9c3;
-  --tab-active: #a5caab;
-  --line-hover: #f2f7f354;
-  --line-selection: #f0ebbc64;
+    --gutter-colour: #cce1cf;
+    --tab-hover: #bfd9c3;
+    --tab-active: #a5caab;
+    --line-hover: #f2f7f354;
+    --line-selection: #f0ebbc64;
 }
 
 button {
-  font-family: monospace;
+    font-family: monospace;
 }
 
 .tab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 6px 6px;
-  transition: 0.3s;
-  white-space: nowrap;
-  flex: 1;
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 6px 6px;
+    transition: 0.3s;
+    white-space: nowrap;
+    flex: 1;
 }
 
 /* Change background color of buttons on hover */
 .tab button:hover {
-  background-color: var(--tab-hover);
+    background-color: var(--tab-hover);
 }
 
 /* Create an active/current tablink class */
 .tab button.active {
-  background-color: var(--tab-active);
+    background-color: var(--tab-active);
 }
 
 /* style non-rendered html */
 pre.tabcontent {
-  background-color: #faf1f1;
-  white-space: pre-wrap;
-  font-size: 1rem;
+    background-color: #faf1f1;
+    white-space: pre-wrap;
+    font-size: 1rem;
 }
 
 iframe {
-  padding: 0 !important;
+    padding: 0 !important;
 }
 
 .tab {
-  display: flex;
-  flex-wrap: wrap;
-  max-height: min-content;
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: var(--gutter-colour);
+    display: flex;
+    flex-wrap: wrap;
+    max-height: min-content;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: var(--gutter-colour);
 }
 
 .tabcontent {
-  flex: 1;
-  display: none;
-  padding: 6px 12px;
-  border-top: none;
-  overflow: scroll;
-  border: 1px solid #ccc;
+    flex: 1;
+    display: none;
+    padding: 6px 12px;
+    border-top: none;
+    overflow: scroll;
+    border: 1px solid #ccc;
 }
 
 .view {
-  grid-area: view;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: scroll;
+    grid-area: view;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
 }
 
 .view * {
-  margin: 0;
+    margin: 0;
 }
 
 .input-area {
-  grid-area: input;
-  display: flex;
-  flex-direction: column;
-  overflow: scroll;
+    grid-area: input;
+    display: flex;
+    flex-direction: column;
+    overflow: scroll;
 }
 
 #textbox {
-  flex: 1;
-  display: flex;
-  overflow: auto;
+    flex: 1;
+    display: flex;
+    overflow: auto;
 }
 
 .cm-editor {
-  flex-grow: 1;
-  font-size: 1rem;
+    flex-grow: 1;
+    font-size: 1rem;
 }
 
 #editor-view {
-  height: 94svh;
-  display: grid;
-  grid-template-columns: 50% 50%;
-  grid-template-areas: "input view";
-  border: solid 1px grey;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 50% 50%;
+    grid-template-areas: "input view";
+    border: solid 1px grey;
+    overflow: hidden; /* make it so that the view area doesn't expand when content is placed within it */
 }
 
 body {
-  margin: 0;
-  line-height: 1.4;
-  font-size: 1.25em;
-  background-color: rgb(250, 250, 250);
+    margin: 0;
+    line-height: 1.4;
+    font-size: 1.25em;
+    background-color: rgb(250, 250, 250);
 }
 
 header p {
-  margin: 0;
-  background-image: none;
-  font-weight: normal;
-  color: #7e8170;
+    margin: 0;
+    background-image: none;
+    font-weight: normal;
+    color: #7e8170;
 }
 
 header {
     display: flex;
-    gap: 10px;
-    justify-content: flex-start;
-    align-items: baseline;
+    justify-content: space-between;
+    align-items: center;
     flex-direction: row;
     margin: 0;
+    padding: 0.15em 0.05em;
 }
 
 h1,
 h2,
 h3,
 header {
-  font-weight: 600;
-  background-image: linear-gradient(to bottom right, #13223f, #139323);
-  color: transparent;
-  background-clip: text;
-  -webkit-background-clip: text;
-  margin: 0;
-  margin-bottom: 0.25em;
+    font-weight: 600;
+    background-image: linear-gradient(to bottom right, #13223f, #139323);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    margin: 0;
 }
 
 @media (max-width: 850px) {
-  #editor-view {
-    grid-template-columns: 100%;
-    grid-template-areas:
-      "input"
-      "view";
-    grid-template-rows: 50% 50%;
-  }
+    #editor-view {
+        grid-template-columns: 100%;
+        grid-template-areas:
+            "input"
+            "view";
+        grid-template-rows: 50% 50%;
+    }
 
-  header {
-    height: auto;
-  }
-  body {
-    font-size: 1.125em;
-  }
+    header {
+        height: auto;
+    }
+    body {
+        font-size: 1.125em;
+    }
 }
