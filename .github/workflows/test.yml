@@ -1,0 +1,29 @@
+name: Cargo Build & Test
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Org-rust - latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.91.0
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Test Workspace
+        run: cargo test --workspace
