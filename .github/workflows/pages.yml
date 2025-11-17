@@ -59,7 +59,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81.0
+          toolchain: 1.91.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

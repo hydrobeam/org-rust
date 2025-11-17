@@ -4,9 +4,9 @@ use crate::constants::{COLON, NEWLINE, RBRACK, SPACE, STAR};
 use crate::node_pool::NodeID;
 use crate::parse::{parse_element, parse_object};
 use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{bytes_to_str, Match};
+use crate::utils::{Match, bytes_to_str};
 
-use super::{parse_property, PropertyDrawer};
+use super::{PropertyDrawer, parse_property};
 
 const ORG_TODO_KEYWORDS: [&str; 2] = ["TODO", "DONE"];
 
@@ -213,7 +213,7 @@ impl<'a> Heading<'a> {
         }
     }
 
-    fn parse_keyword(mut cursor: Cursor) -> Result<Match<&str>> {
+    fn parse_keyword(mut cursor: Cursor<'_>) -> Result<Match<&str>> {
         let start = cursor.index;
         cursor.skip_ws();
 

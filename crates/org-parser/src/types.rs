@@ -9,7 +9,7 @@ use crate::constants::{
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::*;
-use crate::utils::{bytes_to_str, id_escape, Match};
+use crate::utils::{Match, bytes_to_str, id_escape};
 use bitflags::bitflags;
 
 pub(crate) type Result<T> = std::result::Result<T, MatchError>;
@@ -45,7 +45,7 @@ pub type NodeCache = HashMap<usize, NodeID>;
 
 pub(crate) fn process_attrs<'a>(
     mut cursor: Cursor<'a>,
-) -> Result<(Cursor, HashMap<&'a str, &'a str>)> {
+) -> Result<(Cursor<'a>, HashMap<&'a str, &'a str>)> {
     let mut new_attrs: HashMap<&'a str, &'a str> = HashMap::new();
     loop {
         match cursor.try_curr()? {
@@ -584,7 +584,7 @@ impl<'a> Expr<'a> {
             Expr::PlainList(pl) => Some(&mut pl.children),
             Expr::Item(item) => Some(&mut item.children),
             Expr::Table(inner) => Some(&mut inner.children),
-            Expr::TableRow(ref mut inner) => match inner {
+            Expr::TableRow(inner) => match inner {
                 TableRow::Rule => None,
                 TableRow::Standard(stan) => Some(stan),
             },
@@ -815,9 +815,9 @@ impl<'a> Expr<'a> {
             Expr::ExportSnippet(inner) => print!("{inner:#?}"),
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_) => print!("{inner:#?}"),
-                Affiliated::Caption(i1, i2) => {
+                Affiliated::Caption(i1) => {
                     // pool[i1.unwrap()].obj.print_tree(pool);
-                    pool[*i2].obj.print_tree(pool);
+                    pool[*i1].obj.print_tree(pool);
                 }
                 Affiliated::Attr {
                     child_id,

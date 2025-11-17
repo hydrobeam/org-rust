@@ -9,9 +9,9 @@ use crate::element::{
     Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Emoji, ExportSnippet, FootnoteRef, InlineSrc,
-    Italic, LatexFragment, MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target,
-    Underline, Verbatim,
+    Bold, Code, Emoji, ExportSnippet, FootnoteRef, InlineSrc, Italic, LatexFragment, MacroCall,
+    RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
+    parse_angle_link, parse_plain_link,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -121,7 +121,7 @@ pub(crate) fn parse_element<'a>(
                     }
                 }
                 if NEWLINE == cursor.try_curr()? && cursor.index - start >= 5 {
-                    return Ok(parser.alloc(Expr::HorizontalRule, start, cursor.index + 1, parent));
+                    Ok(parser.alloc(Expr::HorizontalRule, start, cursor.index + 1, parent))
                 } else {
                     Err(MatchError::InvalidLogic)
                 }
@@ -163,10 +163,10 @@ pub(crate) fn parse_element<'a>(
             }
         }
         LBRACK => {
-            if indentation_level == 0 {
-                if let ret @ Ok(_) = FootnoteDef::parse(parser, cursor, parent, no_para_opts) {
-                    return ret;
-                }
+            if indentation_level == 0
+                && let ret @ Ok(_) = FootnoteDef::parse(parser, cursor, parent, no_para_opts)
+            {
+                return ret;
             }
         }
         _ => {}
@@ -241,12 +241,11 @@ pub(crate) fn parse_object<'a>(
             // ripped off handle_markup
             // TODO: abstract this
             // if we're in a link description, and we hit ]] , return the ending
-            if parse_opts.markup.contains(MarkupKind::Link) {
-                if let Ok(byte) = cursor.peek(1) {
-                    if byte == RBRACK {
-                        return Err(MatchError::MarkupEnd(MarkupKind::Link));
-                    }
-                }
+            if parse_opts.markup.contains(MarkupKind::Link)
+                && let Ok(byte) = cursor.peek(1)
+                && byte == RBRACK
+            {
+                return Err(MatchError::MarkupEnd(MarkupKind::Link));
             } else if parse_opts.markup.contains(MarkupKind::FootnoteRef) {
                 return Err(MatchError::MarkupEnd(MarkupKind::FootnoteRef));
             }
@@ -421,6 +420,6 @@ mod tests {
         let src = "   ";
         let parsed = parse_org(src);
         let plain = expr_in_pool!(parsed, Plain).unwrap();
-        assert_eq!(plain, &"   " );
+        assert_eq!(plain, &"   ");
     }
 }

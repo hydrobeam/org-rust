@@ -69,7 +69,7 @@ impl<'a, 'template> Template<'a, 'template> {
         // ? => not greedy
         let re = regex::Regex::new(r#"\{\{\{(.*?)\}\}\}"#).unwrap();
         // collect all matches to {{{.*}}} regex - things we want to replace with keywords
-        let mut captures = re.captures_iter(&self.template_contents).map(|capture| {
+        let mut captures = re.captures_iter(self.template_contents).map(|capture| {
             let mtch = capture.get(1).unwrap();
             // we expand the range of the capture to include the {{{}}}
             (mtch.start() - 3, mtch.end() + 3, mtch.as_str().trim())
@@ -93,11 +93,11 @@ impl<'a, 'template> Template<'a, 'template> {
             local_items.push_str(&self.template_contents[begin..start]);
 
             if extract == "content" {
-                local_items.push_str(&self.exported_content);
+                local_items.push_str(self.exported_content);
             } else if let Some(command) = Command::check(extract) {
                 match command {
                     Command::If(cond) => {
-                        if let Some(_) = self.p.keywords.get(&*cond) {
+                        if self.p.keywords.contains_key(cond) {
                             local_items.push_str(&self.process_captures(
                                 captures,
                                 self.end,
@@ -194,8 +194,7 @@ impl<'a, 'template> Template<'a, 'template> {
                         }
                     }
                     Command::Include(file) => {
-                        let include_path =
-                            relative_path_from(&self.template_path, Path::new(file))?;
+                        let include_path = relative_path_from(self.template_path, Path::new(file))?;
                         let included_template = read_to_string(&include_path).map_err(|e| {
                             CliError::from(e)
                                 .with_path(&include_path)

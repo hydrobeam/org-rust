@@ -67,14 +67,14 @@ impl<'a> Parseable<'a> for InlineSrc<'a> {
 
 impl<'a> InlineSrc<'a> {
     // the logic is exactly the same, except for the perimeters
-    fn parse_header(cursor: Cursor) -> Result<Match<&str>> {
+    fn parse_header(cursor: Cursor<'_>) -> Result<Match<&str>> {
         InlineSrc::parse_src(cursor, LBRACK, RBRACK)
     }
-    fn parse_body(cursor: Cursor) -> Result<Match<&str>> {
+    fn parse_body(cursor: Cursor<'_>) -> Result<Match<&str>> {
         InlineSrc::parse_src(cursor, LBRACE, RBRACE)
     }
     #[inline(always)]
-    fn parse_src(mut cursor: Cursor, lperim: u8, rperim: u8) -> Result<Match<&str>> {
+    fn parse_src(mut cursor: Cursor<'_>, lperim: u8, rperim: u8) -> Result<Match<&str>> {
         // Brackets have to be balanced
         // -1 for left bracket
         // +1 for right bracket

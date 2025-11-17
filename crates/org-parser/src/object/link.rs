@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use phf::phf_set;
+
 use crate::constants::{
     BACKSLASH, COLON, HYPHEN, LANGLE, LBRACK, LPAREN, POUND, RANGLE, RBRACK, RPAREN, SLASH,
 };
@@ -13,6 +15,16 @@ const ORG_LINK_PARAMETERS: [&str; 9] = [
     "shell", "news", "mailto", "https", "http", "ftp", "help", "file", "elisp",
 ];
 
+// file types we can wrap an `img` around
+static IMAGE_TYPES: phf::Set<&str> = phf_set! {
+    "jpeg",
+    "jpg",
+    "png",
+    "gif",
+    "svg",
+    "webp",
+};
+
 #[derive(Debug, Clone)]
 pub struct RegularLink<'a> {
     pub path: Match<PathReg<'a>>,
@@ -22,6 +34,9 @@ pub struct RegularLink<'a> {
     // It can also contain another link, but only when it is a plain or angle link.
     // It can contain square brackets, so long as they are balanced.
     pub description: Option<Vec<NodeID>>,
+    // Captions will be filled in later. affiliated keywords are defined first, so the caption
+    // checks if the child is a link and then sticks it in
+    pub caption: Option<NodeID>,
 }
 
 impl Display for PathReg<'_> {
@@ -122,7 +137,7 @@ impl<'a> PathReg<'a> {
             cursor.next();
         }
 
-        return Ok(cursor.clamp_backwards(begin_id));
+        Ok(cursor.clamp_backwards(begin_id))
     }
 
     fn parse_file(mut cursor: Cursor<'a>) -> Result<&'a str> {
@@ -133,7 +148,7 @@ impl<'a> PathReg<'a> {
             cursor.next();
         }
 
-        return Ok(cursor.clamp_backwards(begin_id));
+        Ok(cursor.clamp_backwards(begin_id))
     }
 }
 
@@ -203,6 +218,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                                         Self {
                                             path: pathreg,
                                             description: Some(content_vec),
+                                            caption: None,
                                         },
                                         start,
                                         cursor.index + 2, // link end is 2 bytes long
@@ -227,6 +243,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                             Self {
                                 path: pathreg,
                                 description: None,
+                                caption: None,
                             },
                             start,
                             cursor.index + 2,
@@ -240,6 +257,25 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
             }
             cursor.next();
         }
+    }
+}
+
+impl RegularLink<'_> {
+    pub fn is_image(&self, parser: &Parser) -> bool {
+        let link_source: &str = match &self.path.obj {
+            PathReg::Unspecified(inner) => inner,
+            PathReg::File(inner) => inner,
+            PathReg::PlainLink(inner) => &inner.path,
+            _ => {
+                // HACK: we just want to jump outta here, everything else doesnt make sense
+                // in an image context
+                ""
+            }
+        };
+        link_source
+            .rsplit_once('.') // extract extension_type
+            .map(|(_, ext)| ext)
+            .is_some_and(|ext| IMAGE_TYPES.contains(ext))
     }
 }
 
@@ -260,11 +296,12 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
 // Word-constituent characters are letters, digits, and the underscore.
 // source: https://www.gnu.org/software/grep/manual/grep.html
 pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink<'_>>> {
-    if let Ok(pre_byte) = cursor.peek_rev(1) {
-        if pre_byte.is_ascii_alphanumeric() {
-            return Err(MatchError::InvalidLogic);
-        }
+    if let Ok(pre_byte) = cursor.peek_rev(1)
+        && pre_byte.is_ascii_alphanumeric()
+    {
+        return Err(MatchError::InvalidLogic);
     }
+
     let start = cursor.index;
 
     for (i, &protocol) in ORG_LINK_PARAMETERS.iter().enumerate() {
@@ -383,8 +420,9 @@ pub(crate) fn parse_angle_link<'a>(
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::element::Affiliated;
     use crate::expr_in_pool;
-    use crate::object::PlainLink;
+    use crate::object::{PlainLink, RegularLink};
     use crate::parse_org;
     use crate::types::Expr;
 
@@ -544,5 +582,27 @@ I'll be skipping over the instrumentals unless there's reason to.
 
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn caption_link() {
+        let input = r"
+#+caption: sing song
+[[heathers.jpg]]
+
+";
+
+        let parser = parse_org(input);
+        let image_link = expr_in_pool!(parser, RegularLink).unwrap();
+        if let Some(cap_id) = image_link.caption
+            && let Expr::Affiliated(Affiliated::Caption(aff)) = &parser.pool[cap_id].obj
+            && let Expr::Paragraph(par) = &parser.pool[*aff].obj
+            && let Expr::Plain(text) = parser.pool[par.0[0]].obj
+        {
+            // REVIEW: does the cap need to be trimmed
+            assert_eq!(text, " sing song");
+        } else {
+            panic!()
+        };
     }
 }

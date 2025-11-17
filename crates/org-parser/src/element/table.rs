@@ -12,6 +12,7 @@ pub struct Table {
     pub rows: usize,
     pub cols: usize,
     pub children: Vec<NodeID>,
+    pub caption: Option<NodeID>, // will be filled by parent caption if exists
 }
 
 /// A row of a [`Table`] consisting of [`TableCell`]s or a [`TableRow::Rule`].
@@ -69,6 +70,7 @@ impl<'a> Parseable<'a> for Table {
                 rows,
                 cols,
                 children,
+                caption: None,
             },
             start,
             cursor.index,
@@ -101,15 +103,15 @@ impl<'a> Parseable<'a> for TableRow {
 
         // implies horizontal rule
         // |-
-        if let Ok(val) = cursor.try_curr() {
-            if val == HYPHEN {
-                // adv_till_byte handles eof
-                cursor.adv_till_byte(b'\n');
-                // cursor.index + 1 to start at the next | on the next line
-                return Ok(parser
-                    .pool
-                    .alloc(Self::Rule, start, cursor.index + 1, parent));
-            }
+        if let Ok(val) = cursor.try_curr()
+            && val == HYPHEN
+        {
+            // adv_till_byte handles eof
+            cursor.adv_till_byte(b'\n');
+            // cursor.index + 1 to start at the next | on the next line
+            return Ok(parser
+                .pool
+                .alloc(Self::Rule, start, cursor.index + 1, parent));
         }
 
         let mut children: Vec<NodeID> = Vec::new();
@@ -136,7 +138,7 @@ impl<'a> Parseable<'a> for TableRow {
 
 #[cfg(test)]
 mod tests {
-    use crate::{expr_in_pool, parse_org, Expr};
+    use crate::{Expr, element::Affiliated, expr_in_pool, parse_org};
 
     #[test]
     fn basic_table() {
@@ -280,5 +282,26 @@ word
         let pool = parse_org(input);
         let tab = expr_in_pool!(pool, Table).unwrap();
         assert_eq!(tab.rows, 1);
+    }
+
+    #[test]
+    fn table_caption() {
+        let input = r"
+#+caption: i am a table
+|a|b|c
+
+";
+
+        let parser = parse_org(input);
+        let image_link = expr_in_pool!(parser, Table).unwrap();
+        if let Some(cap_id) = image_link.caption
+            && let Expr::Affiliated(Affiliated::Caption(aff)) = &parser.pool[cap_id].obj
+            && let Expr::Paragraph(par) = &parser.pool[*aff].obj
+            && let Expr::Plain(text) = parser.pool[par.0[0]].obj
+        {
+            assert_eq!(text, " i am a table");
+        } else {
+            panic!()
+        };
     }
 }

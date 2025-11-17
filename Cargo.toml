@@ -6,9 +6,9 @@ default-members=["crates/org-cli"]
 
 [workspace.package]
 version = "0.1.0"
-rust-version = "1.74" # also change in ci.yml
+rust-version = "1.91" # also change in ci.yml
 authors = ["Laith Bahodi <laithbahodi@gmail.com>"]
-edition = "2021"
+edition = "2024"
 homepage = "https://org-rust.pages.dev"
 repository = "https://github.com/hydrobeam/org-rust"
 readme = "README.org"

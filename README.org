@@ -8,8 +8,6 @@ The goal is to be mostly spec compliant, and allow for exporting the generated A
 
 ~org-rust~ can be used as a CLI tool or as a library via the ~org-rust-parser/org-rust-exporter~ crates.
 
-The MSRV is 1.70.0, but may compile with earlier rust versions (untested).
-
 *** Arch
 
 

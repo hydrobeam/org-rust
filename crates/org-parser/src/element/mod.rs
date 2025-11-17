@@ -17,9 +17,9 @@ mod table;
 
 pub use block::Block;
 pub use comment::Comment;
-pub(crate) use drawer::parse_property;
 pub use drawer::Drawer;
 pub use drawer::PropertyDrawer;
+pub(crate) use drawer::parse_property;
 pub use footnote_def::FootnoteDef;
 pub use heading::Heading;
 pub use heading::HeadingLevel;

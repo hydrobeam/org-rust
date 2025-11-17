@@ -97,7 +97,7 @@ fn find_kind(item: &Item) -> ListKind {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_org, Expr};
+    use crate::{Expr, parse_org};
 
     #[test]
     fn basic_list() {

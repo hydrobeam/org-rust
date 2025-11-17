@@ -191,7 +191,7 @@ impl BulletKind {
 }
 
 // - [@4]
-fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
+fn parse_counter_set(mut cursor: Cursor<'_>) -> Result<Match<&str>> {
     let start = cursor.index;
     cursor.skip_ws();
     cursor.word("[@")?;
@@ -233,7 +233,7 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
     })
 }
 
-fn parse_tag(mut cursor: Cursor) -> Result<Match<&str>> {
+fn parse_tag<'a>(mut cursor: Cursor<'a>) -> Result<Match<&'a str>> {
     // - [@A] [X] | our tag is here :: remainder
     let start = cursor.index;
     cursor.curr_valid()?;
@@ -367,16 +367,25 @@ mod tests {
         let input = "1. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(1))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Number(1))
+        ));
 
         let input = "17. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(17))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Number(17))
+        ));
 
         let input = "a. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Letter(b'a'))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Letter(b'a'))
+        ));
     }
 }

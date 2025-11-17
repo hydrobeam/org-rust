@@ -102,11 +102,11 @@ impl<'a> NodePool<'a> {
         target_id
     }
 
-    pub fn get(&self, id: NodeID) -> Option<&'a Node> {
+    pub fn get(&self, id: NodeID) -> Option<&'a Node<'_>> {
         self.inner_vec.get(id.0 as usize)
     }
 
-    pub fn get_mut(&mut self, id: NodeID) -> Option<&'a mut Node> {
+    pub fn get_mut(&mut self, id: NodeID) -> Option<&'a mut Node<'_>> {
         self.inner_vec.get_mut(id.0 as usize)
     }
 
@@ -121,7 +121,7 @@ impl<'a> NodePool<'a> {
         NodeID(old_counter)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> + DoubleEndedIterator<Item = &Node<'a>> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Node<'a>> {
         self.inner_vec.iter()
     }
 

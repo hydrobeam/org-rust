@@ -72,7 +72,9 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
         if cursor.curr() == DOLLAR {
             if cursor.peek(1)? == DOLLAR {
                 cursor.index += 2;
-                double_ending!(parser, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display)
+                double_ending!(
+                    parser, cursor, start, parse_opts, parent, DOLLAR, DOLLAR, Display
+                )
             } else if cursor.peek(2)? == DOLLAR && verify_single_char_latex_frag(cursor) {
                 return Ok(parser.alloc(
                     Self::Inline(cursor.clamp(cursor.index + 1, cursor.index + 2)),
@@ -196,7 +198,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                             start,
                                             cursor.index + 1,
                                             parent,
-                                        ))
+                                        ));
                                     }
                                     _ => {}
                                 }
@@ -212,7 +214,7 @@ impl<'a> Parseable<'a> for LatexFragment<'a> {
                                 start,
                                 cursor.index,
                                 parent,
-                            ))
+                            ));
                         }
                     }
                 }

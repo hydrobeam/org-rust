@@ -1,8 +1,8 @@
 use crate::constants::{DOLLAR, HYPHEN, NEWLINE, UNDERSCORE};
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
-use crate::types::{process_attrs, Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result};
-use crate::utils::{bytes_to_str, Match};
+use crate::types::{Cursor, Expr, MatchError, ParseOpts, Parseable, Parser, Result, process_attrs};
+use crate::utils::{Match, bytes_to_str};
 
 use super::Paragraph;
 
@@ -15,7 +15,7 @@ pub struct Keyword<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Affiliated<'a> {
     Name(Option<NodeID>),
-    Caption(Option<NodeID>, NodeID),
+    Caption(NodeID), // inside is a paragraph
     Attr {
         child_id: Option<NodeID>,
         backend: &'a str,
@@ -106,7 +106,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 let prev = cursor.index;
                 cursor.adv_till_byte(NEWLINE);
                 // not mentioned in the spec, but org-element trims
-                let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index].trim_ascii());
+                let val = bytes_to_str(cursor.byte_arr[prev..cursor.index].trim_ascii());
 
                 cursor.next();
                 let end_index = cursor.index;
@@ -134,31 +134,66 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 let caption_id = parser.pool.reserve_id();
                 let temp_cursor = cursor.cut_off(val.end);
                 let ret = Paragraph::parse(parser, temp_cursor, Some(caption_id), parse_opts)?;
-
-                cursor.index = val.end;
-                cursor.word("\n")?;
-
-                let child_id = loop {
-                    if let Ok(child_id) = parse_element(parser, cursor, parent, parse_opts) {
-                        let node = &mut parser.pool[child_id];
-                        if let Expr::Affiliated(aff) = &node.obj {
-                            // skip affiliated objects
-                            cursor.index = node.end;
-                        } else {
-                            break Some(child_id);
-                        }
-                    } else {
-                        break None;
-                    };
-                };
-
-                return Ok(parser.alloc_with_id(
-                    Affiliated::Caption(child_id, ret),
+                parser.alloc_with_id(
+                    Affiliated::Caption(ret),
                     start,
                     val.end + 1,
                     parent,
                     caption_id,
-                ));
+                );
+
+                cursor.index = val.end;
+                cursor.word("\n")?;
+                let child_id = loop {
+                    let c_id = parse_element(parser, cursor, parent, parse_opts)?;
+
+                    if matches!(&parser.pool[c_id].obj, Expr::Affiliated(_)) {
+                        // skip affiliated objects
+                        cursor.index = parser.pool[c_id].end;
+                        continue;
+                    }
+
+                    // HACK: normally would just do inspection and mutation in one go,
+                    // but we'd be taking a mutable/immutable ref to the parser pool.
+                    //
+                    // split it up into two (with this enum to indicate behaviour) to
+                    // work around that
+                    enum Operation {
+                        CaptionImage(NodeID),
+                        Table,
+                        None,
+                    }
+
+                    // inspection phase
+                    let operation = match &parser.pool[c_id].obj {
+                        Expr::Paragraph(par) if par.is_image(parser) => {
+                            Operation::CaptionImage(par.0[0])
+                        }
+                        Expr::Table(_) => Operation::Table,
+                        _ => Operation::None,
+                    };
+
+                    // mutation phase
+                    match operation {
+                        Operation::CaptionImage(link_id) => {
+                            if let Expr::RegularLink(link) = &mut parser.pool[link_id].obj {
+                                link.caption = Some(caption_id);
+                            }
+                        }
+                        Operation::Table => {
+                            if let Expr::Table(table) = &mut parser.pool[c_id].obj {
+                                table.caption = Some(caption_id);
+                            }
+                        }
+                        Operation::None => {
+                            // TODO: warning system
+                            dbg!("caption applied to invalid object");
+                        }
+                    }
+                    break c_id;
+                }; // caption end
+
+                return Ok(child_id);
             }
             _ => {}
         }
@@ -367,7 +402,7 @@ mod tests {
         let input = r#"
 
 #+caption:*hi*
-yeah
+[[yeah]]
 
 "#;
 
@@ -375,7 +410,7 @@ yeah
         let cap = expr_in_pool!(parsed, Affiliated).unwrap();
 
         match cap {
-            Affiliated::Caption(Some(child), id) => {
+            Affiliated::Caption(id) => {
                 let Expr::Paragraph(para) = &parsed.pool[*id].obj else {
                     unreachable!()
                 };
@@ -387,14 +422,7 @@ yeah
                 };
                 assert_eq!(letters, &"hi");
 
-                let Expr::Paragraph(para) = &parsed.pool[*child].obj else {
-                    unreachable!()
-                };
-
-                let Expr::Plain(letters) = &parsed.pool[para.0[0]].obj else {
-                    unreachable!()
-                };
-                assert_eq!(letters, &"yeah");
+                let cap = expr_in_pool!(parsed, RegularLink).unwrap();
             }
             _ => {
                 panic!("oops")
@@ -435,4 +463,3 @@ yeah
         });
     }
 }
-

@@ -1,6 +1,6 @@
 [package]
 name = "org-rust-parser"
-version = "0.1.5"
+version = "0.1.6"
 description = "parser for org mode documents"
 
 homepage.workspace = true

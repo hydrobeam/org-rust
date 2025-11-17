@@ -73,7 +73,7 @@ macro_rules! parse_nscript {
                             start,
                             cursor.index + 2,
                             parent,
-                        ))
+                        ));
                     }
                     chr if !chr.is_ascii_whitespace() => {
                         // SIGN

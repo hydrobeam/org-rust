@@ -1,3 +1,4 @@
+use crate::Expr;
 use crate::node_pool::NodeID;
 use crate::parse::parse_object;
 use crate::types::{Cursor, ParseOpts, Parseable, Parser, Result};
@@ -31,5 +32,16 @@ impl<'a> Parseable<'a> for Paragraph {
             parent,
             new_id,
         ))
+    }
+}
+
+impl Paragraph {
+    pub fn is_image(&self, parser: &Parser) -> bool {
+        if let [id] = self.0[..]
+            && let Expr::RegularLink(link) = &parser.pool[id].obj
+        {
+            return link.is_image(parser);
+        }
+        false
     }
 }

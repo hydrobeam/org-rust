@@ -91,7 +91,7 @@ pub(crate) fn parse_property(mut cursor: Cursor) -> Result<Match<PropertyDrawer>
 
     let name_match = cursor.fn_until(|chr| chr == COLON || chr == NEWLINE)?;
 
-    if name_match.obj.to_ascii_lowercase() != "properties" {
+    if !name_match.obj.eq_ignore_ascii_case("properties") {
         return Err(MatchError::InvalidLogic);
     }
     cursor.index = name_match.end;

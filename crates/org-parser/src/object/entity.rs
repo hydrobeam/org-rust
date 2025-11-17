@@ -400,7 +400,7 @@ pub struct Entity<'a> {
     pub mapped_item: &'a str,
 }
 
-pub(crate) fn parse_entity(name: &str) -> Result<Entity> {
+pub(crate) fn parse_entity<'a>(name: &'a str) -> Result<Entity<'a>> {
     if let Some(mapped_item) = ENTITY_MAP.get(name) {
         Ok(Entity { name, mapped_item })
     } else {

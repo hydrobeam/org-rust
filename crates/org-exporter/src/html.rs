@@ -4,20 +4,20 @@
 
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Write;
 
-use latex2mathml::{latex_to_mathml, DisplayStyle};
+use latex2mathml::{DisplayStyle, latex_to_mathml};
 use memchr::memchr3_iter;
 use org_parser::element::{Affiliated, Block, CheckBox, ListKind, TableRow};
 use org_parser::object::{LatexFragment, PathReg, PlainOrRec};
-use org_parser::{parse_macro_call, parse_org, Expr, Node, NodeID, Parser};
+use org_parser::{Expr, Node, NodeID, Parser, parse_macro_call, parse_org};
 
+use crate::ExportError;
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
 use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind};
-use crate::utils::{process_toc, Options, TocItem};
-use crate::ExportError;
+use crate::utils::{Options, TocItem, process_toc};
 use phf::phf_set;
 
 macro_rules! w {
@@ -25,15 +25,6 @@ macro_rules! w {
         $dst.write_fmt(format_args!($($arg)*)).expect("writing to buffer during export failed")
     };
 }
-// file types we can wrap an `img` around
-static IMAGE_TYPES: phf::Set<&str> = phf_set! {
-    "jpeg",
-    "jpg",
-    "png",
-    "gif",
-    "svg",
-    "webp",
-};
 
 /// Directly convert these types when used in special blocks
 /// to named blocks, e.g.:
@@ -68,9 +59,6 @@ static HTML5_TYPES: phf::Set<&str> = phf_set! {
 /// HTML Content Exporter
 pub struct Html<'buf> {
     buf: &'buf mut dyn fmt::Write,
-    // HACK: When we export a caption, insert the child id here to make sure
-    // it's not double exported
-    nox: HashSet<NodeID>, // no-export
     // used footnotes
     footnotes: Vec<NodeID>,
     footnote_ids: HashMap<NodeID, usize>,
@@ -84,7 +72,7 @@ pub(crate) struct HtmlEscape<S: AsRef<str>>(pub S);
 // TODO this is not appropriate for certain things (can break). i can't rememmber them atm
 // but you need to escape  more for certain stuff, it would be easier to just not use two separate htmlescapes
 // REVIEW: jetscii
-impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
+impl<S: AsRef<str>> fmt::Display for HtmlEscape<S> {
     // design based on:
     // https://lise-henry.github.io/articles/optimising_strings.html
     // we can iterate over bytes since it's not possible for
@@ -142,20 +130,20 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
     ) -> core::result::Result<(), Vec<ExportError>> {
         let mut obj = Html {
             buf,
-            nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
             errors: Vec::new(),
         };
 
-        if let Ok(opts) = Options::handle_opts(parsed) {
-            if let Ok(tocs) = process_toc(parsed, &opts) {
-                handle_toc(parsed, &mut obj, &tocs);
-            }
+        if let Ok(opts) = Options::handle_opts(parsed)
+            && let Ok(tocs) = process_toc(parsed, &opts)
+        {
+            handle_toc(parsed, &mut obj, &tocs);
         }
-        obj.export_rec(&parsed.pool.root_id(), &parsed);
-        obj.exp_footnotes(&parsed);
+
+        obj.export_rec(&parsed.pool.root_id(), parsed);
+        obj.exp_footnotes(parsed);
 
         if obj.errors().is_empty() {
             Ok(())
@@ -179,7 +167,7 @@ fn handle_toc<'a, T: fmt::Write + ExporterInner<'a>>(
     );
     w!(writer, "<ul>");
     for toc in tocs {
-        toc_rec(&parsed, writer, toc, 1);
+        toc_rec(parsed, writer, toc, 1);
     }
     w!(writer, "</ul>");
     w!(writer, r#"</div></nav>"#);
@@ -194,7 +182,7 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     w!(writer, "<li>");
     if curr_level < parent.level {
         w!(writer, "<ul>");
-        toc_rec(&parser, writer, parent, curr_level + 1);
+        toc_rec(parser, writer, parent, curr_level + 1);
         w!(writer, "</ul>");
     } else {
         w!(writer, r#"<a href=#{}>"#, parent.target);
@@ -205,7 +193,7 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
         if !parent.children.is_empty() {
             w!(writer, "<ul>");
             for child in &parent.children {
-                toc_rec(&parser, writer, child, curr_level + 1);
+                toc_rec(parser, writer, child, curr_level + 1);
             }
             w!(writer, "</ul>");
         }
@@ -222,7 +210,6 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
         let parsed = parse_macro_call(input);
         let mut obj = Html {
             buf,
-            nox: HashSet::new(),
             footnotes: Vec::new(),
             footnote_ids: HashMap::new(),
             conf,
@@ -238,10 +225,6 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
     }
 
     fn export_rec(&mut self, node_id: &NodeID, parser: &Parser) {
-        // avoid parsing this node
-        if self.nox.contains(node_id) {
-            return;
-        }
         let node = &parser.pool[*node_id];
         match &node.obj {
             Expr::Root(inner) => {
@@ -418,67 +401,60 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         //
                         // handles the [[./hello]] case for us.
                         // turning it into <href="./hello">
-                        if rita.is_empty() {
-                            a.to_string()
-                        } else {
-                            rita
-                        }
+                        if rita.is_empty() { a.to_string() } else { rita }
                     }
                     PathReg::File(a) => format!("{a}"),
                 };
-                w!(self, r#"<a href="{}">"#, HtmlEscape(&path_link));
-                if let Some(children) = &inner.description {
-                    for id in children {
-                        self.export_rec(id, parser);
+
+                if inner.is_image(parser) {
+                    w!(self, "<img");
+                    self.prop(node);
+                    w!(self, r#" src="{}""#, HtmlEscape(&path_link));
+                    // start writing alt (if there are children)
+                    w!(self, r#" alt=""#);
+                    if let Some(children) = &inner.description {
+                        for id in children {
+                            self.export_rec(id, parser);
+                        }
+                    } else {
+                        let alt_text: Cow<str> =
+                            if let Some(slashed) = path_link.split('/').next_back() {
+                                slashed.into()
+                            } else {
+                                path_link.into()
+                            };
+                        w!(self, "{}", HtmlEscape(alt_text));
                     }
+                    w!(self, r#"">"#)
                 } else {
-                    w!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)));
+                    w!(self, r#"<a href="{}">"#, HtmlEscape(&path_link));
+                    if let Some(children) = &inner.description {
+                        for id in children {
+                            self.export_rec(id, parser);
+                        }
+                    } else {
+                        w!(self, "{}", HtmlEscape(inner.path.to_str(parser.source)));
+                    }
+                    w!(self, "</a>");
                 }
-                w!(self, "</a>");
             }
 
             Expr::Paragraph(inner) => {
-                if inner.0.len() == 1 {
-                    if let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj {
-                        let link_source: &str = match &link.path.obj {
-                            PathReg::Unspecified(inner) => inner,
-                            PathReg::File(inner) => inner,
-                            PathReg::PlainLink(_) => link.path.to_str(parser.source),
-                            _ => {
-                                // HACK: we just want to jump outta here, everything else doesnt make sense
-                                // in an image context
-                                "".into()
-                            }
-                        };
-
-                        // extract extension_type
-                        let ending_tag = link_source.split('.').last();
-                        if let Some(extension) = ending_tag {
-                            if IMAGE_TYPES.contains(extension) {
-                                w!(self, "<figure>\n<img");
-                                self.prop(node);
-                                w!(self, r#" src="{}""#, HtmlEscape(link_source));
-                                // start writing alt (if there are children)
-                                w!(self, r#" alt=""#);
-                                if let Some(children) = &link.description {
-                                    for id in children {
-                                        self.export_rec(id, parser);
-                                    }
-                                } else {
-                                    let alt_text: Cow<str> =
-                                        if let Some(slashed) = link_source.split('/').last() {
-                                            slashed.into()
-                                        } else {
-                                            link_source.into()
-                                        };
-                                    w!(self, "{}", HtmlEscape(alt_text));
-                                }
-                                w!(self, "\">\n</figure>");
-                                return;
-                            }
-                        }
+                if inner.is_image(parser)
+                    && let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj
+                    && inner.is_image(parser)
+                {
+                    w!(self, "<figure>\n");
+                    if let Some(affiliate) = link.caption {
+                        w!(self, "<figcaption>\n");
+                        self.export_rec(&affiliate, parser);
+                        w!(self, "</figcaption>\n");
                     }
+                    self.export_rec(&inner.0[0], parser);
+                    w!(self, "\n</figure>\n");
+                    return;
                 }
+
                 w!(self, "<p");
                 self.prop(node);
                 w!(self, ">");
@@ -559,7 +535,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 // w!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
-                if inner.key.to_ascii_lowercase() == "include" {
+                if inner.key.eq_ignore_ascii_case("include") {
                     w!(self, r#"<div class="org-include""#);
                     self.prop(node);
                     w!(self, ">");
@@ -587,7 +563,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 ",
                     inner.name, inner.contents
                 );
-                let ret = latex_to_mathml(&formatted, DisplayStyle::Block);
+                let ret = latex_to_mathml(formatted, DisplayStyle::Block);
                 // TODO/FIXME: this should be an error
                 w!(
                     self,
@@ -697,6 +673,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 self.prop(node);
                 w!(self, ">\n");
 
+                if let Some(affiliate) = inner.caption {
+                    w!(self, "<caption>\n");
+                    self.export_rec(&affiliate, parser);
+                    w!(self, "</caption>\n");
+                }
                 for id in &inner.children {
                     self.export_rec(id, parser);
                 }
@@ -803,16 +784,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             }
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_id) => {}
-                Affiliated::Caption(id, contents) => {
-                    if let Some(caption_id) = id {
-                        w!(self, "<figure>\n");
-                        self.export_rec(caption_id, parser);
-                        w!(self, "<figcaption>\n");
-                        self.export_rec(contents, parser);
-                        w!(self, "</figcaption>\n");
-                        w!(self, "</figure>\n");
-                        self.nox.insert(*caption_id);
-                    }
+                Affiliated::Caption(contents) => {
+                    // NOTE: table uses <caption>. images use <figcaption>.
+                    // don't want to add complexity to the type to handle these,
+                    // so let the parents handle it
+                    self.export_rec(contents, parser);
                 }
                 Affiliated::Attr { .. } => {}
             },
@@ -908,13 +884,13 @@ impl<'buf> Html<'buf> {
         // get last heading, and check if its title is Footnotes,
         // if so, destroy it
         let heading_query = parser.pool.iter().rev().find(|node| {
-            if let Expr::Heading(head) = &node.obj {
-                if let Some(title) = &head.title {
-                    if title.0 == "Footnotes\n" {
-                        return true;
-                    }
-                }
+            if let Expr::Heading(head) = &node.obj
+                && let Some(title) = &head.title
+                && title.0 == "Footnotes\n"
+            {
+                return true;
             }
+
             false
         });
 
@@ -1359,7 +1335,8 @@ mysterious</div>
             a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
-</figure>"#
+</figure>
+"#
         );
     }
 
@@ -1375,7 +1352,8 @@ mysterious</div>
             a,
             r#"<figure>
 <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
-</figure>"#
+</figure>
+"#
         );
     }
 
@@ -1442,5 +1420,47 @@ here
             html_export(a),
             "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n"
         );
+    }
+
+    #[test]
+    fn link_caption() {
+        let a = r#"
+#+caption: yes
+[[suki.jpg]]
+"#;
+
+        assert_eq!(
+            html_export(a),
+            r#"<figure>
+<figcaption>
+<p> yes</p>
+</figcaption>
+<img src="suki.jpg" alt="suki.jpg">
+</figure>
+"#
+        )
+    }
+
+    #[test]
+    fn tabale_caption() {
+        let a = r#"
+#+caption: i am a table
+|a|b|c
+"#;
+
+        assert_eq!(
+            html_export(a),
+            r#"<table>
+<caption>
+<p> i am a table</p>
+</caption>
+<tr>
+<td>a</td>
+<td>b</td>
+<td>c</td>
+</tr>
+</table>
+"#
+        )
     }
 }

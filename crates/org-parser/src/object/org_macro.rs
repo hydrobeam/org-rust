@@ -244,7 +244,7 @@ mod tests {
             l,
             &MacroCall {
                 name: "poem",
-                args: vec![Cow::Borrowed("cool, three"), ]
+                args: vec![Cow::Borrowed("cool, three"),]
             }
         )
     }
@@ -258,7 +258,7 @@ mod tests {
             l,
             &MacroCall {
                 name: "poem",
-                args: vec![Cow::Borrowed("cool, , , , three"), ]
+                args: vec![Cow::Borrowed("cool, , , , three"),]
             }
         )
     }
