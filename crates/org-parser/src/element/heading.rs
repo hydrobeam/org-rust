@@ -213,7 +213,7 @@ impl<'a> Heading<'a> {
         }
     }
 
-    fn parse_keyword(mut cursor: Cursor) -> Result<Match<&str>> {
+    fn parse_keyword(mut cursor: Cursor<'_>) -> Result<Match<&str>> {
         let start = cursor.index;
         cursor.skip_ws();
 

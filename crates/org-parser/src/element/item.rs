@@ -191,7 +191,7 @@ impl BulletKind {
 }
 
 // - [@4]
-fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
+fn parse_counter_set(mut cursor: Cursor<'_>) -> Result<Match<&str>> {
     let start = cursor.index;
     cursor.skip_ws();
     cursor.word("[@")?;
@@ -233,7 +233,7 @@ fn parse_counter_set(mut cursor: Cursor) -> Result<Match<&str>> {
     })
 }
 
-fn parse_tag(mut cursor: Cursor) -> Result<Match<&str>> {
+fn parse_tag<'a>(mut cursor: Cursor<'a>) -> Result<Match<&'a str>> {
     // - [@A] [X] | our tag is here :: remainder
     let start = cursor.index;
     cursor.curr_valid()?;

@@ -102,11 +102,11 @@ impl<'a> NodePool<'a> {
         target_id
     }
 
-    pub fn get(&self, id: NodeID) -> Option<&'a Node> {
+    pub fn get(&self, id: NodeID) -> Option<&'a Node<'_>> {
         self.inner_vec.get(id.0 as usize)
     }
 
-    pub fn get_mut(&mut self, id: NodeID) -> Option<&'a mut Node> {
+    pub fn get_mut(&mut self, id: NodeID) -> Option<&'a mut Node<'_>> {
         self.inner_vec.get_mut(id.0 as usize)
     }
 

@@ -1897,7 +1897,7 @@ impl<'a> Parseable<'a> for Emoji<'a> {
     }
 }
 
-pub(crate) fn parse_emoji(name: &str) -> Result<Emoji> {
+pub(crate) fn parse_emoji<'a>(name: &'a str) -> Result<Emoji<'a>> {
     if let Some(mapped_item) = EMOJI_MAP.get(name) {
         Ok(Emoji {
             name,

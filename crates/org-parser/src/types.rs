@@ -45,7 +45,7 @@ pub type NodeCache = HashMap<usize, NodeID>;
 
 pub(crate) fn process_attrs<'a>(
     mut cursor: Cursor<'a>,
-) -> Result<(Cursor, HashMap<&'a str, &'a str>)> {
+) -> Result<(Cursor<'a>, HashMap<&'a str, &'a str>)> {
     let mut new_attrs: HashMap<&'a str, &'a str> = HashMap::new();
     loop {
         match cursor.try_curr()? {
