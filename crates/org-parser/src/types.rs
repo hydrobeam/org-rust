@@ -584,7 +584,7 @@ impl<'a> Expr<'a> {
             Expr::PlainList(pl) => Some(&mut pl.children),
             Expr::Item(item) => Some(&mut item.children),
             Expr::Table(inner) => Some(&mut inner.children),
-            Expr::TableRow(ref mut inner) => match inner {
+            Expr::TableRow(inner) => match inner {
                 TableRow::Rule => None,
                 TableRow::Standard(stan) => Some(stan),
             },
