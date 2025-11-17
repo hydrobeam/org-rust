@@ -1,7 +1,7 @@
 import { Parser, Tree, Input, PartialParse, TreeFragment, NodeSet, NodeType } from "@lezer/common";
 import { defineLanguageFacet, Language, languageDataProp } from "@codemirror/language";
 
-import { syntaxable_entites } from "./pkg"
+import { syntaxable_entites } from "./pkg/org_wasm"
 import { styleTags, tags } from "@lezer/highlight";
 
 export class ParserAdapter extends Parser {
