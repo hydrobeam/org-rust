@@ -420,8 +420,9 @@ pub(crate) fn parse_angle_link<'a>(
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::element::Affiliated;
     use crate::expr_in_pool;
-    use crate::object::PlainLink;
+    use crate::object::{PlainLink, RegularLink};
     use crate::parse_org;
     use crate::types::Expr;
 
@@ -581,5 +582,27 @@ I'll be skipping over the instrumentals unless there's reason to.
 
         let pool = parse_org(input);
         pool.print_tree();
+    }
+
+    #[test]
+    fn caption_link() {
+        let input = r"
+#+caption: sing song
+[[heathers.jpg]]
+
+";
+
+        let parser = parse_org(input);
+        let image_link = expr_in_pool!(parser, RegularLink).unwrap();
+        if let Some(cap_id) = image_link.caption
+            && let Expr::Affiliated(Affiliated::Caption(aff)) = &parser.pool[cap_id].obj
+            && let Expr::Paragraph(par) = &parser.pool[*aff].obj
+            && let Expr::Plain(text) = parser.pool[par.0[0]].obj
+        {
+            // REVIEW: does the cap need to be trimmed
+            assert_eq!(text, " sing song");
+        } else {
+            panic!()
+        };
     }
 }

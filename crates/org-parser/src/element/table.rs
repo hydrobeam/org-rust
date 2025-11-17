@@ -138,7 +138,7 @@ impl<'a> Parseable<'a> for TableRow {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Expr, expr_in_pool, parse_org};
+    use crate::{Expr, element::Affiliated, expr_in_pool, parse_org};
 
     #[test]
     fn basic_table() {
@@ -282,5 +282,26 @@ word
         let pool = parse_org(input);
         let tab = expr_in_pool!(pool, Table).unwrap();
         assert_eq!(tab.rows, 1);
+    }
+
+    #[test]
+    fn table_caption() {
+        let input = r"
+#+caption: i am a table
+|a|b|c
+
+";
+
+        let parser = parse_org(input);
+        let image_link = expr_in_pool!(parser, Table).unwrap();
+        if let Some(cap_id) = image_link.caption
+            && let Expr::Affiliated(Affiliated::Caption(aff)) = &parser.pool[cap_id].obj
+            && let Expr::Paragraph(par) = &parser.pool[*aff].obj
+            && let Expr::Plain(text) = parser.pool[par.0[0]].obj
+        {
+            assert_eq!(text, " i am a table");
+        } else {
+            panic!()
+        };
     }
 }

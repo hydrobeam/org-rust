@@ -446,7 +446,9 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 {
                     w!(self, "<figure>\n");
                     if let Some(affiliate) = link.caption {
+                        w!(self, "<figcaption>\n");
                         self.export_rec(&affiliate, parser);
+                        w!(self, "</figcaption>\n");
                     }
                     self.export_rec(&inner.0[0], parser);
                     w!(self, "\n</figure>\n");
@@ -671,6 +673,11 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 self.prop(node);
                 w!(self, ">\n");
 
+                if let Some(affiliate) = inner.caption {
+                    w!(self, "<caption>\n");
+                    self.export_rec(&affiliate, parser);
+                    w!(self, "</caption>\n");
+                }
                 for id in &inner.children {
                     self.export_rec(id, parser);
                 }
@@ -778,9 +785,10 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_id) => {}
                 Affiliated::Caption(contents) => {
-                    w!(self, "<figcaption>\n");
+                    // NOTE: table uses <caption>. images use <figcaption>.
+                    // don't want to add complexity to the type to handle these,
+                    // so let the parents handle it
                     self.export_rec(contents, parser);
-                    w!(self, "</figcaption>\n");
                 }
                 Affiliated::Attr { .. } => {}
             },
@@ -1327,7 +1335,8 @@ mysterious</div>
             a,
             r#"<figure>
 <img src="bmc.jpg" alt="bmc.jpg">
-</figure>"#
+</figure>
+"#
         );
     }
 
@@ -1343,7 +1352,8 @@ mysterious</div>
             a,
             r#"<figure>
 <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
-</figure>"#
+</figure>
+"#
         );
     }
 
@@ -1413,7 +1423,7 @@ here
     }
 
     #[test]
-    fn caption_with_child() {
+    fn link_caption() {
         let a = r#"
 #+caption: yes
 [[suki.jpg]]
@@ -1427,6 +1437,29 @@ here
 </figcaption>
 <img src="suki.jpg" alt="suki.jpg">
 </figure>
+"#
+        )
+    }
+
+    #[test]
+    fn tabale_caption() {
+        let a = r#"
+#+caption: i am a table
+|a|b|c
+"#;
+
+        assert_eq!(
+            html_export(a),
+            r#"<table>
+<caption>
+<p> i am a table</p>
+</caption>
+<tr>
+<td>a</td>
+<td>b</td>
+<td>c</td>
+</tr>
+</table>
 "#
         )
     }
