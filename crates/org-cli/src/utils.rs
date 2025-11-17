@@ -60,10 +60,7 @@ pub fn relative_path_from<'a, 'b>(
             .map_err(|e| {
                 CliError::from(e)
                     .with_path(&src.parent().unwrap().join(added))
-                    .with_cause(&format!(
-                        "Failed to locate path from: {}",
-                        src.display()
-                    ))
+                    .with_cause(&format!("Failed to locate path from: {}", src.display()))
             })?
             .into())
     } else {

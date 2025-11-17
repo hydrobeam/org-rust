@@ -1,15 +1,15 @@
+use org_parser::Parser;
 use org_parser::element::{ArgNumOrText, MacroDef};
 use org_parser::object::MacroCall;
-use org_parser::Parser;
 use std::borrow::Cow;
 use std::fs::read_to_string;
 use std::path::Path;
 
 use thiserror::Error;
 
+use crate::ConfigOptions;
 use crate::types::FileError;
 use crate::utils::keyword_lookup;
-use crate::ConfigOptions;
 
 pub(crate) fn macro_handle<'a>(
     parser: &'a Parser,

@@ -1,7 +1,7 @@
 use anyhow::bail;
 use org_exporter::ConfigOptions;
-use std::fs::{self, read_to_string, OpenOptions};
-use std::io::{stdout, BufWriter, Read, Write};
+use std::fs::{self, OpenOptions, read_to_string};
+use std::io::{BufWriter, Read, Write, stdout};
 use std::path::{Path, PathBuf};
 use template::Template;
 use types::{CliError, InpType, OutType};

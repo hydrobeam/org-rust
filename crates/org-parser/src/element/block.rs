@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::node_pool::NodeID;
 use crate::parse::parse_element;
-use crate::types::{process_attrs, Cursor, MatchError, ParseOpts, Parseable, Parser, Result};
+use crate::types::{Cursor, MatchError, ParseOpts, Parseable, Parser, Result, process_attrs};
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
 

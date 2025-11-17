@@ -9,9 +9,9 @@ use crate::element::{
     Table,
 };
 use crate::object::{
-    parse_angle_link, parse_plain_link, Bold, Code, Emoji, ExportSnippet, FootnoteRef, InlineSrc,
-    Italic, LatexFragment, MacroCall, RegularLink, StrikeThrough, Subscript, Superscript, Target,
-    Underline, Verbatim,
+    Bold, Code, Emoji, ExportSnippet, FootnoteRef, InlineSrc, Italic, LatexFragment, MacroCall,
+    RegularLink, StrikeThrough, Subscript, Superscript, Target, Underline, Verbatim,
+    parse_angle_link, parse_plain_link,
 };
 use crate::types::{Cursor, Expr, MarkupKind, MatchError, ParseOpts, Parseable, Parser, Result};
 use crate::utils::verify_markup;
@@ -421,6 +421,6 @@ mod tests {
         let src = "   ";
         let parsed = parse_org(src);
         let plain = expr_in_pool!(parsed, Plain).unwrap();
-        assert_eq!(plain, &"   " );
+        assert_eq!(plain, &"   ");
     }
 }

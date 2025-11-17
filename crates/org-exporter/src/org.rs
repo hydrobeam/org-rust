@@ -2,14 +2,14 @@ use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Write;
 
+use crate::ExportError;
 use crate::include::include_handle;
 use crate::org_macros::macro_handle;
 use crate::types::{ConfigOptions, Exporter, ExporterInner, LogicErrorKind};
-use crate::ExportError;
 use org_parser::element::{Block, BulletKind, CounterKind, Priority, TableRow, Tag};
 use org_parser::object::{LatexFragment, PlainOrRec};
 
-use org_parser::{parse_org, Expr, NodeID, Parser};
+use org_parser::{Expr, NodeID, Parser, parse_org};
 
 /// Org-Mode Content Exporter
 ///

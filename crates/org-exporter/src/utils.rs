@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::rc::Rc;
 
-use org_parser::{element::Heading, NodeID, Parser};
+use org_parser::{NodeID, Parser, element::Heading};
 
 pub(crate) fn keyword_lookup<'a>(parser: &'a Parser, name: &'a str) -> Option<&'a str> {
     parser.keywords.get(name).copied()
@@ -181,7 +181,8 @@ ul {
 
 "#,
             ConfigOptions::default(),
-        ).unwrap();
+        )
+        .unwrap();
         println!("{a}");
         Ok(())
     }

@@ -367,16 +367,25 @@ mod tests {
         let input = "1. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(1))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Number(1))
+        ));
 
         let input = "17. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Number(17))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Number(17))
+        ));
 
         let input = "a. ";
         let ret = parse_org(input);
         let item = expr_in_pool!(ret, Item).unwrap();
-        assert!(matches!(item.bullet, BulletKind::Ordered(CounterKind::Letter(b'a'))));
+        assert!(matches!(
+            item.bullet,
+            BulletKind::Ordered(CounterKind::Letter(b'a'))
+        ));
     }
 }
