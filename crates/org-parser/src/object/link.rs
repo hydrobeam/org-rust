@@ -137,7 +137,7 @@ impl<'a> PathReg<'a> {
             cursor.next();
         }
 
-        return Ok(cursor.clamp_backwards(begin_id));
+        Ok(cursor.clamp_backwards(begin_id))
     }
 
     fn parse_file(mut cursor: Cursor<'a>) -> Result<&'a str> {
@@ -148,7 +148,7 @@ impl<'a> PathReg<'a> {
             cursor.next();
         }
 
-        return Ok(cursor.clamp_backwards(begin_id));
+        Ok(cursor.clamp_backwards(begin_id))
     }
 }
 
@@ -296,11 +296,12 @@ impl RegularLink<'_> {
 // Word-constituent characters are letters, digits, and the underscore.
 // source: https://www.gnu.org/software/grep/manual/grep.html
 pub(crate) fn parse_plain_link(mut cursor: Cursor<'_>) -> Result<Match<PlainLink<'_>>> {
-    if let Ok(pre_byte) = cursor.peek_rev(1) {
-        if pre_byte.is_ascii_alphanumeric() {
-            return Err(MatchError::InvalidLogic);
-        }
+    if let Ok(pre_byte) = cursor.peek_rev(1)
+        && pre_byte.is_ascii_alphanumeric()
+    {
+        return Err(MatchError::InvalidLogic);
     }
+
     let start = cursor.index;
 
     for (i, &protocol) in ORG_LINK_PARAMETERS.iter().enumerate() {

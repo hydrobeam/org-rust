@@ -4,7 +4,7 @@
 
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use latex2mathml::{DisplayStyle, latex_to_mathml};
@@ -72,7 +72,7 @@ pub(crate) struct HtmlEscape<S: AsRef<str>>(pub S);
 // TODO this is not appropriate for certain things (can break). i can't rememmber them atm
 // but you need to escape  more for certain stuff, it would be easier to just not use two separate htmlescapes
 // REVIEW: jetscii
-impl<'a, S: AsRef<str>> fmt::Display for HtmlEscape<S> {
+impl<S: AsRef<str>> fmt::Display for HtmlEscape<S> {
     // design based on:
     // https://lise-henry.github.io/articles/optimising_strings.html
     // we can iterate over bytes since it's not possible for
@@ -136,13 +136,14 @@ impl<'buf> Exporter<'buf> for Html<'buf> {
             errors: Vec::new(),
         };
 
-        if let Ok(opts) = Options::handle_opts(parsed) {
-            if let Ok(tocs) = process_toc(parsed, &opts) {
-                handle_toc(parsed, &mut obj, &tocs);
-            }
+        if let Ok(opts) = Options::handle_opts(parsed)
+            && let Ok(tocs) = process_toc(parsed, &opts)
+        {
+            handle_toc(parsed, &mut obj, &tocs);
         }
-        obj.export_rec(&parsed.pool.root_id(), &parsed);
-        obj.exp_footnotes(&parsed);
+
+        obj.export_rec(&parsed.pool.root_id(), parsed);
+        obj.exp_footnotes(parsed);
 
         if obj.errors().is_empty() {
             Ok(())
@@ -166,7 +167,7 @@ fn handle_toc<'a, T: fmt::Write + ExporterInner<'a>>(
     );
     w!(writer, "<ul>");
     for toc in tocs {
-        toc_rec(&parsed, writer, toc, 1);
+        toc_rec(parsed, writer, toc, 1);
     }
     w!(writer, "</ul>");
     w!(writer, r#"</div></nav>"#);
@@ -181,7 +182,7 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
     w!(writer, "<li>");
     if curr_level < parent.level {
         w!(writer, "<ul>");
-        toc_rec(&parser, writer, parent, curr_level + 1);
+        toc_rec(parser, writer, parent, curr_level + 1);
         w!(writer, "</ul>");
     } else {
         w!(writer, r#"<a href=#{}>"#, parent.target);
@@ -192,7 +193,7 @@ fn toc_rec<'a, T: fmt::Write + ExporterInner<'a>>(
         if !parent.children.is_empty() {
             w!(writer, "<ul>");
             for child in &parent.children {
-                toc_rec(&parser, writer, child, curr_level + 1);
+                toc_rec(parser, writer, child, curr_level + 1);
             }
             w!(writer, "</ul>");
         }
@@ -416,12 +417,12 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             self.export_rec(id, parser);
                         }
                     } else {
-                        let alt_text: Cow<str> = if let Some(slashed) = path_link.split('/').last()
-                        {
-                            slashed.into()
-                        } else {
-                            path_link.into()
-                        };
+                        let alt_text: Cow<str> =
+                            if let Some(slashed) = path_link.split('/').next_back() {
+                                slashed.into()
+                            } else {
+                                path_link.into()
+                            };
                         w!(self, "{}", HtmlEscape(alt_text));
                     }
                     w!(self, r#"">"#)
@@ -439,18 +440,17 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
             }
 
             Expr::Paragraph(inner) => {
-                if inner.is_image(parser) {
-                    if let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj {
-                        if inner.is_image(&parser) {
-                            w!(self, "<figure>\n");
-                            if let Some(affiliate) = link.caption {
-                                self.export_rec(&affiliate, parser);
-                            }
-                            self.export_rec(&inner.0[0], parser);
-                            w!(self, "\n</figure>\n");
-                            return;
-                        }
+                if inner.is_image(parser)
+                    && let Expr::RegularLink(link) = &parser.pool[inner.0[0]].obj
+                    && inner.is_image(parser)
+                {
+                    w!(self, "<figure>\n");
+                    if let Some(affiliate) = link.caption {
+                        self.export_rec(&affiliate, parser);
                     }
+                    self.export_rec(&inner.0[0], parser);
+                    w!(self, "\n</figure>\n");
+                    return;
                 }
 
                 w!(self, "<p");
@@ -533,7 +533,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                 // w!(self, "{{{}}}", inner.body)?;
             }
             Expr::Keyword(inner) => {
-                if inner.key.to_ascii_lowercase() == "include" {
+                if inner.key.eq_ignore_ascii_case("include") {
                     w!(self, r#"<div class="org-include""#);
                     self.prop(node);
                     w!(self, ">");
@@ -561,7 +561,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
 ",
                     inner.name, inner.contents
                 );
-                let ret = latex_to_mathml(&formatted, DisplayStyle::Block);
+                let ret = latex_to_mathml(formatted, DisplayStyle::Block);
                 // TODO/FIXME: this should be an error
                 w!(
                     self,
@@ -876,13 +876,13 @@ impl<'buf> Html<'buf> {
         // get last heading, and check if its title is Footnotes,
         // if so, destroy it
         let heading_query = parser.pool.iter().rev().find(|node| {
-            if let Expr::Heading(head) = &node.obj {
-                if let Some(title) = &head.title {
-                    if title.0 == "Footnotes\n" {
-                        return true;
-                    }
-                }
+            if let Expr::Heading(head) = &node.obj
+                && let Some(title) = &head.title
+                && title.0 == "Footnotes\n"
+            {
+                return true;
             }
+
             false
         });
 

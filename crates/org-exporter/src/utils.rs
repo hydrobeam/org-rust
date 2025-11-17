@@ -23,18 +23,15 @@ impl Options {
             let ret = options.split_ascii_whitespace();
             let mut toc = None;
             for optpair in ret {
-                if let Some((opt, val)) = optpair.split_once(':') {
-                    match opt {
-                        "toc" => {
-                            toc = if val == "nil" {
-                                None
-                            } else if let Ok(num) = val.parse::<u8>() {
-                                Some(num)
-                            } else {
-                                Some(6)
-                            };
-                        }
-                        _ => {}
+                if let Some(("toc", val)) = optpair.split_once(':') {
+                    {
+                        toc = if val == "nil" {
+                            None
+                        } else if let Ok(num) = val.parse::<u8>() {
+                            Some(num)
+                        } else {
+                            Some(6)
+                        };
                     }
                 }
             }
@@ -66,22 +63,21 @@ pub(crate) fn process_toc<'a>(
 
     for sub_id in parser.pool[parser.pool.root_id()].obj.children().unwrap() {
         let node = &parser.pool[*sub_id];
-        if let org_parser::Expr::Heading(heading) = &node.obj {
-            if global_toc_level >= heading.heading_level.into() {
-                if let Some(properties) = &heading.properties {
-                    if let Some(val) = properties.get("unnumbered") {
-                        if val == "notoc" {
-                            continue;
-                        }
-                    }
-                }
-                tocs.push(handle_babies(
-                    parser,
-                    heading,
-                    node.id_target.clone(),
-                    global_toc_level,
-                ));
+        if let org_parser::Expr::Heading(heading) = &node.obj
+            && global_toc_level >= heading.heading_level.into()
+        {
+            if let Some(properties) = &heading.properties
+                && let Some(val) = properties.get("unnumbered")
+                && val == "notoc"
+            {
+                continue;
             }
+            tocs.push(handle_babies(
+                parser,
+                heading,
+                node.id_target.clone(),
+                global_toc_level,
+            ));
         }
     }
 
@@ -113,29 +109,28 @@ fn handle_babies<'a>(
     if let Some(childs) = &heading.children {
         for child in childs {
             let node = &p.pool[*child];
-            if let org_parser::Expr::Heading(heading) = &node.obj {
-                if global_toc_level >= heading.heading_level.into() {
-                    if let Some(properties) = &heading.properties {
-                        if let Some(val) = properties.get("unnumbered") {
-                            if val == "notoc" {
-                                continue;
-                            }
-                        }
-                    }
-                    children_vec.push(handle_babies(
-                        p,
-                        &heading,
-                        node.id_target.clone(),
-                        global_toc_level,
-                    ));
+            if let org_parser::Expr::Heading(heading) = &node.obj
+                && global_toc_level >= heading.heading_level.into()
+            {
+                if let Some(properties) = &heading.properties
+                    && let Some(val) = properties.get("unnumbered")
+                    && val == "notoc"
+                {
+                    continue;
                 }
+                children_vec.push(handle_babies(
+                    p,
+                    heading,
+                    node.id_target.clone(),
+                    global_toc_level,
+                ));
             }
         }
     }
 
     TocItem {
         name: if let Some((_, node_ids)) = &heading.title {
-            &node_ids
+            node_ids
         } else {
             &[]
         },

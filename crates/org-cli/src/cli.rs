@@ -39,8 +39,9 @@ pub struct Cli {
     pub verbose: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Deserialize, Default)]
 pub enum Backend {
+    #[default]
     Html,
     Org,
 }
@@ -63,11 +64,5 @@ impl Backend {
             Backend::Html => "html",
             Backend::Org => "org",
         }
-    }
-}
-
-impl Default for Backend {
-    fn default() -> Self {
-        Backend::Html
     }
 }

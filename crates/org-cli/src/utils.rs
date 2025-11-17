@@ -43,10 +43,7 @@ pub fn mkdir_recursively(path: &Path) -> Result<(), CliError> {
     })
 }
 
-pub fn relative_path_from<'a, 'b>(
-    src: &'a Path,
-    added: &'b Path,
-) -> Result<Cow<'b, Path>, CliError> {
+pub fn relative_path_from<'b>(src: &Path, added: &'b Path) -> Result<Cow<'b, Path>, CliError> {
     if added.is_relative() {
         Ok(src
             .parent()

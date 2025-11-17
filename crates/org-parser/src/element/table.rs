@@ -103,15 +103,15 @@ impl<'a> Parseable<'a> for TableRow {
 
         // implies horizontal rule
         // |-
-        if let Ok(val) = cursor.try_curr() {
-            if val == HYPHEN {
-                // adv_till_byte handles eof
-                cursor.adv_till_byte(b'\n');
-                // cursor.index + 1 to start at the next | on the next line
-                return Ok(parser
-                    .pool
-                    .alloc(Self::Rule, start, cursor.index + 1, parent));
-            }
+        if let Ok(val) = cursor.try_curr()
+            && val == HYPHEN
+        {
+            // adv_till_byte handles eof
+            cursor.adv_till_byte(b'\n');
+            // cursor.index + 1 to start at the next | on the next line
+            return Ok(parser
+                .pool
+                .alloc(Self::Rule, start, cursor.index + 1, parent));
         }
 
         let mut children: Vec<NodeID> = Vec::new();

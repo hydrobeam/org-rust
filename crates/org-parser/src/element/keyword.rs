@@ -106,7 +106,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
                 let prev = cursor.index;
                 cursor.adv_till_byte(NEWLINE);
                 // not mentioned in the spec, but org-element trims
-                let val = bytes_to_str(&cursor.byte_arr[prev..cursor.index].trim_ascii());
+                let val = bytes_to_str(cursor.byte_arr[prev..cursor.index].trim_ascii());
 
                 cursor.next();
                 let end_index = cursor.index;
@@ -166,7 +166,7 @@ impl<'a> Parseable<'a> for Keyword<'a> {
 
                     // inspection phase
                     let operation = match &parser.pool[c_id].obj {
-                        Expr::Paragraph(par) if par.is_image(&parser) => {
+                        Expr::Paragraph(par) if par.is_image(parser) => {
                             Operation::CaptionImage(par.0[0])
                         }
                         Expr::Table(_) => Operation::Table,

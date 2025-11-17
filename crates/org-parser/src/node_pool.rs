@@ -121,7 +121,7 @@ impl<'a> NodePool<'a> {
         NodeID(old_counter)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Node<'a>> + DoubleEndedIterator<Item = &Node<'a>> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Node<'a>> {
         self.inner_vec.iter()
     }
 

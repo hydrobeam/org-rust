@@ -9,9 +9,8 @@ use utils::{mkdir_recursively, relative_path_from};
 
 use clap::Parser;
 
-mod template;
-use crate::cli::Backend;
 mod cli;
+mod template;
 mod types;
 mod utils;
 
@@ -45,12 +44,12 @@ fn run() -> anyhow::Result<()> {
         None => config_params.backend,
         r => r,
     };
-    let output_path = if cli_params.output == "" {
+    let output_path = if cli_params.output.is_empty() {
         config_params.output
     } else {
         cli_params.output
     };
-    let input_path = if cli_params.input == "" {
+    let input_path = if cli_params.input.is_empty() {
         config_params.input
     } else {
         cli_params.input
@@ -62,10 +61,7 @@ fn run() -> anyhow::Result<()> {
         config_params.verbose
     };
 
-    let backend = match backend {
-        Some(b) => b,
-        None => Backend::default(),
-    };
+    let backend = backend.unwrap_or_default();
 
     let f = Path::new(&input_path);
     if !f.exists() {
@@ -129,11 +125,11 @@ fn run() -> anyhow::Result<()> {
     // main loop to export files
     for file_path in &paths {
         if verbose {
-            writeln!(stdout, "input: {}", file_path.display()).map_err(|e| CliError::from(e))?;
+            writeln!(stdout, "input: {}", file_path.display()).map_err(CliError::from)?;
         }
         if file_path.extension().is_some_and(|x| x == "org") {
             let mut input_file = std::fs::File::open(file_path)
-                .map_err(|e| CliError::from(e).with_path(&file_path))?;
+                .map_err(|e| CliError::from(e).with_path(file_path))?;
             let _num_bytes = input_file.read_to_string(&mut file_contents).map_err(|e| {
                 CliError::from(e)
                     .with_path(file_path)
@@ -165,7 +161,7 @@ fn run() -> anyhow::Result<()> {
                 let mut build_str = String::new();
                 for e in err_vec {
                     build_str.push_str(&e.to_string());
-                    build_str.push_str("\n");
+                    build_str.push('\n');
                 }
                 Err(CliError::new().with_cause(&build_str))?
             }
@@ -192,7 +188,7 @@ fn run() -> anyhow::Result<()> {
             // the destination we are writing to
             let mut full_output_path: PathBuf;
             match dest {
-                OutType::File(ref output_file) => {
+                OutType::File(output_file) => {
                     full_output_path = output_file.to_path_buf();
                 }
                 OutType::Dir(dest_path) => {
@@ -210,7 +206,7 @@ fn run() -> anyhow::Result<()> {
                 }
             }
 
-            mkdir_recursively(&full_output_path.parent().unwrap())?;
+            mkdir_recursively(full_output_path.parent().unwrap())?;
             // truncate is needed to fully overwrite file contents
             OpenOptions::new()
                 .create(true)
@@ -222,7 +218,7 @@ fn run() -> anyhow::Result<()> {
                         .with_path(&full_output_path)
                         .with_cause("error in writing to destination file")
                 })?
-                .write(exported_content.as_bytes())?;
+                .write_all(exported_content.as_bytes())?;
 
             if verbose {
                 writeln!(
@@ -257,12 +253,12 @@ fn run() -> anyhow::Result<()> {
                             " -- symlinked: {}\n",
                             &full_output_path.canonicalize()?.display()
                         )
-                        .map_err(|e| CliError::from(e))?;
+                        .map_err(CliError::from)?;
                     }
                 } else {
                     fs::copy(file_path, &full_output_path).map_err(|e| {
                         CliError::from(e)
-                            .with_path(&file_path)
+                            .with_path(file_path)
                             .with_cause("error in copying file to destination")
                     })?;
                     if verbose {
@@ -271,7 +267,7 @@ fn run() -> anyhow::Result<()> {
                             " -- copied: {}\n",
                             &full_output_path.canonicalize()?.display()
                         )
-                        .map_err(|e| CliError::from(e))?;
+                        .map_err(CliError::from)?;
                     }
                 }
             }

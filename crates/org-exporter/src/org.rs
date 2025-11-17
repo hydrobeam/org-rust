@@ -61,7 +61,7 @@ impl<'buf> Exporter<'buf> for Org<'buf> {
             errors: Vec::new(),
         };
 
-        obj.export_rec(&parsed.pool.root_id(), &parsed);
+        obj.export_rec(&parsed.pool.root_id(), parsed);
 
         if obj.errors().is_empty() {
             Ok(())
@@ -75,7 +75,7 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
     fn export_macro_buf<'inp, T: fmt::Write>(
         input: &'inp str,
         buf: &'buf mut T,
-        conf: ConfigOptions,
+        _conf: ConfigOptions,
     ) -> core::result::Result<(), Vec<ExportError>> {
         let parsed = org_parser::parse_macro_call(input);
 
@@ -359,14 +359,13 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                 w!(self, "{{{}}}", inner.body);
             }
             Expr::Keyword(inner) => {
-                if inner.key.to_ascii_lowercase() == "include" {
-                    if let Err(e) = include_handle(inner.val, self) {
-                        self.errors().push(ExportError::LogicError {
-                            span: node.start..node.end,
-                            source: LogicErrorKind::Include(e),
-                        });
-                        return;
-                    }
+                if inner.key.eq_ignore_ascii_case("include")
+                    && let Err(e) = include_handle(inner.val, self)
+                {
+                    self.errors().push(ExportError::LogicError {
+                        span: node.start..node.end,
+                        source: LogicErrorKind::Include(e),
+                    });
                 }
             }
             Expr::LatexEnv(inner) => {
@@ -601,7 +600,6 @@ impl<'buf> ExporterInner<'buf> for Org<'buf> {
                             Org::export_macro_buf(&p, self, self.config_opts().clone())
                         {
                             self.errors().append(&mut err_vec);
-                            return;
                         }
                     }
                     Cow::Borrowed(r) => {

@@ -51,11 +51,11 @@ pub(crate) struct InclParams<'a> {
     /// parsed as org.
     block: Option<IncludeBlock<'a>>,
     // TODO
-    only_contents: bool,
+    _only_contents: bool,
     /// A range of lines from the file that will be included
     lines: Option<Range<usize>>,
     // TODO
-    min_level: Option<HeadingLevel>,
+    _min_level: Option<HeadingLevel>,
 }
 
 impl<'a> InclParams<'a> {
@@ -77,10 +77,9 @@ impl<'a> InclParams<'a> {
             provided_path = Path::new(file_chunk);
         }
 
-        let block: Option<IncludeBlock>;
         let is_not_kwarg = |x: &&str| !x.starts_with(':');
 
-        block = if let Some(potential_block) = params.next_if(is_not_kwarg) {
+        let block:  Option<IncludeBlock> = if let Some(potential_block) = params.next_if(is_not_kwarg) {
             Some(match potential_block {
                 "example" => IncludeBlock::Example,
                 "export" => {
@@ -126,23 +125,20 @@ impl<'a> InclParams<'a> {
                 }
                 ":lines" => {
                     if let Some(not_kwarg) = params.next_if(is_not_kwarg) {
-                        let start: usize;
-                        let end: usize;
-
                         let hyphen_ind = not_kwarg.find('-').ok_or(IncludeError::InvalidSyntax(
                             "Lines pattern does not contain '-'".into(),
                         ))?;
 
-                        start = if hyphen_ind == 0 {
+                        let start = if hyphen_ind == 0 {
                             0
                         } else {
-                            usize::from_str_radix(&not_kwarg[..hyphen_ind], 10)?
+                            not_kwarg[..hyphen_ind].parse()?
                         };
 
-                        end = if hyphen_ind == (not_kwarg.len() - 1) {
+                        let end = if hyphen_ind == (not_kwarg.len() - 1) {
                             usize::MAX
                         } else {
-                            usize::from_str_radix(&not_kwarg[(hyphen_ind + 1)..], 10)?
+                            not_kwarg[(hyphen_ind + 1)..].parse()?
                         };
 
                         lines = Some(Range { start, end });
@@ -170,9 +166,9 @@ impl<'a> InclParams<'a> {
         Ok(Self {
             file: provided_path,
             block,
-            only_contents,
+            _only_contents: only_contents,
             lines,
-            min_level,
+            _min_level: min_level,
         })
     }
 }
@@ -219,7 +215,6 @@ pub(crate) fn include_handle<'a>(
     }
 
     let feed_str;
-    let parsed;
 
     // goal: create a string that can be parsed into our desired org object
     // HACK: for blocks, this involves wrapping the file in a #+begin_X to be interpreted literally
@@ -274,7 +269,7 @@ pub(crate) fn include_handle<'a>(
     // TODO: minlevel
     // TODO: only-contents
 
-    parsed = parse_org(&feed_str);
+    let parsed = parse_org(&feed_str);
     // TODO/FIXME: expose these errors
     writer.export_rec(&parsed.pool.root_id(), &parsed);
 
