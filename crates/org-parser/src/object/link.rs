@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use phf::phf_set;
+
 use crate::constants::{
     BACKSLASH, COLON, HYPHEN, LANGLE, LBRACK, LPAREN, POUND, RANGLE, RBRACK, RPAREN, SLASH,
 };
@@ -13,6 +15,16 @@ const ORG_LINK_PARAMETERS: [&str; 9] = [
     "shell", "news", "mailto", "https", "http", "ftp", "help", "file", "elisp",
 ];
 
+// file types we can wrap an `img` around
+static IMAGE_TYPES: phf::Set<&str> = phf_set! {
+    "jpeg",
+    "jpg",
+    "png",
+    "gif",
+    "svg",
+    "webp",
+};
+
 #[derive(Debug, Clone)]
 pub struct RegularLink<'a> {
     pub path: Match<PathReg<'a>>,
@@ -22,6 +34,9 @@ pub struct RegularLink<'a> {
     // It can also contain another link, but only when it is a plain or angle link.
     // It can contain square brackets, so long as they are balanced.
     pub description: Option<Vec<NodeID>>,
+    // Captions will be filled in later. affiliated keywords are defined first, so the caption
+    // checks if the child is a link and then sticks it in
+    pub caption: Option<NodeID>,
 }
 
 impl Display for PathReg<'_> {
@@ -203,6 +218,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                                         Self {
                                             path: pathreg,
                                             description: Some(content_vec),
+                                            caption: None,
                                         },
                                         start,
                                         cursor.index + 2, // link end is 2 bytes long
@@ -227,6 +243,7 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
                             Self {
                                 path: pathreg,
                                 description: None,
+                                caption: None,
                             },
                             start,
                             cursor.index + 2,
@@ -240,6 +257,25 @@ impl<'a> Parseable<'a> for RegularLink<'a> {
             }
             cursor.next();
         }
+    }
+}
+
+impl RegularLink<'_> {
+    pub fn is_image(&self, parser: &Parser) -> bool {
+        let link_source: &str = match &self.path.obj {
+            PathReg::Unspecified(inner) => inner,
+            PathReg::File(inner) => inner,
+            PathReg::PlainLink(inner) => &inner.path,
+            _ => {
+                // HACK: we just want to jump outta here, everything else doesnt make sense
+                // in an image context
+                ""
+            }
+        };
+        link_source
+            .rsplit_once('.') // extract extension_type
+            .map(|(_, ext)| ext)
+            .is_some_and(|ext| IMAGE_TYPES.contains(ext))
     }
 }
 

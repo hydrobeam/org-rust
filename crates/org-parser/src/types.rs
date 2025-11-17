@@ -9,7 +9,7 @@ use crate::constants::{
 use crate::element::*;
 use crate::node_pool::{NodeID, NodePool};
 use crate::object::*;
-use crate::utils::{bytes_to_str, id_escape, Match};
+use crate::utils::{Match, bytes_to_str, id_escape};
 use bitflags::bitflags;
 
 pub(crate) type Result<T> = std::result::Result<T, MatchError>;
@@ -815,9 +815,9 @@ impl<'a> Expr<'a> {
             Expr::ExportSnippet(inner) => print!("{inner:#?}"),
             Expr::Affiliated(inner) => match inner {
                 Affiliated::Name(_) => print!("{inner:#?}"),
-                Affiliated::Caption(i1, i2) => {
+                Affiliated::Caption(i1) => {
                     // pool[i1.unwrap()].obj.print_tree(pool);
-                    pool[*i2].obj.print_tree(pool);
+                    pool[*i1].obj.print_tree(pool);
                 }
                 Affiliated::Attr {
                     child_id,

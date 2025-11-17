@@ -12,6 +12,7 @@ pub struct Table {
     pub rows: usize,
     pub cols: usize,
     pub children: Vec<NodeID>,
+    pub caption: Option<NodeID>, // will be filled by parent caption if exists
 }
 
 /// A row of a [`Table`] consisting of [`TableCell`]s or a [`TableRow::Rule`].
@@ -69,6 +70,7 @@ impl<'a> Parseable<'a> for Table {
                 rows,
                 cols,
                 children,
+                caption: None,
             },
             start,
             cursor.index,
@@ -136,7 +138,7 @@ impl<'a> Parseable<'a> for TableRow {
 
 #[cfg(test)]
 mod tests {
-    use crate::{expr_in_pool, parse_org, Expr};
+    use crate::{Expr, expr_in_pool, parse_org};
 
     #[test]
     fn basic_table() {
