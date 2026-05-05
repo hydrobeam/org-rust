@@ -52,7 +52,11 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                 // TODO: handle abc(1\\,) case (escaping backslash used to escape comam)
                 let mut join_prev = false;
 
+                // handle nested parens {{{i(things (inside things) other things)}}}
+                let mut paren_nesting = 0;
+
                 loop {
+                    // cursor.next() at the end
                     match cursor.try_curr()? {
                         NEWLINE => {
                             parse_opts.from_paragraph = true;
@@ -69,7 +73,16 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                                 return Err(MatchError::InvalidLogic);
                             }
                         }
+                        LPAREN => {
+                            paren_nesting += 1;
+                        }
                         RPAREN => {
+                            if paren_nesting > 0 {
+                                paren_nesting -= 1;
+                                cursor.next();
+                                continue;
+                            }
+
                             if join_prev {
                                 if let Cow::Owned(a) = arg_vec.last_mut().unwrap() {
                                     a.push_str(cursor.clamp_backwards(prev_ind));
@@ -259,6 +272,21 @@ mod tests {
             &MacroCall {
                 name: "poem",
                 args: vec![Cow::Borrowed("cool, , , , three"),]
+            }
+        )
+    }
+
+    #[test]
+    fn macro_nested_params() {
+        let input = r"{{{i(things (inside things) other things)}}}";
+        let parsed = parse_org(input);
+        dbg!(&parsed);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "i",
+                args: vec![Cow::Borrowed("things (inside things) other things"),]
             }
         )
     }
