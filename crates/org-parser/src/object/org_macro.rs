@@ -52,9 +52,6 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                 // TODO: handle abc(1\\,) case (escaping backslash used to escape comam)
                 let mut join_prev = false;
 
-                // handle nested parens {{{i(things (inside things) other things)}}}
-                let mut paren_nesting = 0;
-
                 loop {
                     // cursor.next() at the end
                     match cursor.try_curr()? {
@@ -73,25 +70,24 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
                                 return Err(MatchError::InvalidLogic);
                             }
                         }
-                        LPAREN => {
-                            paren_nesting += 1;
-                        }
                         RPAREN => {
-                            if paren_nesting > 0 {
-                                paren_nesting -= 1;
+                            // do this here before we (potentially) consume more text from the cursor
+                            let arg = cursor.clamp_backwards(prev_ind);
+
+                            // is the macro actually ending or is this a loose paren
+                            if !cursor.word(")}}}").is_ok() {
                                 cursor.next();
                                 continue;
                             }
 
                             if join_prev {
                                 if let Cow::Owned(a) = arg_vec.last_mut().unwrap() {
-                                    a.push_str(cursor.clamp_backwards(prev_ind));
+                                    a.push_str(arg);
                                 }
                             } else {
-                                arg_vec.push(cursor.clamp_backwards(prev_ind).into());
+                                arg_vec.push(Cow::Borrowed(arg));
                             }
 
-                            cursor.word(")}}}")?;
                             return Ok(parser.alloc(
                                 MacroCall {
                                     name: name_match.obj,
@@ -280,13 +276,26 @@ mod tests {
     fn macro_nested_params() {
         let input = r"{{{i(things (inside things) other things)}}}";
         let parsed = parse_org(input);
-        dbg!(&parsed);
         let l = expr_in_pool!(parsed, Macro).unwrap();
         assert_eq!(
             l,
             &MacroCall {
                 name: "i",
                 args: vec![Cow::Borrowed("things (inside things) other things"),]
+            }
+        )
+    }
+
+    #[test]
+    fn macro_almost_nested_params() {
+        let input = r"{{{i(things (inside things other things)}}}";
+        let parsed = parse_org(input);
+        let l = expr_in_pool!(parsed, Macro).unwrap();
+        assert_eq!(
+            l,
+            &MacroCall {
+                name: "i",
+                args: vec![Cow::Borrowed("things (inside things other things"),]
             }
         )
     }
