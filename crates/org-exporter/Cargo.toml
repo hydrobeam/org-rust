@@ -14,7 +14,7 @@ rust-version.workspace = true
 [dependencies]
 latex2mathml = "0.2.3"
 memchr = "2.5.0"
-org-parser = { version = "0.1.7", path = "../org-parser", package = "org-rust-parser" }
+org-parser = { version = "0.1.8", path = "../org-parser", package = "org-rust-parser" }
 phf = {version = "0.11.1", features = ["macros"]}
 thiserror = "1.0.63"
 
