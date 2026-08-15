@@ -365,7 +365,7 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                             self.class(&format!("src-{}", lang));
                         }
                         self.prop(node);
-                        w!(self, ">\n{}</pre></code>\n", HtmlEscape(contents));
+                        w!(self, ">\n{}</code></pre>\n", HtmlEscape(contents));
                     }
                     Block::Verse {
                         parameters,
