@@ -360,12 +360,16 @@ impl<'buf> ExporterInner<'buf> for Html<'buf> {
                         }
                         w!(self, "<pre>");
                         w!(self, "<code");
-                        self.class("src");
+
+                        let mut class = String::from("src");
+
                         if let Some(lang) = language {
-                            self.class(&format!("src-{}", lang));
+                            class.push_str(&format!(" src-{}", lang));
                         }
+
+                        self.class(&class);
                         self.prop(node);
-                        w!(self, ">\n{}</pre></code>\n", HtmlEscape(contents));
+                        w!(self, ">\n{}</code></pre>\n", HtmlEscape(contents));
                     }
                     Block::Verse {
                         parameters,
@@ -1462,5 +1466,39 @@ here
 </table>
 "#
         )
+    }
+
+    #[test]
+    fn block_src() {
+        let org_src = r#"
+#+begin_src
+(define hello (name)
+    (string-append "hello" name))
+#+end_src"#;
+
+        assert_eq!(
+            html_export(org_src),
+            r#"<pre><code class="src">
+(define hello (name)
+    (string-append "hello" name))
+</code></pre>
+"#);
+    }
+
+    #[test]
+    fn block_src_with_language_defined() {
+        let org_src = r#"
+#+begin_src scheme
+(define hello (name)
+    (string-append "hello" name))
+#+end_src"#;
+
+        assert_eq!(
+            html_export(org_src),
+            r#"<pre><code class="src src-scheme">
+(define hello (name)
+    (string-append "hello" name))
+</code></pre>
+"#);
     }
 }
