@@ -1482,7 +1482,8 @@ here
 (define hello (name)
     (string-append "hello" name))
 </code></pre>
-"#);
+"#
+        );
     }
 
     #[test]
@@ -1499,6 +1500,7 @@ here
 (define hello (name)
     (string-append "hello" name))
 </code></pre>
-"#);
+"#
+        );
     }
 }
