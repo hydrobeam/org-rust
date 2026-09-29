@@ -387,6 +387,7 @@ impl<'a> Heading<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use std::borrow::Cow;
 
     use crate::element::{HeadingLevel, PropertyDrawer, Tag};
@@ -598,14 +599,14 @@ mod tests {
     fn headline_prio_keyword_title() {
         let inp = "* TODO [#A] SWAG \n";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
     fn headline_prio_keyword_decorated_title() {
         let inp = "* TODO [#A] *one* two /three/ /four* \n";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -626,7 +627,7 @@ more subcontent
 ";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -671,7 +672,7 @@ qqqqq
 aaaa";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

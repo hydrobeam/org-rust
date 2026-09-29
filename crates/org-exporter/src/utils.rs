@@ -152,7 +152,6 @@ mod tests {
 
     #[test]
     fn test_toc() -> Result<(), Box<dyn Error>> {
-        //TODO: properly test
         let a = Html::export(
             r#"
 
@@ -178,7 +177,7 @@ ul {
             ConfigOptions::default(),
         )
         .unwrap();
-        println!("{a}");
+        snap!(a);
         Ok(())
     }
 }

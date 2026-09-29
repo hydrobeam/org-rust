@@ -1079,7 +1079,7 @@ abc &+ 10\\
 \end{align}
 ",
         );
-        println!("{a}");
+        snap!(a);
     }
 
     #[test]

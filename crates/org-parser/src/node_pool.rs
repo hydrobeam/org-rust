@@ -131,11 +131,6 @@ impl<'a> NodePool<'a> {
         self.inner_vec.iter_mut()
     }
 
-    /// Outputs a (somewhat) legible representation of the tree to stdout.
-    pub fn print_tree(&self) {
-        self.inner_vec[0].print_tree(self);
-    }
-
     /// Returns the [`NodeID`] of the first element in the pool.
     pub fn root_id(&self) -> NodeID {
         NodeID(0)

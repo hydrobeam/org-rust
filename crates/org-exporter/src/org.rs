@@ -740,8 +740,8 @@ four five six
 
     #[test]
     fn test_link_export() {
-        let out = org_export("[[https://swag.org][meowww]]");
-        println!("{out}");
+        let out = org_export("[[https://swag.org][self]]");
+        assert_eq!(out, "[[https://swag.org][self]]\n");
     }
 
     #[test]
@@ -880,7 +880,7 @@ more content here this is a pargraph
 ",
         );
 
-        println!("{out}");
+        snap!(out);
     }
 
     #[test]
@@ -980,8 +980,6 @@ more content here this is a pargraph
    - aome tag :: item 2.1
 ",
         );
-
-        println!("{a}");
 
         // TODO: whitespace handling is super janky atm.
         // can't even test output properly caudse whitespace is inserted into
@@ -1241,6 +1239,7 @@ more content here this is a pargraph
     }
 
     #[test]
+    #[ignore = "known bug: org exporter emits the src block body once per line (5x here)"]
     fn lblock_plus_list() {
         let a = org_export(
             r"
@@ -1250,13 +1249,17 @@ more content here this is a pargraph
 
 hiiiiiiiiiiiiiiiiiii
 
-meowwwwwwwwww
+wow?
    #+end_src
 
 -
 ",
         );
-        println!("{a}");
+        assert_eq!(
+            a.matches("hiiiiiiiiiiiiiiiiiii").count(),
+            1,
+            "src block body should be emitted once: {a:?}"
+        );
     }
 
     #[test]

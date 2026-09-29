@@ -31,6 +31,17 @@
 //! assert_eq!(org_str, "* Hello Org!\n");
 //! ```
 
+/// Asserts a value against its `insta` snapshot, stored in `<crate>/snapshots/`.
+#[cfg(test)]
+macro_rules! snap {
+    ($value:expr) => {
+        ::insta::with_settings!(
+            {snapshot_path => concat!(env!("CARGO_MANIFEST_DIR"), "/snapshots")},
+            { ::insta::assert_snapshot!($value); }
+        )
+    };
+}
+
 mod html;
 mod include;
 mod org;

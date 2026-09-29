@@ -448,7 +448,6 @@ mod tests {
             &"yes_my_list".into()
         );
         assert_eq!(parsed.target_occurences.get("yes_my_list").unwrap(), &1);
-        // parsed.print_tree();
     }
 
     #[test]

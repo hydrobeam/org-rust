@@ -45,3 +45,31 @@ cargo install org-rust
 *** Development
 
 Refer to the [[./docs][documentation]] for developer-specific information & syntax-progress.
+
+
+** Testing
+
+The parser and exporter rely on snapshot tests built on [[https://insta.rs/][insta]].
+A parser test parses a small org input and compares ~Parser::render_tree()~ against a stored snapshot (~.snap~) in ~crates/<crate>/snapshots/~.
+Exporter tests snapshot the exported output instead.
+
+*** Snapshot workflow
+
+Run the tests as usual with ~cargo test --workspace~.
+If a snapshot doesn't match (or doesn't exist yet), the test fails and ~insta~ writes the actual output next to it as a ~.snap.new~ file.
+
+Read the diff to verify correctness. Optionally, [[https://insta.rs/docs/cli/][cargo-insta]] offers a convenience tool for this:
+
+#+begin_src bash
+cargo insta review
+#+end_src
+
+If every change is intended, ~INSTA_UPDATE=always cargo test --workspace~ accepts them all at once, overwriting the stored snapshots without a diff.
+
+*** Adding a test
+
+The snapshot is named after the module path and test name, so names must be unique within a module.
+
+1. Run ~cargo test~. The new test fails and writes a ~.snap.new~.
+2. Check, then accept it with ~cargo insta review~ / ~cargo insta accept~ or just do it manually.
+3. Re-run ~cargo test~, then commit the new ~.snap~ file.

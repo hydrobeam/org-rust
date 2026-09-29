@@ -9,6 +9,10 @@ pub(crate) mod types;
 pub(crate) mod utils;
 
 mod parse;
+mod render;
+
+#[cfg(test)]
+pub(crate) mod test_util;
 
 pub use node_pool::{NodeID, NodePool};
 pub use types::{Expr, Node, Parser};
@@ -111,13 +115,14 @@ pub fn parse_macro_call<'a>(input: &'a str) -> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use super::*;
 
     #[test]
     fn test_basic_paragraph() {
         let inp = "hello_world\n";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -125,14 +130,14 @@ mod tests {
     fn test_basic_paragraph_no_nl() {
         let inp = "hello_world";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
     fn test_basic_paragraph_newline() {
         let inp = "hello_world\nsame_paragraph\n";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -140,7 +145,7 @@ mod tests {
         let inp = "hello /italic/ more text after\n";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -148,7 +153,7 @@ mod tests {
         let inp = "hello /italic \n newline/ more text after\n";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -156,7 +161,7 @@ mod tests {
         let inp = "hello =italic \n newline= more text after\n";
 
         // dbg!(parse_org(inp));
-        println!("{:?}", parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -214,8 +219,7 @@ nothing styled for source blocks yet, too.
 
 "#;
         let pool = parse_org(input);
-        pool.print_tree();
-        dbg!(pool);
+        snap!(pool);
     }
 
     #[test]
@@ -228,7 +232,7 @@ nothing styled for source blocks yet, too.
 ";
         let pool = parse_org(input);
         // dbg!(&pool);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -237,6 +241,6 @@ nothing styled for source blocks yet, too.
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 }

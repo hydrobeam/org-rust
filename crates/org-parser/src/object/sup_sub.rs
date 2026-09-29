@@ -126,6 +126,7 @@ parse_nscript!(Superscript);
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use crate::parse_org;
 
     #[test]
@@ -133,6 +134,6 @@ mod tests {
         let input = r"a^{\smiley}";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 }

@@ -97,6 +97,7 @@ fn find_kind(item: &Item) -> ListKind {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use crate::{Expr, parse_org};
 
     #[test]
@@ -106,7 +107,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -117,7 +118,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -129,7 +130,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -146,7 +147,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -162,7 +163,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -181,7 +182,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -198,7 +199,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -210,7 +211,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -223,7 +224,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -236,7 +237,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -250,7 +251,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -264,7 +265,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -276,7 +277,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -294,7 +295,7 @@ not a list too
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -306,7 +307,7 @@ not a list too
 a*
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -320,7 +321,7 @@ a*
  heyy
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -333,7 +334,7 @@ a*
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

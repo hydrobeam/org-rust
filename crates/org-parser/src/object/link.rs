@@ -418,6 +418,7 @@ pub(crate) fn parse_angle_link<'a>(
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use pretty_assertions::assert_eq;
 
     use crate::element::Affiliated;
@@ -537,7 +538,7 @@ mod tests {
     fn basic_regular_link() {
         let input = "[[hps://.org]]";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -547,28 +548,28 @@ word
 [#A]
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
     fn regular_link_description() {
         let input = " [[https://meo][cool site]]";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
     fn regular_link_unclosed_recursive_markup() {
         let input = " [[https://meo][cool *site* ~one two~ three *four ]]";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
     fn regular_link_unclosed_plain_markup() {
         let input = " [[https://meo][cool *site* ~one two~ three *four ~five six ]]";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -581,7 +582,7 @@ I'll be skipping over the instrumentals unless there's reason to.
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

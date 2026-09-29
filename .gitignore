@@ -10,3 +10,6 @@ pkg/aur/.SRCINFO
 
 # dummy dir to test org behaviour
 toss/
+
+# don't commit pending snapshots
+*.snap.new

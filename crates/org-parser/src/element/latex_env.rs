@@ -52,6 +52,7 @@ impl<'a> Parseable<'a> for LatexEnv<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use crate::{element::LatexEnv, expr_in_pool, parse_org, types::Expr};
 
     #[test]
@@ -61,7 +62,7 @@ mod tests {
 \end{align*}
 ";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -78,7 +79,7 @@ mod tests {
 \end{align*}
 ";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -89,19 +90,19 @@ mod tests {
 \end{star!}
 ";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
 
         let inp = r"
 \begin{a13214-}
 \end{a13214-}
 ";
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
         // failed construction
         let inp = r"
 \begin{one}more stuff
 \end{one}
 ";
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -110,7 +111,7 @@ mod tests {
 \begin{}
 \end{}
 ";
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -119,7 +120,7 @@ mod tests {
 \begin{start}
 \end{notstart}
 ";
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
