@@ -1,0 +1,42 @@
+---
+source: crates/org-parser/src/element/heading.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:\nmore content here this is a pargraph\n** [#1] descendant headline :five:\n*** [#2] inherit the tags\n** [#3] different level\nsubcontent\nthis\n\nis a different paragraph\nid) =\nmore subcontent\n\n* [#4] separate andy\n"
+0..272 [1, 28]
+  0..251 Heading { heading_level: One, keyword: Some("DONE"), priority: Some(Num(0)), title: Some(("*one* two /three/ /four*", [3, 6, 5, 8, 7])), tags: Some([Raw("four"), Raw("three"), Raw("two"), Raw("one")]), properties: None, children: Some([9, 10, 14]) }
+    12..17 Bold([2])
+      13..16 "one"
+    17..22 " two "
+    22..29 Italic([4])
+      23..28 "three"
+    29..31 " /"
+    31..36 "four*"
+    64..101 Paragraph([30])
+      64..100 "more content here this is a pargraph"
+    101..162 Heading { heading_level: Two, keyword: None, priority: Some(Num(1)), title: Some(("descendant headline", [11])), tags: Some([Raw("five"), Loc(1)]), properties: None, children: Some([12]) }
+      109..128 "descendant headline"
+      136..162 Heading { heading_level: Three, keyword: None, priority: Some(Num(2)), title: Some(("inherit the tags\n", [13])), tags: Some([Loc(10)]), properties: None, children: None }
+        145..161 "inherit the tags"
+    162..251 Heading { heading_level: Two, keyword: None, priority: Some(Num(3)), title: Some(("different level\n", [15])), tags: Some([Loc(1)]), properties: None, children: Some([16, 19, 21, 26]) }
+      170..185 "different level"
+      186..202 Paragraph([18, 17, 20])
+        186..196 "subcontent"
+        196..197 SoftBreak
+        197..201 "this"
+      202..203 BlankLine
+      203..250 Paragraph([23, 22, 25, 24, 27])
+        203..227 "is a different paragraph"
+        227..228 SoftBreak
+        228..233 "id) ="
+        233..234 SoftBreak
+        234..249 "more subcontent"
+      250..251 BlankLine
+  251..272 Heading { heading_level: One, keyword: None, priority: Some(Num(4)), title: Some(("separate andy\n", [29])), tags: None, properties: None, children: None }
+    258..271 "separate andy"
+targets:
+  "*one* two /three/ /four*" -> "one-two-three-four"
+  "descendant headline" -> "descendant-headline"
+  "different level\n" -> "different-level"
+  "inherit the tags\n" -> "inherit-the-tags"
+  "separate andy\n" -> "separate-andy"

@@ -1,0 +1,12 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n-\n-\n-\n-\n"
+0..9 [1, 6]
+  0..1 BlankLine
+  1..9 PlainList { children: [2, 3, 4, 5], kind: Unordered }
+    1..3 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }
+    3..5 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }
+    5..7 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }
+    7..9 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }

@@ -1,0 +1,9 @@
+---
+source: crates/org-parser/src/element/latex_env.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n\\begin{}\n\\end{}\n"
+0..17 [1, 2, 3]
+  0..1 BlankLine
+  1..16 LatexEnv { name: "", contents: "" }
+  16..17 BlankLine

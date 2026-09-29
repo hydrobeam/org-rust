@@ -1,0 +1,15 @@
+---
+source: crates/org-parser/src/lib.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n- one\n- two\n\n--------------\n"
+0..29 [1, 9, 10]
+  0..1 BlankLine
+  1..14 PlainList { children: [2, 4], kind: Unordered }
+    1..7 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3] }
+      3..7 Paragraph([8])
+        3..6 "one"
+    7..14 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [5] }
+      9..13 Paragraph([7])
+        9..12 "two"
+  14..29 HorizontalRule

@@ -1,0 +1,15 @@
+---
+source: crates/org-parser/src/element/drawer.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n\n:NAME:\nhello\n:end:\n\nhalloo\n"
+0..29 [1, 2, 3, 6, 7, 8]
+  0..1 BlankLine
+  1..2 BlankLine
+  2..20 Drawer { children: [4], name: "NAME" }
+    9..15 Paragraph([5])
+      9..14 "hello"
+  20..21 BlankLine
+  21..22 BlankLine
+  22..29 Paragraph([9])
+    22..28 "halloo"

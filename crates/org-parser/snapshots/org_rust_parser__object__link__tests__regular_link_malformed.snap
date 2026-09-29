@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/object/link.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\nword\n[#A]\n"
+0..11 [1, 2]
+  0..1 BlankLine
+  1..11 Paragraph([4, 3, 5])
+    1..5 "word"
+    5..6 SoftBreak
+    6..10 "[#A]"

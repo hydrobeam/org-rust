@@ -1,0 +1,18 @@
+---
+source: crates/org-parser/src/element/table.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n|one|two|\n|three|four|"
+0..23 [1, 2]
+  0..1 BlankLine
+  1..23 Table { rows: 2, cols: 2, children: [7, 12], caption: None }
+    1..11 Standard([4, 6])
+      2..6 TableCell([3])
+        2..5 "one"
+      6..10 TableCell([5])
+        6..9 "two"
+    11..23 Standard([9, 11])
+      12..18 TableCell([8])
+        12..17 "three"
+      18..23 TableCell([10])
+        18..22 "four"

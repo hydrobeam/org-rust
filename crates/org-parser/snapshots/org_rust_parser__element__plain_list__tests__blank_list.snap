@@ -1,0 +1,27 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"1. item 1\n   abcdef\n\n   next one two three four five\n\n   more thangs more thangs more thangs\n   more thangs\n\n2. [X] item 2\n   - aome tag :: item 2.1\n"
+0..149 [22]
+  0..149 PlainList { children: [1, 15], kind: Ordered(Number(1)) }
+    0..109 Item { bullet: Ordered(Number(1)), counter_set: None, check_box: None, tag: None, children: [2, 5, 7, 8, 10] }
+      3..20 Paragraph([4, 3, 6])
+        3..9 "item 1"
+        9..10 SoftBreak
+        10..19 "   abcdef"
+      20..21 BlankLine
+      24..53 Paragraph([9])
+        24..52 "next one two three four five"
+      53..54 BlankLine
+      57..108 Paragraph([12, 11, 14])
+        57..92 "more thangs more thangs more thangs"
+        92..93 SoftBreak
+        93..107 "   more thangs"
+    109..149 Item { bullet: Ordered(Number(2)), counter_set: None, check_box: Some(On), tag: None, children: [16, 20] }
+      116..123 Paragraph([21])
+        116..122 "item 2"
+      126..149 PlainList { children: [17], kind: Descriptive }
+        126..149 Item { bullet: Unordered, counter_set: None, check_box: None, tag: Some("aome tag"), children: [18] }
+          140..149 Paragraph([19])
+            140..148 "item 2.1"

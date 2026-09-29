@@ -1,0 +1,33 @@
+---
+source: crates/org-parser/src/element/table.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n- one\n   - two\n        |one two |three|\n        |s       |     |\n        |four | five|\n- three\n"
+0..96 [1, 28]
+  0..1 BlankLine
+  1..96 PlainList { children: [2, 25], kind: Unordered }
+    1..88 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3, 23] }
+      3..7 Paragraph([24])
+        3..6 "one"
+      10..88 PlainList { children: [4], kind: Unordered }
+        10..88 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [5, 6] }
+          12..16 Paragraph([22])
+            12..15 "two"
+          24..88 Table { rows: 3, cols: 2, children: [11, 16, 21], caption: None }
+            24..41 Standard([8, 10])
+              25..34 TableCell([7])
+                25..33 "one two"
+              34..40 TableCell([9])
+                34..39 "three"
+            41..66 Standard([13, 15])
+              50..59 TableCell([12])
+                50..58 "s"
+              59..65 TableCell([])
+            66..88 Standard([18, 20])
+              75..81 TableCell([17])
+                75..80 "four"
+              81..87 TableCell([19])
+                81..86 " five"
+    88..96 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [26] }
+      90..96 Paragraph([27])
+        90..95 "three"

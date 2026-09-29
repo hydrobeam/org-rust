@@ -1,0 +1,16 @@
+---
+source: crates/org-parser/src/element/heading.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n* q ac:qbc:\nqqqqq\n\naaaa"
+0..25 [1, 2]
+  0..1 BlankLine
+  1..25 Heading { heading_level: One, keyword: None, priority: None, title: Some(("q ac:qbc:\n", [3])), tags: None, properties: None, children: Some([4, 5, 7]) }
+    3..12 "q ac:qbc:"
+    13..19 Paragraph([6])
+      13..18 "qqqqq"
+    19..20 BlankLine
+    20..25 Paragraph([8])
+      20..24 "aaaa"
+targets:
+  "q ac:qbc:\n" -> "q-acqbc"

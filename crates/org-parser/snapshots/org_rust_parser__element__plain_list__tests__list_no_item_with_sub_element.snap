@@ -1,0 +1,19 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"-   [X]\n      |a|a|a|a|\n\n-\n\n"
+0..28 [15]
+  0..28 PlainList { children: [1, 13], kind: Unordered }
+    0..25 Item { bullet: Unordered, counter_set: None, check_box: Some(On), tag: None, children: [2] }
+      14..24 Table { rows: 1, cols: 4, children: [11], caption: None }
+        14..24 Standard([4, 6, 8, 10])
+          15..17 TableCell([3])
+            15..16 "a"
+          17..19 TableCell([5])
+            17..18 "a"
+          19..21 TableCell([7])
+            19..20 "a"
+          21..23 TableCell([9])
+            21..22 "a"
+    25..28 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }

@@ -1,0 +1,9 @@
+---
+source: crates/org-parser/src/lib.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"hello_world\n"
+0..12 [1]
+  0..12 Paragraph([3, 2])
+    0..5 "hello"
+    5..11 Subscript(Plain("world"))

@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/element/latex_env.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n\\begin{align*}\n\\end{align*}\n"
+0..29 [1, 2]
+  0..1 BlankLine
+  1..29 Paragraph([3, 4, 5])
+    1..15 Command { name: "begin", contents: Some("align*") }
+    15..16 SoftBreak
+    16..28 Command { name: "end", contents: Some("align*") }

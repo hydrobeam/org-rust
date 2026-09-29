@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/element/latex_env.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n\\begin{star!}\n\\end{star!}\n"
+0..27 [1, 2]
+  0..1 BlankLine
+  1..27 Paragraph([3, 4, 5])
+    1..14 Command { name: "begin", contents: Some("star!") }
+    14..15 SoftBreak
+    15..26 Command { name: "end", contents: Some("star!") }

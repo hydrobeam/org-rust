@@ -1,0 +1,29 @@
+---
+source: crates/org-parser/src/object/latex_frag.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n$\\alpha$ $$do\nllar$$\n\\[display\n block\\] \\(consecutive gaming\\)\n\n\\command\n\n\\comma\nand\n\n\\command{ab\nc}\n\n"
+0..103 [1, 2, 10, 11, 13, 14, 17, 19, 22]
+  0..1 BlankLine
+  1..64 Paragraph([3, 5, 4, 6, 7, 9, 8])
+    1..9 Inline("\\alpha")
+    9..10 " "
+    10..21 Display("do\nllar")
+    21..22 SoftBreak
+    22..40 Display("display\n block")
+    40..41 " "
+    41..63 Inline("consecutive gaming")
+  64..65 BlankLine
+  65..74 Paragraph([12])
+    65..73 Command { name: "command", contents: None }
+  74..75 BlankLine
+  75..86 Paragraph([15, 16, 18])
+    75..81 Command { name: "comma", contents: None }
+    81..82 SoftBreak
+    82..85 "and"
+  86..87 BlankLine
+  87..102 Paragraph([21, 20, 23])
+    87..98 "\\command{ab"
+    98..99 SoftBreak
+    99..101 "c}"
+  102..103 BlankLine

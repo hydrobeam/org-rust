@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/object/markup.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"abc /one ~two thr/ ee~ three four"
+0..34 [1]
+  0..34 Paragraph([4, 3, 5])
+    0..4 "abc "
+    4..18 Italic([2])
+      5..17 "one ~two thr"
+    18..33 " ee~ three four"

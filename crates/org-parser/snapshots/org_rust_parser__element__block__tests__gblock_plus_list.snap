@@ -1,0 +1,15 @@
+---
+source: crates/org-parser/src/element/block.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n- a\n   #+begin_quote\nhiiiiiiiiiiiiiiiiiii\n   #+end_quote\n-\n"
+0..60 [1, 10]
+  0..1 BlankLine
+  1..60 PlainList { children: [2, 9], kind: Unordered }
+    1..58 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3, 4] }
+      3..5 Paragraph([7])
+        3..4 "a"
+      8..57 Quote { parameters: {}, contents: [5] }
+        22..43 Paragraph([6])
+          22..42 "hiiiiiiiiiiiiiiiiiii"
+    58..60 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [] }

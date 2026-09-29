@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/element/block.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n             #+begin_swag\n             we are eating so good?\n             #+end_swag\n"
+0..87 [1, 2, 5]
+  0..1 BlankLine
+  14..86 Special { parameters: {}, contents: [3], name: "swag" }
+    40..63 Paragraph([4])
+      40..62 "we are eating so good?"
+  86..87 BlankLine

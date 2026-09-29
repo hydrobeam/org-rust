@@ -1,0 +1,8 @@
+---
+source: crates/org-parser/src/object/markup.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"~a~"
+0..4 [1]
+  0..4 Paragraph([2])
+    0..3 Code("a")

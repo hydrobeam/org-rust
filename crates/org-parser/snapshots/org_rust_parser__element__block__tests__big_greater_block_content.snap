@@ -1,0 +1,37 @@
+---
+source: crates/org-parser/src/element/block.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n#+begin_quote\n\n/formatted text? such thing!/\n*abc*\n\n* headlines too\nanything is possible\n\nblank lines\n\n#+keyword: one\n\n#+begin_src rust\nlet nest = Some()\n\nif let Some(nested) = nest {\n    dbg!(meta);\n}\n\n#+end_src\n\n** headline :tag:meow:\n#+end_quote\n"
+0..250 [1, 2, 26]
+  0..1 BlankLine
+  1..249 Quote { parameters: {}, contents: [3, 4, 10, 11] }
+    15..16 BlankLine
+    16..52 Paragraph([6, 7, 9])
+      16..45 Italic([5])
+        17..44 "formatted text? such thing!"
+      45..46 SoftBreak
+      46..51 Bold([8])
+        47..50 "abc"
+    52..53 BlankLine
+    53..238 Heading { heading_level: One, keyword: None, priority: None, title: Some(("headlines too\n", [12])), tags: None, properties: None, children: Some([13, 14, 16, 17, 19, 20, 21, 22, 23, 24]) }
+      55..68 "headlines too"
+      69..90 Paragraph([15])
+        69..89 "anything is possible"
+      90..91 BlankLine
+      91..103 Paragraph([18])
+        91..102 "blank lines"
+      103..104 BlankLine
+      104..119 Keyword { key: "keyword", val: "one" }
+      119..120 BlankLine
+      120..213 Src { language: Some("rust"), parameters: {}, contents: "let nest = Some()\n\nif let Some(nested) = nest {\n    dbg!(meta);\n}\n\n" }
+      213..214 BlankLine
+      214..215 BlankLine
+      215..238 Heading { heading_level: Two, keyword: None, priority: None, title: Some(("headline", [25])), tags: Some([Raw("meow"), Raw("tag"), Loc(11)]), properties: None, children: None }
+        218..226 "headline"
+  249..250 BlankLine
+targets:
+  "headline" -> "headline"
+  "headlines too\n" -> "headlines-too"
+keywords:
+  "keyword" = "one"

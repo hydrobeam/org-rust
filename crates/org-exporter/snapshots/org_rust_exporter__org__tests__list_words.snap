@@ -1,0 +1,12 @@
+---
+source: crates/org-exporter/src/org.rs
+expression: stripped
+---
+
+1. item 1    abcdef
+
+  next one two three four five
+
+  more thangs more thangs more thangs    more thangs
+2. [X] item 2
+  - aome tag :: item 2.1

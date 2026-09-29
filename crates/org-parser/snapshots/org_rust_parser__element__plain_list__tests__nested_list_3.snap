@@ -1,0 +1,25 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\n- one\n  - two\n    - three\n  - four\n- five\n"
+0..43 [1, 19]
+  0..1 BlankLine
+  1..43 PlainList { children: [2, 16], kind: Unordered }
+    1..36 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3, 14] }
+      3..7 Paragraph([15])
+        3..6 "one"
+      9..36 PlainList { children: [4, 11], kind: Unordered }
+        9..27 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [5, 9] }
+          11..15 Paragraph([10])
+            11..14 "two"
+          19..27 PlainList { children: [6], kind: Unordered }
+            19..27 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [7] }
+              21..27 Paragraph([8])
+                21..26 "three"
+        29..36 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [12] }
+          31..36 Paragraph([13])
+            31..35 "four"
+    36..43 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [17] }
+      38..43 Paragraph([18])
+        38..42 "five"

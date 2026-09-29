@@ -1,0 +1,16 @@
+---
+source: crates/org-parser/src/object/link.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"\nI'll be skipping over the instrumentals unless there's reason to.\n\n[[file:bmc.jpg]]\n** songs\n"
+0..94 [1, 2, 3, 5, 7]
+  0..1 BlankLine
+  1..67 Paragraph([4])
+    1..66 "I'll be skipping over the instrumentals unless there's reason to."
+  67..68 BlankLine
+  68..85 Paragraph([6])
+    68..84 RegularLink { path: Match { start: 70, end: 82, obj: File("bmc.jpg") }, description: None, caption: None }
+  85..94 Heading { heading_level: Two, keyword: None, priority: None, title: Some(("songs\n", [8])), tags: None, properties: None, children: None }
+    88..93 "songs"
+targets:
+  "songs\n" -> "songs"

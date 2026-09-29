@@ -1,0 +1,10 @@
+---
+source: crates/org-parser/src/object/markup.rs
+expression: "$crate :: test_util :: snapshot_text(parser)"
+---
+"+hello_world+"
+0..14 [1]
+  0..14 Paragraph([4])
+    0..13 StrikeThrough([3, 2])
+      1..6 "hello"
+      6..12 Subscript(Plain("world"))
