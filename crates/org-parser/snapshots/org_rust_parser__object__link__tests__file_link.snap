@@ -1,8 +1,12 @@
 ---
 source: crates/org-parser/src/object/link.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  I'll be skipping over the instrumentals unless there's reason to.
+  
+  [[file:bmc.jpg]]
+  ** songs
 ---
-"\nI'll be skipping over the instrumentals unless there's reason to.\n\n[[file:bmc.jpg]]\n** songs\n"
 0..94 [1, 2, 3, 5, 7]
   0..1 BlankLine
   1..67 Paragraph([4])

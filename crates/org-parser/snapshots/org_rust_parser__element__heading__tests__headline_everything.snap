@@ -1,8 +1,20 @@
 ---
 source: crates/org-parser/src/element/heading.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  * DONE [#0] *one* two /three/ /four*       :one:two:three:four:
+  more content here this is a pargraph
+  ** [#1] descendant headline :five:
+  *** [#2] inherit the tags
+  ** [#3] different level
+  subcontent
+  this
+  
+  is a different paragraph
+  id) =
+  more subcontent
+  
+  * [#4] separate andy
 ---
-"* DONE [#0] *one* two /three/ /four*       :one:two:three:four:\nmore content here this is a pargraph\n** [#1] descendant headline :five:\n*** [#2] inherit the tags\n** [#3] different level\nsubcontent\nthis\n\nis a different paragraph\nid) =\nmore subcontent\n\n* [#4] separate andy\n"
 0..272 [1, 28]
   0..251 Heading { heading_level: One, keyword: Some("DONE"), priority: Some(Num(0)), title: Some(("*one* two /three/ /four*", [3, 6, 5, 8, 7])), tags: Some([Raw("four"), Raw("three"), Raw("two"), Raw("one")]), properties: None, children: Some([9, 10, 14]) }
     12..17 Bold([2])

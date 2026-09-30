@@ -1,8 +1,12 @@
 ---
 source: crates/org-parser/src/element/heading.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |-
+  
+  * q ac:qbc:
+  qqqqq
+  
+  aaaa
 ---
-"\n* q ac:qbc:\nqqqqq\n\naaaa"
 0..25 [1, 2]
   0..1 BlankLine
   1..25 Heading { heading_level: One, keyword: None, priority: None, title: Some(("q ac:qbc:\n", [3])), tags: None, properties: None, children: Some([4, 5, 7]) }

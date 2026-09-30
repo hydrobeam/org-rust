@@ -1,8 +1,10 @@
 ---
 source: crates/org-parser/src/element/table.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  |one two |three|||||
+  |s       |     |
 ---
-"\n|one two |three|||||\n|s       |     |\n"
 0..39 [1, 2]
   0..1 BlankLine
   1..39 Table { rows: 2, cols: 6, children: [11, 16], caption: None }

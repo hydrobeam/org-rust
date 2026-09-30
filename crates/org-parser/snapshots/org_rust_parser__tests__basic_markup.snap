@@ -1,8 +1,8 @@
 ---
 source: crates/org-parser/src/lib.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  hello /italic/ more text after
 ---
-"hello /italic/ more text after\n"
 0..31 [1]
   0..31 Paragraph([4, 3, 5])
     0..6 "hello "

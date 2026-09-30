@@ -1,8 +1,8 @@
 ---
 source: crates/org-parser/src/element/heading.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  * TODO [#A] SWAG 
 ---
-"* TODO [#A] SWAG \n"
 0..18 [1]
   0..18 Heading { heading_level: One, keyword: Some("TODO"), priority: Some(A), title: Some(("SWAG \n", [2])), tags: None, properties: None, children: None }
     12..17 "SWAG "

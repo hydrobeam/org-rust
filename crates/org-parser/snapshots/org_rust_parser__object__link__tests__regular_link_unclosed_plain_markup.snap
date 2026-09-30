@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/link.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: " [[https://meo][cool *site* ~one two~ three *four ~five six ]]"
 ---
-" [[https://meo][cool *site* ~one two~ three *four ~five six ]]"
 0..63 [1]
   1..63 Paragraph([9])
     1..62 RegularLink { path: Match { start: 3, end: 14, obj: PlainLink(PlainLink { protocol: "https", path: "//meo" }) }, description: Some([4, 3, 6, 5, 8, 7]), caption: None }

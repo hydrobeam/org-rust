@@ -1,8 +1,10 @@
 ---
 source: crates/org-parser/src/element/plain_list.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  - one
+  - two
 ---
-"\n- one\n- two\n"
 0..13 [1, 8]
   0..1 BlankLine
   1..13 PlainList { children: [2, 4], kind: Unordered }

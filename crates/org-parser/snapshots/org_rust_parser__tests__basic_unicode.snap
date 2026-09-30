@@ -1,8 +1,8 @@
 ---
 source: crates/org-parser/src/lib.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  é
 ---
-"é\n"
 0..3 [1]
   0..3 Paragraph([2])
     0..2 "é"

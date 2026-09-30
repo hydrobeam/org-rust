@@ -1,8 +1,58 @@
 ---
 source: crates/org-parser/src/lib.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |+
+  
+  #+macro: greet Hello $1, nice typing... $1.
+  * Basic Heading
+  
+  {{{greet(user)}}}
+  
+  ** Child Heading
+  
+  - https://plain_links.com.
+    - <mailto:okiedokie@cool.com>
+      - src_python{(technically) inline_src}
+  - [[Child Heading]]
+    - \aleph \leftarrow entities
+  
+  #+begin_export
+  <style type="text/css" media="screen">
+  table, th, td {
+    border: 1px solid;
+  }
+  </style>
+  #+end_export
+  
+  |tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
+  |no|default css (yet)|
+  |||||||||table
+  
+  1. +does+
+  2. *it*
+  3. /all/
+  4. ~code~
+  5. =code, again..=
+  6. /so _nested_, *t^o_o*./
+  
+  emojis :flushed: :tada: :sunglasses:
+  
+  \begin{align}
+  x &+ 4\\
+  abc &+ 10\\
+  \end{align}
+  output MathML, little janky atm (might switch to katex..?)
+  
+  Target here: <<targets>>\\
+  
+  
+  # doesn't look the best, imo
+  -----
+  
+  #+begin_src rust
+  nothing styled for source blocks yet, too.
+  #+end_src
+
 ---
-"\n#+macro: greet Hello $1, nice typing... $1.\n* Basic Heading\n\n{{{greet(user)}}}\n\n** Child Heading\n\n- https://plain_links.com.\n  - <mailto:okiedokie@cool.com>\n    - src_python{(technically) inline_src}\n- [[Child Heading]]\n  - \\aleph \\leftarrow entities\n\n#+begin_export\n<style type=\"text/css\" media=\"screen\">\ntable, th, td {\n  border: 1px solid;\n}\n</style>\n#+end_export\n\n|tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:\n|no|default css (yet)|\n|||||||||table\n\n1. +does+\n2. *it*\n3. /all/\n4. ~code~\n5. =code, again..=\n6. /so _nested_, *t^o_o*./\n\nemojis :flushed: :tada: :sunglasses:\n\n\\begin{align}\nx &+ 4\\\\\nabc &+ 10\\\\\n\\end{align}\noutput MathML, little janky atm (might switch to katex..?)\n\nTarget here: <<targets>>\\\\\n\n\n# doesn't look the best, imo\n-----\n\n#+begin_src rust\nnothing styled for source blocks yet, too.\n#+end_src\n\n"
 0..850 [1, 2, 3]
   0..1 BlankLine
   1..45 MacroDef { num_args: 1, input: [Text("Hello "), ArgNum(1), Text(", nice typing... "), ArgNum(1), Text(".")], name: "greet" }

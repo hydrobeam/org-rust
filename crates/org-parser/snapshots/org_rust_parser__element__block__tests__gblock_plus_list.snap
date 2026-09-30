@@ -1,8 +1,13 @@
 ---
 source: crates/org-parser/src/element/block.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  - a
+     #+begin_quote
+  hiiiiiiiiiiiiiiiiiii
+     #+end_quote
+  -
 ---
-"\n- a\n   #+begin_quote\nhiiiiiiiiiiiiiiiiiii\n   #+end_quote\n-\n"
 0..60 [1, 10]
   0..1 BlankLine
   1..60 PlainList { children: [2, 9], kind: Unordered }

@@ -1,8 +1,12 @@
 ---
 source: crates/org-parser/src/element/plain_list.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |+
+  -   [X]
+        |a|a|a|a|
+  
+  -
+
 ---
-"-   [X]\n      |a|a|a|a|\n\n-\n\n"
 0..28 [15]
   0..28 PlainList { children: [1, 13], kind: Unordered }
     0..25 Item { bullet: Unordered, counter_set: None, check_box: Some(On), tag: None, children: [2] }

@@ -1,8 +1,17 @@
 ---
 source: crates/org-parser/src/element/latex_env.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  \begin{align*}
+  
+  \text{latex constructs}\\
+  \alpha\\
+  \beta\\
+  
+  10x + 4 &= 3\\
+  
+  \end{align*}
 ---
-"\n\\begin{align*}\n\n\\text{latex constructs}\\\\\n\\alpha\\\\\n\\beta\\\\\n\n10x + 4 &= 3\\\\\n\n\\end{align*}\n"
 0..90 [1, 2, 4, 5]
   0..1 BlankLine
   1..16 Paragraph([3])

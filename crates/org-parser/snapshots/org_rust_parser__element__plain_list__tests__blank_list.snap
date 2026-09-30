@@ -1,8 +1,17 @@
 ---
 source: crates/org-parser/src/element/plain_list.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  1. item 1
+     abcdef
+  
+     next one two three four five
+  
+     more thangs more thangs more thangs
+     more thangs
+  
+  2. [X] item 2
+     - aome tag :: item 2.1
 ---
-"1. item 1\n   abcdef\n\n   next one two three four five\n\n   more thangs more thangs more thangs\n   more thangs\n\n2. [X] item 2\n   - aome tag :: item 2.1\n"
 0..149 [22]
   0..149 PlainList { children: [1, 15], kind: Ordered(Number(1)) }
     0..109 Item { bullet: Ordered(Number(1)), counter_set: None, check_box: None, tag: None, children: [2, 5, 7, 8, 10] }

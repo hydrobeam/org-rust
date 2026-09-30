@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/markup.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: /
 ---
-"/"
 0..2 [1]
   0..2 Paragraph([2])
     0..1 "/"

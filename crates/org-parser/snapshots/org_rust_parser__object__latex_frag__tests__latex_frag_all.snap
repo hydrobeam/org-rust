@@ -1,8 +1,21 @@
 ---
 source: crates/org-parser/src/object/latex_frag.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |+
+  
+  $\alpha$ $$do
+  llar$$
+  \[display
+   block\] \(consecutive gaming\)
+  
+  \command
+  
+  \comma
+  and
+  
+  \command{ab
+  c}
+
 ---
-"\n$\\alpha$ $$do\nllar$$\n\\[display\n block\\] \\(consecutive gaming\\)\n\n\\command\n\n\\comma\nand\n\n\\command{ab\nc}\n\n"
 0..103 [1, 2, 10, 11, 13, 14, 17, 19, 22]
   0..1 BlankLine
   1..64 Paragraph([3, 5, 4, 6, 7, 9, 8])

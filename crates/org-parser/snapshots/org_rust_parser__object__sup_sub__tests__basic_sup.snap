@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/sup_sub.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: "a^{\\smiley}"
 ---
-"a^{\\smiley}"
 0..12 [1]
   0..12 Paragraph([4, 3])
     0..1 "a"

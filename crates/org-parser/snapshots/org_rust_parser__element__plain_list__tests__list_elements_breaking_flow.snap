@@ -1,8 +1,18 @@
 ---
 source: crates/org-parser/src/element/plain_list.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  - one
+   abcdef
+  - four
+  this aint a list baby
+  #+begin_src python
+  not a list too
+  #+end_src
+  
+  
+  - five
 ---
-"\n- one\n abcdef\n- four\nthis aint a list baby\n#+begin_src python\nnot a list too\n#+end_src\n\n\n- five\n"
 0..97 [1, 10, 11, 12, 14, 15, 16, 20]
   0..1 BlankLine
   1..22 PlainList { children: [2, 6], kind: Unordered }

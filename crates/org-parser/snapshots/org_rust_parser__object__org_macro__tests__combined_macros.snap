@@ -1,8 +1,10 @@
 ---
 source: crates/org-parser/src/object/org_macro.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  #+macro: poem hiii $1 $2 text
+  
+  {{{poem(cool, three)}}}
 ---
-"#+macro: poem hiii $1 $2 text\n\n{{{poem(cool, three)}}}\n"
 0..55 [1, 2, 3]
   0..30 MacroDef { num_args: 2, input: [Text("hiii "), ArgNum(1), Text(" "), ArgNum(2), Text(" text")], name: "poem" }
   30..31 BlankLine

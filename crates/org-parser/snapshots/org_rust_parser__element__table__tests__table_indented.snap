@@ -1,8 +1,14 @@
 ---
 source: crates/org-parser/src/element/table.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |+
+  
+  word
+          |one two |three|
+          |s       |     |
+          |four | five|
+  word
+
 ---
-"\nword\n        |one two |three|\n        |s       |     |\n        |four | five|\nword\n\n"
 0..84 [1, 2, 3, 20, 21]
   0..1 BlankLine
   1..6 Paragraph([19])

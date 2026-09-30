@@ -1,8 +1,8 @@
 ---
 source: crates/org-parser/src/object/emoji.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  :flu  shed: abc
 ---
-":flu  shed: abc\n"
 0..16 [1]
   0..16 Paragraph([2])
     0..15 ":flu  shed: abc"

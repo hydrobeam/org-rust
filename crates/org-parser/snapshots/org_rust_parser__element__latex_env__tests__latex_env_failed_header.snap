@@ -1,8 +1,10 @@
 ---
 source: crates/org-parser/src/element/latex_env.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  \begin{star!}
+  \end{star!}
 ---
-"\n\\begin{star!}\n\\end{star!}\n"
 0..27 [1, 2]
   0..1 BlankLine
   1..27 Paragraph([3, 4, 5])

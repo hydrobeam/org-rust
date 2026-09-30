@@ -1,8 +1,31 @@
 ---
 source: crates/org-parser/src/element/block.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  #+begin_quote
+  
+  /formatted text? such thing!/
+  *abc*
+  
+  * headlines too
+  anything is possible
+  
+  blank lines
+  
+  #+keyword: one
+  
+  #+begin_src rust
+  let nest = Some()
+  
+  if let Some(nested) = nest {
+      dbg!(meta);
+  }
+  
+  #+end_src
+  
+  ** headline :tag:meow:
+  #+end_quote
 ---
-"\n#+begin_quote\n\n/formatted text? such thing!/\n*abc*\n\n* headlines too\nanything is possible\n\nblank lines\n\n#+keyword: one\n\n#+begin_src rust\nlet nest = Some()\n\nif let Some(nested) = nest {\n    dbg!(meta);\n}\n\n#+end_src\n\n** headline :tag:meow:\n#+end_quote\n"
 0..250 [1, 2, 26]
   0..1 BlankLine
   1..249 Quote { parameters: {}, contents: [3, 4, 10, 11] }

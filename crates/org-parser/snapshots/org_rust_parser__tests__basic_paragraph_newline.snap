@@ -1,8 +1,9 @@
 ---
 source: crates/org-parser/src/lib.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  hello_world
+  same_paragraph
 ---
-"hello_world\nsame_paragraph\n"
 0..27 [1]
   0..27 Paragraph([3, 2, 4, 6, 5])
     0..5 "hello"

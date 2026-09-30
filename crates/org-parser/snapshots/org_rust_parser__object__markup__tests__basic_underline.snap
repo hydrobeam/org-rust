@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/markup.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: _hello_world_
 ---
-"_hello_world_"
 0..14 [1]
   0..14 Paragraph([3])
     0..13 Underline([2])

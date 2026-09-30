@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/latex_frag.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: "\\) not a command"
 ---
-"\\) not a command"
 0..17 [1]
   0..17 Paragraph([2])
     0..16 "\\) not a command"

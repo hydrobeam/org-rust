@@ -1,8 +1,16 @@
 ---
 source: crates/org-parser/src/element/plain_list.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  - one
+        abcd
+        eif
+    #+begin_example
+    we are eating so good?
+    #+end_example
+  
+  - two
 ---
-"\n- one\n      abcd\n      eif\n  #+begin_example\n  we are eating so good?\n  #+end_example\n\n- two\n"
 0..94 [1, 12, 10, 11, 16]
   0..1 BlankLine
   1..86 PlainList { children: [2], kind: Unordered }

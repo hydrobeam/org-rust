@@ -1,8 +1,14 @@
 ---
 source: crates/org-parser/src/element/drawer.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: |
+  
+  
+  :NAME:
+  hello
+  :END:
+  
+  halloo
 ---
-"\n\n:NAME:\nhello\n:END:\n\nhalloo\n"
 0..29 [1, 2, 3, 6, 7, 8]
   0..1 BlankLine
   1..2 BlankLine

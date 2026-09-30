@@ -1,8 +1,7 @@
 ---
 source: crates/org-parser/src/object/markup.rs
-expression: "$crate :: test_util :: snapshot_text(parser)"
+description: abc /one *two* three/ four
 ---
-"abc /one *two* three/ four"
 0..27 [1]
   0..27 Paragraph([7, 6, 8])
     0..4 "abc "
