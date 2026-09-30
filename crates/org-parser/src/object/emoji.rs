@@ -1910,10 +1910,10 @@ pub(crate) fn parse_emoji<'a>(name: &'a str) -> Result<Emoji<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_util::snap;
     use crate::expr_in_pool;
     use crate::object::Emoji;
     use crate::parse_org;
+    use crate::test_util::snap;
     use crate::types::Expr;
 
     #[test]

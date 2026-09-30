@@ -115,8 +115,8 @@ pub fn parse_macro_call<'a>(input: &'a str) -> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_util::snap;
     use super::*;
+    use crate::test_util::snap;
 
     #[test]
     fn test_basic_paragraph() {

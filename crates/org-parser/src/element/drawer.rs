@@ -130,8 +130,8 @@ pub(crate) fn parse_property(mut cursor: Cursor) -> Result<Match<PropertyDrawer>
 
 #[cfg(test)]
 mod tests {
-    use crate::test_util::snap;
     use crate::parse_org;
+    use crate::test_util::snap;
 
     #[test]
     fn basic_drawer() {

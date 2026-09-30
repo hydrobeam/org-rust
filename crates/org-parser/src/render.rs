@@ -59,7 +59,6 @@ fn render_section<V: Debug>(out: &mut String, title: &str, sep: &str, map: &Hash
     }
 }
 
-
 impl Parser<'_> {
     /// Renders the parsed tree as indented text.
     ///

@@ -126,8 +126,8 @@ parse_nscript!(Superscript);
 
 #[cfg(test)]
 mod tests {
-    use crate::test_util::snap;
     use crate::parse_org;
+    use crate::test_util::snap;
 
     #[test]
     fn basic_sup() {
