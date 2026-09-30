@@ -51,7 +51,8 @@ Refer to the [[./docs][documentation]] for developer-specific information & synt
 
 The parser and exporter rely on snapshot tests built on [[https://insta.rs/][insta]].
 A snapshot test processes a small input and compares the output against a stored snapshot (~.snap~) in ~crates/<crate>/snapshots/~.
-Exporter tests snapshot the exported output instead, parser tests compare against ~Parser::render_tree()~ to ensure stability.
+Parser tests compare against the output ~Parser::render_tree()~ to ensure stability.
+Exporter snapshot tests are handled [[https://insta.rs/docs/quickstart/#inline-snapshots][inline]].
 
 *** Snapshot workflow
 

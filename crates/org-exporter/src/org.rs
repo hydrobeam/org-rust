@@ -880,7 +880,50 @@ more content here this is a pargraph
 ",
         );
 
-        snap!(out);
+        insta::assert_snapshot!(out, @"
+        * DONE [#0] *one* two /three/ /four* :one:two:three:four:
+        more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** a
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        * a
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ");
     }
 
     #[test]

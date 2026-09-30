@@ -1079,7 +1079,15 @@ abc &+ 10\\
 \end{align}
 ",
         );
-        snap!(a);
+        insta::assert_snapshot!(a, @r#"
+        <ul>
+        <li><p>one</p>
+        </li>
+        <li><p>two</p>
+        </li>
+        </ul>
+        <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mtable columnalign=left><mtr><mtd><mi>a</mi><mi>b</mi><mi>c</mi></mtd><mtd><mo>+</mo><mn>10</mn></mtd></mtr><mtr><mtd></mtd></mtr></mtable></math>
+        "#);
     }
 
     #[test]
