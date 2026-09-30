@@ -1,0 +1,8 @@
+---
+source: crates/org-parser/src/object/emoji.rs
+description: |
+  :flu  shed: abc
+---
+0..16 [1]
+  0..16 Paragraph([2])
+    0..15 ":flu  shed: abc"

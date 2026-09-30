@@ -1,0 +1,10 @@
+---
+source: crates/org-parser/src/element/heading.rs
+description: |
+  * TODO [#A] SWAG 
+---
+0..18 [1]
+  0..18 Heading { heading_level: One, keyword: Some("TODO"), priority: Some(A), title: Some(("SWAG \n", [2])), tags: None, properties: None, children: None }
+    12..17 "SWAG "
+targets:
+  "SWAG \n" -> "swag-"

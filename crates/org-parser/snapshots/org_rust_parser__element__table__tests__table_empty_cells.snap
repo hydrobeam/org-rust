@@ -1,0 +1,18 @@
+---
+source: crates/org-parser/src/element/table.rs
+description: |
+  
+  ||a|
+  |b||
+---
+0..11 [1, 2]
+  0..1 BlankLine
+  1..11 Table { rows: 2, cols: 2, children: [6, 10], caption: None }
+    1..6 Standard([3, 5])
+      2..3 TableCell([])
+      3..5 TableCell([4])
+        3..4 "a"
+    6..11 Standard([8, 9])
+      7..9 TableCell([7])
+        7..8 "b"
+      9..10 TableCell([])

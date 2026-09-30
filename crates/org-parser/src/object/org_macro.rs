@@ -150,6 +150,7 @@ impl<'a> Parseable<'a> for MacroCall<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use std::borrow::Cow;
 
     use pretty_assertions::assert_eq;
@@ -241,7 +242,7 @@ mod tests {
 {{{poem(cool, three)}}}
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

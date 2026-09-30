@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/element/latex_env.rs
+description: |
+  
+  \begin{}
+  \end{}
+---
+0..17 [1, 2, 3]
+  0..1 BlankLine
+  1..16 LatexEnv { name: "", contents: "" }
+  16..17 BlankLine

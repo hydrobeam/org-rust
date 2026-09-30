@@ -131,6 +131,7 @@ pub(crate) fn parse_property(mut cursor: Cursor) -> Result<Match<PropertyDrawer>
 #[cfg(test)]
 mod tests {
     use crate::parse_org;
+    use crate::test_util::snap;
 
     #[test]
     fn basic_drawer() {
@@ -144,7 +145,7 @@ halloo
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -159,6 +160,6 @@ halloo
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 }

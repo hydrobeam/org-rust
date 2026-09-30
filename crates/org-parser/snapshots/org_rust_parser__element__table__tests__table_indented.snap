@@ -1,0 +1,33 @@
+---
+source: crates/org-parser/src/element/table.rs
+description: |+
+  
+  word
+          |one two |three|
+          |s       |     |
+          |four | five|
+  word
+
+---
+0..84 [1, 2, 3, 20, 21]
+  0..1 BlankLine
+  1..6 Paragraph([19])
+    1..5 "word"
+  14..78 Table { rows: 3, cols: 2, children: [8, 13, 18], caption: None }
+    14..31 Standard([5, 7])
+      15..24 TableCell([4])
+        15..23 "one two"
+      24..30 TableCell([6])
+        24..29 "three"
+    31..56 Standard([10, 12])
+      40..49 TableCell([9])
+        40..48 "s"
+      49..55 TableCell([])
+    56..78 Standard([15, 17])
+      65..71 TableCell([14])
+        65..70 "four"
+      71..77 TableCell([16])
+        71..76 " five"
+  78..83 Paragraph([22])
+    78..82 "word"
+  83..84 BlankLine

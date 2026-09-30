@@ -1,0 +1,14 @@
+---
+source: crates/org-parser/src/object/org_macro.rs
+description: |
+  #+macro: poem hiii $1 $2 text
+  
+  {{{poem(cool, three)}}}
+---
+0..55 [1, 2, 3]
+  0..30 MacroDef { num_args: 2, input: [Text("hiii "), ArgNum(1), Text(" "), ArgNum(2), Text(" text")], name: "poem" }
+  30..31 BlankLine
+  31..55 Paragraph([4])
+    31..54 MacroCall { name: "poem", args: ["cool", " three"] }
+macros:
+  "poem" = MacroDef { num_args: 2, input: [Text("hiii "), ArgNum(1), Text(" "), ArgNum(2), Text(" text")], name: "poem" }

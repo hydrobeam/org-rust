@@ -1,0 +1,36 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+description: |
+  
+  - one
+   abcdef
+  - four
+  this aint a list baby
+  #+begin_src python
+  not a list too
+  #+end_src
+  
+  
+  - five
+---
+0..97 [1, 10, 11, 12, 14, 15, 16, 20]
+  0..1 BlankLine
+  1..22 PlainList { children: [2, 6], kind: Unordered }
+    1..15 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3] }
+      3..15 Paragraph([5, 4, 9])
+        3..6 "one"
+        6..7 SoftBreak
+        7..14 " abcdef"
+    15..22 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [7] }
+      17..22 Paragraph([8])
+        17..21 "four"
+  22..44 Paragraph([13])
+    22..43 "this aint a list baby"
+  44..87 Src { language: Some("python"), parameters: {}, contents: "not a list too\n" }
+  87..88 BlankLine
+  88..89 BlankLine
+  89..90 BlankLine
+  90..97 PlainList { children: [17], kind: Unordered }
+    90..97 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [18] }
+      92..97 Paragraph([19])
+        92..96 "five"

@@ -1,0 +1,16 @@
+---
+source: crates/org-parser/src/element/heading.rs
+description: |
+  * TODO [#A] *one* two /three/ /four* 
+---
+0..38 [1]
+  0..38 Heading { heading_level: One, keyword: Some("TODO"), priority: Some(A), title: Some(("*one* two /three/ /four* \n", [3, 6, 5, 8, 7])), tags: None, properties: None, children: None }
+    12..17 Bold([2])
+      13..16 "one"
+    17..22 " two "
+    22..29 Italic([4])
+      23..28 "three"
+    29..31 " /"
+    31..37 "four* "
+targets:
+  "*one* two /three/ /four* \n" -> "one-two-three-four-"

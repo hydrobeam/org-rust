@@ -1,0 +1,30 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+description: |
+  
+  - one
+        abcd
+        eif
+    #+begin_example
+    we are eating so good?
+    #+end_example
+  
+  - two
+---
+0..94 [1, 12, 10, 11, 16]
+  0..1 BlankLine
+  1..86 PlainList { children: [2], kind: Unordered }
+    1..86 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3, 8] }
+      3..28 Paragraph([5, 4, 7, 6, 9])
+        3..6 "one"
+        6..7 SoftBreak
+        7..17 "      abcd"
+        17..18 SoftBreak
+        18..27 "      eif"
+      30..86 Example { parameters: {}, contents: "  we are eating so good?\n" }
+  86..87 BlankLine
+  87..88 BlankLine
+  88..94 PlainList { children: [13], kind: Unordered }
+    88..94 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [14] }
+      90..94 Paragraph([15])
+        90..93 "two"

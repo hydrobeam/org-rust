@@ -289,6 +289,7 @@ fn verify_single_char_latex_frag(cursor: Cursor) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use crate::{expr_in_pool, object::LatexFragment, parse_org, types::Expr};
     use pretty_assertions::assert_eq;
 
@@ -402,7 +403,7 @@ mod tests {
         let input = r"\) not a command";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -462,7 +463,7 @@ c}
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -470,9 +471,7 @@ c}
         let input = "one two $three\nfourfive";
 
         let pool = parse_org(input);
-
-        dbg!(&pool);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

@@ -1913,6 +1913,7 @@ mod tests {
     use crate::expr_in_pool;
     use crate::object::Emoji;
     use crate::parse_org;
+    use crate::test_util::snap;
     use crate::types::Expr;
 
     #[test]
@@ -1938,7 +1939,7 @@ mod tests {
 ";
 
         let pool = parse_org(input);
-        dbg!(pool);
+        snap!(pool);
     }
 
     #[test]

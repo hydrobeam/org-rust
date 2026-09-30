@@ -1,0 +1,16 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+description: |
+  
+  - one
+  - two
+---
+0..13 [1, 8]
+  0..1 BlankLine
+  1..13 PlainList { children: [2, 4], kind: Unordered }
+    1..7 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3] }
+      3..7 Paragraph([7])
+        3..6 "one"
+    7..13 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [5] }
+      9..13 Paragraph([6])
+        9..12 "two"

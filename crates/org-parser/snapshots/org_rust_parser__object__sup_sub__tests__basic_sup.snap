@@ -1,0 +1,9 @@
+---
+source: crates/org-parser/src/object/sup_sub.rs
+description: "a^{\\smiley}"
+---
+0..12 [1]
+  0..12 Paragraph([4, 3])
+    0..1 "a"
+    1..11 Superscript(Rec([2]))
+      3..10 Entity { name: "smiley", mapped_item: "☺" }

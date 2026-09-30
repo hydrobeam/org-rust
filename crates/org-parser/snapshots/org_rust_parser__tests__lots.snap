@@ -1,0 +1,181 @@
+---
+source: crates/org-parser/src/lib.rs
+description: |+
+  
+  #+macro: greet Hello $1, nice typing... $1.
+  * Basic Heading
+  
+  {{{greet(user)}}}
+  
+  ** Child Heading
+  
+  - https://plain_links.com.
+    - <mailto:okiedokie@cool.com>
+      - src_python{(technically) inline_src}
+  - [[Child Heading]]
+    - \aleph \leftarrow entities
+  
+  #+begin_export
+  <style type="text/css" media="screen">
+  table, th, td {
+    border: 1px solid;
+  }
+  </style>
+  #+end_export
+  
+  |tables!|[[targets][links to output target]]|styled,, manually :sweat_smile:
+  |no|default css (yet)|
+  |||||||||table
+  
+  1. +does+
+  2. *it*
+  3. /all/
+  4. ~code~
+  5. =code, again..=
+  6. /so _nested_, *t^o_o*./
+  
+  emojis :flushed: :tada: :sunglasses:
+  
+  \begin{align}
+  x &+ 4\\
+  abc &+ 10\\
+  \end{align}
+  output MathML, little janky atm (might switch to katex..?)
+  
+  Target here: <<targets>>\\
+  
+  
+  # doesn't look the best, imo
+  -----
+  
+  #+begin_src rust
+  nothing styled for source blocks yet, too.
+  #+end_src
+
+---
+0..850 [1, 2, 3]
+  0..1 BlankLine
+  1..45 MacroDef { num_args: 1, input: [Text("Hello "), ArgNum(1), Text(", nice typing... "), ArgNum(1), Text(".")], name: "greet" }
+  45..850 Heading { heading_level: One, keyword: None, priority: None, title: Some(("Basic Heading\n", [4])), tags: None, properties: None, children: Some([5, 6, 8, 9]) }
+    47..60 "Basic Heading"
+    61..62 BlankLine
+    62..80 Paragraph([7])
+      62..79 MacroCall { name: "greet", args: ["user"] }
+    80..81 BlankLine
+    81..850 Heading { heading_level: Two, keyword: None, priority: None, title: Some(("Child Heading\n", [10])), tags: Some([Loc(3)]), properties: None, children: Some([11, 35, 36, 37, 38, 39, 65, 97, 98, 105, 106, 107, 108, 109, 111, 115, 116, 117, 118, 119, 120, 121]) }
+      84..97 "Child Heading"
+      98..99 BlankLine
+      99..253 PlainList { children: [12, 24], kind: Unordered }
+        99..201 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [13, 22] }
+          101..126 Paragraph([14, 23])
+            101..124 PlainLink { protocol: "https", path: "//plain_links.com" }
+            124..125 "."
+          128..201 PlainList { children: [15], kind: Unordered }
+            128..201 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [16, 21] }
+              130..158 Paragraph([17])
+                130..157 PlainLink { protocol: "mailto", path: "okiedokie@cool.com" }
+              162..201 PlainList { children: [18], kind: Unordered }
+                162..201 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [19] }
+                  164..201 Paragraph([20])
+                    164..200 InlineSrc { lang: "python", headers: None, body: "(technically) inline_src" }
+        201..253 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [25, 34] }
+          203..221 Paragraph([26])
+            203..220 RegularLink { path: Match { start: 205, end: 218, obj: Unspecified("Child Heading") }, description: None, caption: None }
+          223..253 PlainList { children: [27], kind: Unordered }
+            223..253 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [28] }
+              225..252 Paragraph([29, 31, 30, 33])
+                225..231 Entity { name: "aleph", mapped_item: "ℵ" }
+                231..232 " "
+                232..242 Entity { name: "leftarrow", mapped_item: "←" }
+                242..251 " entities"
+      253..367 Export { backend: None, parameters: {}, contents: "<style type=\"text/css\" media=\"screen\">\ntable, th, td {\n  border: 1px solid;\n}\n</style>\n" }
+      367..368 BlankLine
+      368..369 BlankLine
+      369..484 Table { rows: 3, cols: 9, children: [48, 53, 64], caption: None }
+        369..446 Standard([41, 44, 47])
+          370..378 TableCell([40])
+            370..377 "tables!"
+          378..414 TableCell([43])
+            378..413 RegularLink { path: Match { start: 380, end: 387, obj: Unspecified("targets") }, description: Some([42]), caption: None }
+              389..411 "links to output target"
+          414..445 TableCell([46, 45])
+            414..432 "styled,, manually "
+            432..445 Emoji { name: "sweat_smile", mapped_item: '😅' }
+        446..469 Standard([50, 52])
+          447..450 TableCell([49])
+            447..449 "no"
+          450..468 TableCell([51])
+            450..467 "default css (yet)"
+        469..484 Standard([54, 55, 56, 57, 58, 59, 60, 61, 63])
+          470..471 TableCell([])
+          471..472 TableCell([])
+          472..473 TableCell([])
+          473..474 TableCell([])
+          474..475 TableCell([])
+          475..476 TableCell([])
+          476..477 TableCell([])
+          477..478 TableCell([])
+          478..483 TableCell([62])
+            478..483 "table"
+      484..485 BlankLine
+      485..569 PlainList { children: [66, 70, 74, 78, 81, 84], kind: Ordered(Number(1)) }
+        485..495 Item { bullet: Ordered(Number(1)), counter_set: None, check_box: None, tag: None, children: [67] }
+          488..495 Paragraph([69])
+            488..494 StrikeThrough([68])
+              489..493 "does"
+        495..503 Item { bullet: Ordered(Number(2)), counter_set: None, check_box: None, tag: None, children: [71] }
+          498..503 Paragraph([73])
+            498..502 Bold([72])
+              499..501 "it"
+        503..512 Item { bullet: Ordered(Number(3)), counter_set: None, check_box: None, tag: None, children: [75] }
+          506..512 Paragraph([77])
+            506..511 Italic([76])
+              507..510 "all"
+        512..522 Item { bullet: Ordered(Number(4)), counter_set: None, check_box: None, tag: None, children: [79] }
+          515..522 Paragraph([80])
+            515..521 Code("code")
+        522..541 Item { bullet: Ordered(Number(5)), counter_set: None, check_box: None, tag: None, children: [82] }
+          525..541 Paragraph([83])
+            525..540 Verbatim("code, again..")
+        541..569 Item { bullet: Ordered(Number(6)), counter_set: None, check_box: None, tag: None, children: [85] }
+          544..568 Paragraph([95])
+            544..567 Italic([88, 87, 93, 92, 94])
+              545..548 "so "
+              548..556 Underline([86])
+                549..555 "nested"
+              556..558 ", "
+              558..565 Bold([90, 89, 91])
+                559..560 "t"
+                560..562 Superscript(Plain("o"))
+                562..564 Subscript(Plain("o"))
+              565..566 "."
+      569..606 Paragraph([100, 99, 102, 101, 104, 103])
+        569..576 "emojis "
+        576..585 Emoji { name: "flushed", mapped_item: '😳' }
+        585..586 " "
+        586..592 Emoji { name: "tada", mapped_item: '🎉' }
+        592..593 " "
+        593..605 Emoji { name: "sunglasses", mapped_item: '😎' }
+      606..607 BlankLine
+      607..653 LatexEnv { name: "align", contents: "x &+ 4\\\\\nabc &+ 10\\\\\n" }
+      653..654 BlankLine
+      654..713 Paragraph([110])
+        654..712 "output MathML, little janky atm (might switch to katex..?)"
+      713..714 BlankLine
+      714..742 Paragraph([113, 112, 114])
+        714..727 "Target here: "
+        727..738 Target("targets")
+        738..741 LineBreak
+      742..743 BlankLine
+      743..772 Comment("doesn't look the best, imo")
+      772..778 HorizontalRule
+      778..779 BlankLine
+      779..848 Src { language: Some("rust"), parameters: {}, contents: "nothing styled for source blocks yet, too.\n" }
+      848..849 BlankLine
+      849..850 BlankLine
+targets:
+  "Basic Heading\n" -> "basic-heading"
+  "Child Heading\n" -> "child-heading"
+  "targets" -> "targets"
+macros:
+  "greet" = MacroDef { num_args: 1, input: [Text("Hello "), ArgNum(1), Text(", nice typing... "), ArgNum(1), Text(".")], name: "greet" }

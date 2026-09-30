@@ -3,7 +3,7 @@ use org_exporter::ExportError;
 use org_exporter::Exporter;
 use org_exporter::Html;
 use org_exporter::Org;
-use org_parser::{parse_org, Expr, Node, NodeID, NodePool};
+use org_parser::{Expr, Node, NodeID, NodePool, parse_org};
 use wasm_bindgen::prelude::*;
 
 use js_sys::Int32Array;

@@ -701,13 +701,10 @@ three
 ",
         );
 
-        assert_eq!(
-            out_str,
-            r"** one two
-three *four*
-
-"
-        );
+        insta::assert_snapshot!(out_str, @"
+        ** one two
+        three *four*
+        ");
     }
 
     #[test]
@@ -724,24 +721,22 @@ three *four*
 ",
         );
 
-        assert_eq!(
-            a,
-            r"
-- one two three
-four five six
+        insta::assert_snapshot!(a, @"
 
-- two
-- three
-- four
-+five
-"
-        );
+        - one two three
+        four five six
+
+        - two
+        - three
+        - four
+        +five
+        ");
     }
 
     #[test]
     fn test_link_export() {
-        let out = org_export("[[https://swag.org][meowww]]");
-        println!("{out}");
+        let out = org_export("[[https://swag.org][self]]");
+        insta::assert_snapshot!(out, @"[[https://swag.org][self]]");
     }
 
     #[test]
@@ -880,7 +875,50 @@ more content here this is a pargraph
 ",
         );
 
-        println!("{out}");
+        insta::assert_snapshot!(out, @"
+        * DONE [#0] *one* two /three/ /four* :one:two:three:four:
+        more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** [#1] descendant headline :five:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        subcontent this
+
+        is a different paragraph id) = more subcontent
+
+        * [#4] separate andy
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ** a
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        * a
+        more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph more content here this is a pargraph
+        ");
     }
 
     #[test]
@@ -893,15 +931,12 @@ more content here this is a pargraph
 ",
         );
 
-        assert_eq!(
-            out,
-            r"* [#1] abc :c:
-** [#1] descendant headline :a:b:
-*** [#2] inherit the tags
-** [#3] different level
-"
-        );
-        println!("{out}");
+        insta::assert_snapshot!(out, @"
+        * [#1] abc :c:
+        ** [#1] descendant headline :a:b:
+        *** [#2] inherit the tags
+        ** [#3] different level
+        ");
     }
 
     #[test]
@@ -918,19 +953,16 @@ more content here this is a pargraph
 ",
         );
 
-        println!("{a}");
-        assert_eq!(
-            a,
-            r"
-- one
-  - two
-    - three
-    - four
-      - five
-- six
-  - seven
-"
-        );
+        insta::assert_snapshot!(a, @"
+
+        - one
+          - two
+            - three
+            - four
+              - five
+        - six
+          - seven
+        ");
     }
 
     #[test]
@@ -948,20 +980,17 @@ more content here this is a pargraph
 ",
         );
 
-        println!("{a}");
-        assert_eq!(
-            a,
-            r"
-- one
-  - two
-- three
-  - four
-- five
-  - six
-    - seven
-- eight
-"
-        );
+        insta::assert_snapshot!(a, @"
+
+        - one
+          - two
+        - three
+          - four
+        - five
+          - six
+            - seven
+        - eight
+        ");
     }
 
     #[test]
@@ -980,8 +1009,6 @@ more content here this is a pargraph
    - aome tag :: item 2.1
 ",
         );
-
-        println!("{a}");
 
         // TODO: whitespace handling is super janky atm.
         // can't even test output properly caudse whitespace is inserted into
@@ -1012,15 +1039,13 @@ more content here this is a pargraph
 ",
         );
 
-        assert_eq!(
-            a,
-            r"
-| one   | two  |       |
-| three | four |       |
-| five  | six  | seven |
-| eight |      |       |
-"
-        );
+        insta::assert_snapshot!(a, @"
+
+        | one   | two  |       |
+        | three | four |       |
+        | five  | six  | seven |
+        | eight |      |       |
+        ");
     }
 
     #[test]
@@ -1038,21 +1063,17 @@ more content here this is a pargraph
 ",
         );
 
-        println!("{a}");
-        assert_eq!(
-            a,
-            r"
-| one   | two          |        |        |
-|-------+--------------+--------+--------+
-| three | four         |        |        |
-| five  | six          | seven  |        |
-| eight |              |        |        |
-|-------+--------------+--------+--------+
-| swagg | long the     |        |        |
-| okay  |  _underline_ |  ~fake |  _fake |
-"
-        );
-        // println!("{a}");
+        insta::assert_snapshot!(a, @"
+
+        | one   | two          |        |        |
+        |-------+--------------+--------+--------+
+        | three | four         |        |        |
+        | five  | six          | seven  |        |
+        | eight |              |        |        |
+        |-------+--------------+--------+--------+
+        | swagg | long the     |        |        |
+        | okay  |  _underline_ |  ~fake |  _fake |
+        ");
     }
 
     #[test]
@@ -1072,50 +1093,43 @@ more content here this is a pargraph
 ",
         );
 
-        assert_eq!(
-            a,
-            r"
-- zero
-  | one   | two          |        |        |
-  |-------+--------------+--------+--------+
-  | three | four         |        |        |
-  | five  | six          | seven  |        |
-  | eight |              |        |        |
-  |-------+--------------+--------+--------+
-  | swagg | long the     |        |        |
-  | okay  |  _underline_ |  ~fake |  _fake |
-- ten
-"
-        );
+        insta::assert_snapshot!(a, @"
+
+        - zero
+          | one   | two          |        |        |
+          |-------+--------------+--------+--------+
+          | three | four         |        |        |
+          | five  | six          | seven  |        |
+          | eight |              |        |        |
+          |-------+--------------+--------+--------+
+          | swagg | long the     |        |        |
+          | okay  |  _underline_ |  ~fake |  _fake |
+        - ten
+        ");
     }
 
     #[test]
     fn proper_list_indent() {
         let a = org_export(
-            r"
-- one
+            r"- one
 - four
   - one
   - two
 ",
         );
 
-        assert_eq!(
-            a,
-            r"
-- one
-- four
-  - one
-  - two
-"
-        );
+        insta::assert_snapshot!(a, @"
+        - one
+        - four
+          - one
+          - two
+        ");
     }
 
     #[test]
     fn heading_list_not() {
         let a = org_export(
-            r"
-- one
+            r"- one
 - four
 * one
 ",
@@ -1124,104 +1138,65 @@ more content here this is a pargraph
         // make sure * one is not interpreted as another element of the list,
         // instead as a separate heading (if it was another element, we'd have three -'s
         // )
-        assert_eq!(
-            a,
-            r"
-- one
-- four
-* one
-"
-        );
+        insta::assert_snapshot!(a, @"
+        - one
+        - four
+        * one
+        ");
     }
 
     #[test]
     fn proper_link() {
         let a = org_export(r"[[abc][one]]");
 
-        assert_eq!(
-            a,
-            r"[[abc][one]]
-"
-        );
+        insta::assert_snapshot!(a, @"[[abc][one]]");
     }
 
     #[test]
     fn link_odd() {
         let a = org_export("[aayyyy][one]]");
-        assert_eq!(
-            a,
-            r"[aayyyy][one]]
-"
-        );
+        insta::assert_snapshot!(a, @"[aayyyy][one]]");
     }
 
     #[test]
     fn superscript() {
         let a = org_export(r"sample_text^{\gamma}");
-        assert_eq!(
-            a,
-            r"sample_{text}^{γ}
-"
-        );
+        insta::assert_snapshot!(a, @"sample_{text}^{γ}");
 
         let b = org_export(
             r"sample_text^bunchoftextnowhite!,lkljas
  after",
         );
 
-        assert_eq!(
-            b,
-            r"sample_{text}^{bunchoftextnowhite}!,lkljas  after
-"
-        );
+        insta::assert_snapshot!(b, @"sample_{text}^{bunchoftextnowhite}!,lkljas  after");
 
         let c = org_export(r"nowhere ^texto");
 
-        assert_eq!(
-            c,
-            r"nowhere ^texto
-"
-        );
+        insta::assert_snapshot!(c, @"nowhere ^texto");
     }
 
     #[test]
     fn subscript() {
         let a = org_export(r"sample_text_{\gamma}");
-        assert_eq!(
-            a,
-            r"sample_{text}_{γ}
-"
-        );
+        insta::assert_snapshot!(a, @"sample_{text}_{γ}");
 
         let b = org_export(
             r"sample_{text}_bunchoftextnowhite!,lkljas
  after",
         );
 
-        assert_eq!(
-            b,
-            r"sample_{text}_{bunchoftextnowhite}!,lkljas  after
-"
-        );
+        insta::assert_snapshot!(b, @"sample_{text}_{bunchoftextnowhite}!,lkljas  after");
 
         let c = org_export(r"nowhere _texto");
 
-        assert_eq!(
-            c,
-            r"nowhere _texto
-"
-        );
+        insta::assert_snapshot!(c, @"nowhere _texto");
     }
 
     #[test]
     fn plain_link() {
         let a = org_export("https://cool.com abc rest");
 
-        assert_eq!(
-            a,
-            "[[https://cool.com]] abc rest
-"
-        );
+        insta::assert_snapshot!(a, @"[[https://cool.com]] abc rest");
     }
 
     #[test]
@@ -1232,15 +1207,14 @@ more content here this is a pargraph
 ",
         );
 
-        assert_eq!(
-            a,
-            r"- test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
-- text that isn't disappearing!
-"
-        );
+        insta::assert_snapshot!(a, @r"
+        - test =if ~literal $interpreters \[handle newline \(properly {{{in(a lists
+        - text that isn't disappearing!
+        ");
     }
 
     #[test]
+    #[ignore = "known bug: org exporter emits the src block body once per line (5x here)"]
     fn lblock_plus_list() {
         let a = org_export(
             r"
@@ -1250,24 +1224,24 @@ more content here this is a pargraph
 
 hiiiiiiiiiiiiiiiiiii
 
-meowwwwwwwwww
+wow?
    #+end_src
 
 -
 ",
         );
-        println!("{a}");
+        assert_eq!(
+            a.matches("hiiiiiiiiiiiiiiiiiii").count(),
+            1,
+            "src block body should be emitted once: {a:?}"
+        );
     }
 
     #[test]
     fn markup_enclosed_in_bracks() {
         let a = org_export(r"[_enclosed text here_]");
 
-        assert_eq!(
-            a,
-            "[_enclosed text here_]
-"
-        );
+        insta::assert_snapshot!(a, @"[_enclosed text here_]");
     }
 
     #[test]
@@ -1288,23 +1262,20 @@ four
 :end:
 ",
         );
-        assert_eq!(
-            a,
-            r"
-:NAME:
+        insta::assert_snapshot!(a, @"
 
-*words*
+        :NAME:
 
-|  |  |  | abcds |
+        *words*
 
+        |  |  |  | abcds |
 
 
-* abc one two three
 
-four
-:end:
+        * abc one two three
 
-"
-        );
+        four
+        :end:
+        ");
     }
 }

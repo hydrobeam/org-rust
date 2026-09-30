@@ -303,6 +303,7 @@ impl<'a> From<BlockKind<'a>> for &'a str {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use std::collections::HashMap;
 
     use crate::element::Block;
@@ -452,7 +453,7 @@ if let Some(nested) = nest {
 #+end_quote
 ";
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -514,7 +515,7 @@ here is some text
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -528,7 +529,7 @@ hiiiiiiiiiiiiiiiiiii
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

@@ -79,32 +79,33 @@ impl<'a> InclParams<'a> {
 
         let is_not_kwarg = |x: &&str| !x.starts_with(':');
 
-        let block:  Option<IncludeBlock> = if let Some(potential_block) = params.next_if(is_not_kwarg) {
-            Some(match potential_block {
-                "example" => IncludeBlock::Example,
-                "export" => {
-                    let backend = if let Some(potential_arg) = params.next_if(is_not_kwarg) {
-                        Some(potential_arg)
-                    } else {
-                        // issue warning?
-                        None
-                    };
-                    IncludeBlock::Export { backend }
-                }
-                "src" => {
-                    let lang = if let Some(potential_lang) = params.next_if(is_not_kwarg) {
-                        Some(potential_lang)
-                    } else {
-                        // issue warning?
-                        None
-                    };
-                    IncludeBlock::Src { lang }
-                }
-                _ => Err(IncludeError::UnsupportedBlock(potential_block.into()))?,
-            })
-        } else {
-            None
-        };
+        let block: Option<IncludeBlock> =
+            if let Some(potential_block) = params.next_if(is_not_kwarg) {
+                Some(match potential_block {
+                    "example" => IncludeBlock::Example,
+                    "export" => {
+                        let backend = if let Some(potential_arg) = params.next_if(is_not_kwarg) {
+                            Some(potential_arg)
+                        } else {
+                            // issue warning?
+                            None
+                        };
+                        IncludeBlock::Export { backend }
+                    }
+                    "src" => {
+                        let lang = if let Some(potential_lang) = params.next_if(is_not_kwarg) {
+                            Some(potential_lang)
+                        } else {
+                            // issue warning?
+                            None
+                        };
+                        IncludeBlock::Src { lang }
+                    }
+                    _ => Err(IncludeError::UnsupportedBlock(potential_block.into()))?,
+                })
+            } else {
+                None
+            };
 
         // defaults for kwargs
         let mut only_contents = false;

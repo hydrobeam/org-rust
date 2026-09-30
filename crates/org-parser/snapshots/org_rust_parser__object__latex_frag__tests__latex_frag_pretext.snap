@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/object/latex_frag.rs
+description: |-
+  one two $three
+  fourfive
+---
+0..24 [1]
+  0..24 Paragraph([3, 2, 4])
+    0..14 "one two $three"
+    14..15 SoftBreak
+    15..23 "fourfive"

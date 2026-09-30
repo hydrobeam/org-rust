@@ -1,0 +1,13 @@
+---
+source: crates/org-parser/src/lib.rs
+description: |
+  hello_world
+  same_paragraph
+---
+0..27 [1]
+  0..27 Paragraph([3, 2, 4, 6, 5])
+    0..5 "hello"
+    5..11 Subscript(Plain("world"))
+    11..12 SoftBreak
+    12..16 "same"
+    16..26 Subscript(Plain("paragraph"))

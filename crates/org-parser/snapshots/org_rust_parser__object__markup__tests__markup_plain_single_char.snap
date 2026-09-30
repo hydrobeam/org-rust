@@ -1,0 +1,7 @@
+---
+source: crates/org-parser/src/object/markup.rs
+description: ~a~
+---
+0..4 [1]
+  0..4 Paragraph([2])
+    0..3 Code("a")

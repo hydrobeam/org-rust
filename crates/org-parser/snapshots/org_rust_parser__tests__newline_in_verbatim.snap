@@ -1,0 +1,11 @@
+---
+source: crates/org-parser/src/lib.rs
+description: |
+  hello =italic 
+   newline= more text after
+---
+0..41 [1]
+  0..41 Paragraph([3, 2, 4])
+    0..6 "hello "
+    6..24 Verbatim("italic \n newline")
+    24..40 " more text after"

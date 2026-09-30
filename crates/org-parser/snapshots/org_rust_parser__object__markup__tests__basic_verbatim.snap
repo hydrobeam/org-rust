@@ -1,0 +1,7 @@
+---
+source: crates/org-parser/src/object/markup.rs
+description: "=hello_world="
+---
+0..14 [1]
+  0..14 Paragraph([2])
+    0..13 Verbatim("hello_world")

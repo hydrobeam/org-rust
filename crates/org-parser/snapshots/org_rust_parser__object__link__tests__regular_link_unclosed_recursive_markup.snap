@@ -1,0 +1,14 @@
+---
+source: crates/org-parser/src/object/link.rs
+description: " [[https://meo][cool *site* ~one two~ three *four ]]"
+---
+0..53 [1]
+  1..53 Paragraph([9])
+    1..52 RegularLink { path: Match { start: 3, end: 14, obj: PlainLink(PlainLink { protocol: "https", path: "//meo" }) }, description: Some([4, 3, 6, 5, 8, 7]), caption: None }
+      16..21 "cool "
+      21..27 Bold([2])
+        22..26 "site"
+      27..28 " "
+      28..37 Code("one two")
+      37..45 " three *"
+      45..50 "four "

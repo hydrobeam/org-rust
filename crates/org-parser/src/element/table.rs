@@ -138,6 +138,7 @@ impl<'a> Parseable<'a> for TableRow {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::snap;
     use crate::{Expr, element::Affiliated, expr_in_pool, parse_org};
 
     #[test]
@@ -148,7 +149,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -159,7 +160,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -169,7 +170,7 @@ mod tests {
 |three|four|";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -181,7 +182,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -194,7 +195,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -205,7 +206,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -216,7 +217,7 @@ mod tests {
 ";
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     /// test that alignment spaces are removed
@@ -229,7 +230,7 @@ mod tests {
 
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -241,7 +242,7 @@ mod tests {
 
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -256,7 +257,7 @@ word
 ";
 
         let pool = parse_org(input);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -272,7 +273,7 @@ word
 
         let pool = parse_org(input);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]

@@ -1,0 +1,20 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+description: |
+  
+  - zero
+  - one
+  
+  a*
+---
+0..18 [1, 9, 10]
+  0..1 BlankLine
+  1..15 PlainList { children: [2, 4], kind: Unordered }
+    1..8 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [3] }
+      3..8 Paragraph([8])
+        3..7 "zero"
+    8..15 Item { bullet: Unordered, counter_set: None, check_box: None, tag: None, children: [5] }
+      10..14 Paragraph([7])
+        10..13 "one"
+  15..18 Paragraph([11])
+    15..17 "a*"

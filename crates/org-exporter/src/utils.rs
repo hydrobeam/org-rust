@@ -152,7 +152,6 @@ mod tests {
 
     #[test]
     fn test_toc() -> Result<(), Box<dyn Error>> {
-        //TODO: properly test
         let a = Html::export(
             r#"
 
@@ -178,7 +177,22 @@ ul {
             ConfigOptions::default(),
         )
         .unwrap();
-        println!("{a}");
+        insta::assert_snapshot!(a, @r#"
+        <nav id="table-of-contents" role="doc-toc">
+        <h2>Table Of Contents</h2>
+        <div id="text-table-of-contents" role="doc-toc">
+        <ul><li><ul><li><ul><li><a href=#swag>swag</a></li></ul></li></ul></li><li><a href=#abc>abc</a><ul><li><a href=#love>love</a><ul><li><a href=#3>3</a></li></ul></li></ul></li></ul></div></nav>
+        <style>
+        ul {
+          list-style-type: none;
+        }
+        </style>
+
+        <h3 id="swag">swag</h3>
+        <h1 id="abc">abc</h1>
+        <h2 id="love">love</h2>
+        <h3 id="3">3</h3>
+        "#);
         Ok(())
     }
 }

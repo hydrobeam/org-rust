@@ -144,43 +144,44 @@ plain_markup!(Verbatim, EQUAL);
 #[cfg(test)]
 mod tests {
     use crate::parse_org;
+    use crate::test_util::snap;
 
     #[test]
     fn basic_verbatim() {
         let inp = "=hello_world=";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
     fn basic_code() {
         let inp = "~hello_world~";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
     #[test]
     fn basic_italic() {
         let inp = "/hello_world/";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
     #[test]
     fn basic_bold() {
         let inp = "*hello_world*";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
     #[test]
     fn basic_underline() {
         let inp = "_hello_world_";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
     #[test]
     fn basic_strikethrough() {
         let inp = "+hello_world+";
 
-        dbg!(parse_org(inp));
+        snap!(parse_org(inp));
     }
 
     #[test]
@@ -188,7 +189,7 @@ mod tests {
         let inp = "**";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -196,7 +197,7 @@ mod tests {
         let inp = "~~";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -204,7 +205,7 @@ mod tests {
         let inp = "abc /one *two* three/ four";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -212,7 +213,7 @@ mod tests {
         let inp = "abc /one *two thr/ ee* three four";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -220,7 +221,7 @@ mod tests {
         let inp = "abc /one ~two thr/ ee~ three four";
 
         let pool = parse_org(inp);
-        pool.print_tree();
+        snap!(pool);
     }
     // #[test]
     // fn
@@ -229,7 +230,7 @@ mod tests {
         let inp = "/";
         let pool = parse_org(inp);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -238,7 +239,7 @@ mod tests {
         let inp = "~a~";
         let pool = parse_org(inp);
 
-        pool.print_tree();
+        snap!(pool);
     }
 
     #[test]
@@ -247,6 +248,6 @@ mod tests {
         let inp = "/a/";
         let pool = parse_org(inp);
 
-        pool.print_tree();
+        snap!(pool);
     }
 }

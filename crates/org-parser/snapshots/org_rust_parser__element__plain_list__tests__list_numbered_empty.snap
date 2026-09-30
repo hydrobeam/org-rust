@@ -1,0 +1,16 @@
+---
+source: crates/org-parser/src/element/plain_list.rs
+description: |
+  
+  1.
+  2.
+  3.
+  4.
+---
+0..13 [1, 6]
+  0..1 BlankLine
+  1..13 PlainList { children: [2, 3, 4, 5], kind: Ordered(Number(1)) }
+    1..4 Item { bullet: Ordered(Number(1)), counter_set: None, check_box: None, tag: None, children: [] }
+    4..7 Item { bullet: Ordered(Number(2)), counter_set: None, check_box: None, tag: None, children: [] }
+    7..10 Item { bullet: Ordered(Number(3)), counter_set: None, check_box: None, tag: None, children: [] }
+    10..13 Item { bullet: Ordered(Number(4)), counter_set: None, check_box: None, tag: None, children: [] }
