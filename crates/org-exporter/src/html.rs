@@ -984,11 +984,7 @@ mod tests {
 ",
         );
 
-        assert_eq!(
-            a,
-            r"<p>hiii cool three text</p>
-"
-        );
+        insta::assert_snapshot!(a, @"<p>hiii cool three text</p>");
     }
 
     #[test]
@@ -1000,11 +996,7 @@ mod tests {
 ",
         );
 
-        assert_eq!(
-            a,
-            r"<p>hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii</p>
-",
-        );
+        insta::assert_snapshot!(a, @"<p>hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii</p>");
     }
 
     #[test]
@@ -1014,24 +1006,18 @@ mod tests {
 ",
         );
 
-        assert_eq!(
-            a,
-            r"<p>abc
-<br>
-</p>
-",
-        );
+        insta::assert_snapshot!(a, @"
+        <p>abc
+        <br>
+        </p>
+        ");
 
         let n = html_export(
             r" abc\\   q
 ",
         );
 
-        assert_eq!(
-            n,
-            r"<p>abc\\   q</p>
-",
-        );
+        insta::assert_snapshot!(n, @r"<p>abc\\   q</p>");
     }
 
     #[test]
@@ -1060,11 +1046,7 @@ mod tests {
 ",
         );
 
-        assert_eq!(
-            nb,
-            r"<p>----</p>
-",
-        );
+        insta::assert_snapshot!(nb, @"<p>----</p>");
     }
 
     #[test]
@@ -1097,11 +1079,7 @@ abc &+ 10\\
 ",
         );
 
-        assert_eq!(
-            a,
-            r"<p>a é😳</p>
-"
-        );
+        insta::assert_snapshot!(a, @"<p>a é😳</p>");
     }
 
     #[test]
@@ -1112,14 +1090,12 @@ abc &+ 10\\
 ",
         );
 
-        assert_eq!(
-            a,
-            r#"<ol type="1">
-<li value="4"><p>wordsss??</p>
-</li>
-</ol>
-"#,
-        );
+        insta::assert_snapshot!(a, @r#"
+        <ol type="1">
+        <li value="4"><p>wordsss??</p>
+        </li>
+        </ol>
+        "#);
     }
     #[test]
     fn anon_footnote() {
@@ -1129,32 +1105,31 @@ hi [fn:next:coolio] yeah [fn:next]
 ",
         );
         // just codifying what the output is here, not supposed to be set in stone
-        assert_eq!(
-            a,
-            r##"<p>hi <sup>
-    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup> yeah <sup>
-    <a id="fnr.1.6" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup></p>
+        insta::assert_snapshot!(a, @r##"
+        <p>hi <sup>
+            <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup> yeah <sup>
+            <a id="fnr.1.6" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup></p>
 
-<div id="footnotes">
-    <style>
-    .footdef p {
-    display:inline;
-    }
-    </style>
-    <h2 class="footnotes">Footnotes</h2>
-    <div id="text-footnotes">
+        <div id="footnotes">
+            <style>
+            .footdef p {
+            display:inline;
+            }
+            </style>
+            <h2 class="footnotes">Footnotes</h2>
+            <div id="text-footnotes">
 
 
-<div class="footdef">
-<sup>
-    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
-</sup>
-coolio</div>
-  </div>
-</div>"##
-        );
+        <div class="footdef">
+        <sup>
+            <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+        </sup>
+        coolio</div>
+          </div>
+        </div>
+        "##);
     }
 
     #[test]
@@ -1170,31 +1145,30 @@ hello [fn:1]
         );
 
         // just codifying what the output is here, not supposed to be set in stone
-        assert_eq!(
-            a,
-            r##"<p>hello <sup>
-    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup></p>
-<h1 id="footnotes">Footnotes</h1>
+        insta::assert_snapshot!(a, @r##"
+        <p>hello <sup>
+            <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup></p>
+        <h1 id="footnotes">Footnotes</h1>
 
-<div id="footnotes">
-    <style>
-    .footdef p {
-    display:inline;
-    }
-    </style>
-    <div id="text-footnotes">
+        <div id="footnotes">
+            <style>
+            .footdef p {
+            display:inline;
+            }
+            </style>
+            <div id="text-footnotes">
 
 
-<div class="footdef">
-<sup>
-    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
-</sup>
-<p>world</p>
-</div>
-  </div>
-</div>"##
-        );
+        <div class="footdef">
+        <sup>
+            <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+        </sup>
+        <p>world</p>
+        </div>
+          </div>
+        </div>
+        "##);
     }
 
     #[test]
@@ -1219,62 +1193,61 @@ novel [fn:next:coolio]
 
         // REVIEW; investigate different nodeids with export_buf and export
         // had to change 1.7 to 1.8 to pass the test
-        assert_eq!(
-            a,
-            r##"<p>hi <sup>
-    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup> cool test <sup>
-    <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
-</sup>  <sup>
-    <a id="fnr.1.8" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup> coolest <sup>
-    <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
-</sup> again <sup>
-    <a id="fnr.3.13" href="#fn.3" class="footref" role="doc-backlink">3</a>
-</sup></p>
-<p>novel <sup>
-    <a id="fnr.4" href="#fn.4" class="footref" role="doc-backlink">4</a>
-</sup></p>
-<h2 id="footnotes">Footnotes</h2>
+        insta::assert_snapshot!(a, @r##"
+        <p>hi <sup>
+            <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup> cool test <sup>
+            <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
+        </sup>  <sup>
+            <a id="fnr.1.8" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup> coolest <sup>
+            <a id="fnr.3" href="#fn.3" class="footref" role="doc-backlink">3</a>
+        </sup> again <sup>
+            <a id="fnr.3.13" href="#fn.3" class="footref" role="doc-backlink">3</a>
+        </sup></p>
+        <p>novel <sup>
+            <a id="fnr.4" href="#fn.4" class="footref" role="doc-backlink">4</a>
+        </sup></p>
+        <h2 id="footnotes">Footnotes</h2>
 
-<div id="footnotes">
-    <style>
-    .footdef p {
-    display:inline;
-    }
-    </style>
-    <div id="text-footnotes">
+        <div id="footnotes">
+            <style>
+            .footdef p {
+            display:inline;
+            }
+            </style>
+            <div id="text-footnotes">
 
 
-<div class="footdef">
-<sup>
-    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
-</sup>
-<p>abcdef</p>
-</div>
+        <div class="footdef">
+        <sup>
+            <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+        </sup>
+        <p>abcdef</p>
+        </div>
 
-<div class="footdef">
-<sup>
-    <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
-</sup>
-<p>words babby</p>
-</div>
+        <div class="footdef">
+        <sup>
+            <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
+        </sup>
+        <p>words babby</p>
+        </div>
 
-<div class="footdef">
-<sup>
-    <a id="fn.3" href= "#fnr.3" role="doc-backlink">3</a>
-</sup>
-<p>hi</p>
-</div>
+        <div class="footdef">
+        <sup>
+            <a id="fn.3" href= "#fnr.3" role="doc-backlink">3</a>
+        </sup>
+        <p>hi</p>
+        </div>
 
-<div class="footdef">
-<sup>
-    <a id="fn.4" href= "#fnr.4" role="doc-backlink">4</a>
-</sup>
-coolio</div>
-  </div>
-</div>"##
-        );
+        <div class="footdef">
+        <sup>
+            <a id="fn.4" href= "#fnr.4" role="doc-backlink">4</a>
+        </sup>
+        coolio</div>
+          </div>
+        </div>
+        "##);
     }
 
     #[test]
@@ -1289,51 +1262,46 @@ bad [fn:]
 ",
         );
 
-        assert_eq!(
-            a,
-            r##"<p>And anonymous ones <sup>
-    <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
-</sup></p>
-<p>what <sup>
-    <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
-</sup></p>
-<p>bad [fn:]</p>
+        insta::assert_snapshot!(a, @r##"
+        <p>And anonymous ones <sup>
+            <a id="fnr.1" href="#fn.1" class="footref" role="doc-backlink">1</a>
+        </sup></p>
+        <p>what <sup>
+            <a id="fnr.2" href="#fn.2" class="footref" role="doc-backlink">2</a>
+        </sup></p>
+        <p>bad [fn:]</p>
 
-<div id="footnotes">
-    <style>
-    .footdef p {
-    display:inline;
-    }
-    </style>
-    <h2 class="footnotes">Footnotes</h2>
-    <div id="text-footnotes">
+        <div id="footnotes">
+            <style>
+            .footdef p {
+            display:inline;
+            }
+            </style>
+            <h2 class="footnotes">Footnotes</h2>
+            <div id="text-footnotes">
 
 
-<div class="footdef">
-<sup>
-    <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
-</sup>
-mysterious</div>
+        <div class="footdef">
+        <sup>
+            <a id="fn.1" href= "#fnr.1" role="doc-backlink">1</a>
+        </sup>
+        mysterious</div>
 
-<div class="footdef">
-<sup>
-    <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
-</sup>
-</div>
-  </div>
-</div>"##
-        );
+        <div class="footdef">
+        <sup>
+            <a id="fn.2" href= "#fnr.2" role="doc-backlink">2</a>
+        </sup>
+        </div>
+          </div>
+        </div>
+        "##);
     }
 
     #[test]
     fn file_link() {
         let a = html_export(r"[[file:html.org][hi]]");
 
-        assert_eq!(
-            a,
-            r#"<p><a href="html.org">hi</a></p>
-"#
-        );
+        insta::assert_snapshot!(a, @r#"<p><a href="html.org">hi</a></p>"#);
     }
 
     #[test]
@@ -1343,13 +1311,11 @@ mysterious</div>
 [[file:bmc.jpg]]
 ",
         );
-        assert_eq!(
-            a,
-            r#"<figure>
-<img src="bmc.jpg" alt="bmc.jpg">
-</figure>
-"#
-        );
+        insta::assert_snapshot!(a, @r#"
+        <figure>
+        <img src="bmc.jpg" alt="bmc.jpg">
+        </figure>
+        "#);
     }
 
     #[test]
@@ -1360,57 +1326,45 @@ mysterious</div>
 ",
         );
 
-        assert_eq!(
-            a,
-            r#"<figure>
-<img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
-</figure>
-"#
-        );
+        insta::assert_snapshot!(a, @r#"
+        <figure>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a6/Org-mode-unicorn.svg" alt="Org-mode-unicorn.svg">
+        </figure>
+        "#);
     }
 
     #[test]
     fn unspecified_link() {
         let a = html_export(r"[[./hello]]");
 
-        assert_eq!(
-            a,
-            r##"<p><a href="./hello">./hello</a></p>
-"##
-        );
+        insta::assert_snapshot!(a, @r#"<p><a href="./hello">./hello</a></p>"#);
     }
 
     #[test]
     fn checkbox() {
         let a = html_export("- [X]\n");
 
-        assert_eq!(
-            a,
-            r#"<ul>
-<li class="on"></li>
-</ul>
-"#
-        );
+        insta::assert_snapshot!(a, @r#"
+        <ul>
+        <li class="on"></li>
+        </ul>
+        "#);
 
         let b = html_export("- [ ]\n");
 
-        assert_eq!(
-            b,
-            r#"<ul>
-<li class="off"></li>
-</ul>
-"#
-        );
+        insta::assert_snapshot!(b, @r#"
+        <ul>
+        <li class="off"></li>
+        </ul>
+        "#);
 
         let c = html_export("- [-]\n");
 
-        assert_eq!(
-            c,
-            r#"<ul>
-<li class="trans"></li>
-</ul>
-"#
-        );
+        insta::assert_snapshot!(c, @r#"
+        <ul>
+        <li class="trans"></li>
+        </ul>
+        "#);
     }
 
     #[test]
@@ -1428,10 +1382,13 @@ content
 
 here
 "#;
-        assert_eq!(
-            html_export(a),
-            "<h1 id=\"yeah\">yeah</h1>\n<p>hello</p>\n<p>hi</p>\n<p>content</p>\n<p>here</p>\n"
-        );
+        insta::assert_snapshot!(html_export(a), @r#"
+        <h1 id="yeah">yeah</h1>
+        <p>hello</p>
+        <p>hi</p>
+        <p>content</p>
+        <p>here</p>
+        "#);
     }
 
     #[test]
@@ -1441,17 +1398,14 @@ here
 [[suki.jpg]]
 "#;
 
-        assert_eq!(
-            html_export(a),
-            r#"<figure>
-<figcaption>
-<p> yes</p>
-</figcaption>
-<img src="suki.jpg" alt="suki.jpg">
-</figure>
-"#
-        )
-    }
+        insta::assert_snapshot!(html_export(a), @r#"
+        <figure>
+        <figcaption>
+        <p> yes</p>
+        </figcaption>
+        <img src="suki.jpg" alt="suki.jpg">
+        </figure>
+        "#);}
 
     #[test]
     fn tabale_caption() {
@@ -1460,21 +1414,18 @@ here
 |a|b|c
 "#;
 
-        assert_eq!(
-            html_export(a),
-            r#"<table>
-<caption>
-<p> i am a table</p>
-</caption>
-<tr>
-<td>a</td>
-<td>b</td>
-<td>c</td>
-</tr>
-</table>
-"#
-        )
-    }
+        insta::assert_snapshot!(html_export(a), @"
+        <table>
+        <caption>
+        <p> i am a table</p>
+        </caption>
+        <tr>
+        <td>a</td>
+        <td>b</td>
+        <td>c</td>
+        </tr>
+        </table>
+        ");}
 
     #[test]
     fn block_src() {
@@ -1484,14 +1435,12 @@ here
     (string-append "hello" name))
 #+end_src"#;
 
-        assert_eq!(
-            html_export(org_src),
-            r#"<pre><code class="src">
-(define hello (name)
-    (string-append "hello" name))
-</code></pre>
-"#
-        );
+        insta::assert_snapshot!(html_export(org_src), @r#"
+        <pre><code class="src">
+        (define hello (name)
+            (string-append "hello" name))
+        </code></pre>
+        "#);
     }
 
     #[test]
@@ -1502,13 +1451,11 @@ here
     (string-append "hello" name))
 #+end_src"#;
 
-        assert_eq!(
-            html_export(org_src),
-            r#"<pre><code class="src src-scheme">
-(define hello (name)
-    (string-append "hello" name))
-</code></pre>
-"#
-        );
+        insta::assert_snapshot!(html_export(org_src), @r#"
+        <pre><code class="src src-scheme">
+        (define hello (name)
+            (string-append "hello" name))
+        </code></pre>
+        "#);
     }
 }
